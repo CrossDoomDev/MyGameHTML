@@ -1,1 +1,1 @@
-import {Game} from './world.js?v=zoom-controls-014';const game=new Game(document.getElementById('game'));game.start();
+import {Game} from './world.js?v=zoom-controls-015';const game=new Game(document.getElementById('game'));game.start();
