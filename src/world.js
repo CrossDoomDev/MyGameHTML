@@ -21,7 +21,8 @@ export class Game{
   // Migrate progress from the 20x20 prototype; only the new map's positions change.
   if(data.version!==2){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
-  this.modelMode=localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
+  // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
+  this.modelMode=localStorage.getItem('tiholesye-model')==='2d'?'2d':'3d';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
   this.npcs=[
