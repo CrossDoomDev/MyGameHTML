@@ -20,7 +20,7 @@ export const ENVIRONMENT = {
  crops: {source:[955,1004,299,250],size:[48,44]}
 };
 export async function loadAssets() {
- const names=['village-source','hero-source','hero','elder','smith','merchant','villager','goblin','mossling','guardian','icons'];
+ const names=['village-source','hero-source','hero-3d-atlas','hero','elder','smith','merchant','villager','goblin','mossling','guardian','icons'];
  const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src='assets/'+name+'.png';
  }))));
@@ -42,6 +42,7 @@ export async function loadAssets() {
   hc.drawImage(images['hero-source'],sx,sy,sw,sh,dx,dy,w,h);
  }
  images.hero=hero;
+ images.hero3d=images['hero-3d-atlas'];
  return {images,environment};
 }
 export const directions=['down','left','right','up'];
@@ -50,7 +51,8 @@ export function drawCharacter(c,assets,entity,time) {
  const frame=attacking?6+Math.min(3,Math.floor((time-entity.attackStarted)/90)):
   moving?2+Math.floor(time/125)%4:Math.floor(time/650)%2;
  const row=Math.max(0,directions.indexOf(entity.direction||'down'));
- const image=assets.images[entity.sprite||'hero'],hero=entity.sprite==='hero';
- const cell=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;
- c.drawImage(image,frame*cell,row*cell,cell,cell,Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,cell,cell);
+ const is3d=entity.sprite==='hero3d',hero=entity.sprite==='hero'||is3d;
+ const image=assets.images[entity.sprite||'hero'],sourceCell=is3d?128:hero?80:48;
+ const size=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;
+ c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
 }

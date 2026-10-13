@@ -21,7 +21,8 @@ export class Game{
   // Migrate progress from the 20x20 prototype; only the new map's positions change.
   if(data.version!==2){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
-  this.player=anchored({...p,sprite:'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
+  this.modelMode=localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
+  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
   this.npcs=[
    anchored({id:'elder',kind:'npc',name:'Староста Ольгерд',sprite:'elder',x:11,y:15}),
@@ -49,6 +50,11 @@ export class Game{
  findPath(tx,ty){return findPath(this.map,this.player.x,this.player.y,tx,ty,(x,y)=>this.occupied(x,y));}
  resize(){this.canvas.width=Math.max(1,Math.floor(innerWidth/this.zoom));this.canvas.height=Math.max(1,Math.floor(innerHeight/this.zoom));this.ctx.imageSmoothingEnabled=false;}
  setZoom(value){this.zoom=clamp(value,1,3);this.resize();this.toast('Масштаб '+this.zoom.toFixed(1)+'×');}
+ setModelMode(mode){
+  this.modelMode=mode==='3d'?'3d':'2d';this.player.sprite=this.modelMode==='3d'?'hero3d':'hero';
+  try{localStorage.setItem('tiholesye-model',this.modelMode);}catch{}
+  this.ui.portrait(this.assets);this.toast(this.modelMode==='3d'?'Включена 3D-модель героя':'Включён пиксельный 2D-герой');
+ }
  bindInput(){
   this.canvas.addEventListener('pointerdown',e=>this.click(e));
   window.addEventListener('resize',()=>this.resize());

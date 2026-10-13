@@ -51,6 +51,7 @@ for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['i
 assert(isBlocked(map,22,15),'river is impassable');assert(!isBlocked(map,23,16),'bridge is passable');
 for(const b of map.buildings)assert(isBlocked(map,b.x,b.y),'building must collide');
 const game=new Game(document.getElementById('game'));await game.start();
+assert.equal(game.modelMode,'2d');game.setModelMode('3d');assert.equal(game.player.sprite,'hero3d');assert.equal(store.get('tiholesye-model'),'3d');game.setModelMode('2d');assert.equal(game.player.sprite,'hero');
 for(const row of heroFrames)for(const frame of row){const [, ,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero art must fit within its exact frame');}
 for(const b of game.map.buildings)assert(game.findPath(b.doorX,b.doorY+1).length,b.id+' entrance must remain reachable');
 const tick=(count)=>{for(let i=0;i<count;i++){game.time+=50;game.update(50);}};
@@ -69,9 +70,9 @@ const boss=game.mobs.find(m=>m.boss);boss.alive=true;Object.assign(boss,{x:18,y:
 game.player.hp=1;mob.alive=true;mob.hp=mob.max;mob.lastAttack=0;game.time+=2000;game.update(20);assert.equal(game.player.hp,game.player.maxHp,'death restores health');assert.equal(game.player.x,SPAWN.x);
 game.save();const restored=new Game(new Canvas('restore-test'));assert.equal(restored.player.coins,game.player.coins);assert(restored.player.boss);assert(!restored.mobs.find(m=>m.boss).alive);
 store.set('tiholesye-v01',JSON.stringify({hp:70,maxHp:100,kills:2,coins:10,x:9,y:7}));const migrated=new Game(new Canvas('migration-test'));assert.equal(migrated.player.hp,70);assert.equal(migrated.player.kills,2);assert.equal(migrated.player.x,SPAWN.x);
-store.clear();const fresh=new Game(new Canvas('preview'));await fresh.start();fresh.renderer.draw(800);fresh.ui.update();
+store.clear();const fresh=new Game(new Canvas('preview'));await fresh.start();fresh.setModelMode('3d');fresh.renderer.draw(800);fresh.ui.update();
 const snapshot={canvas:fresh.canvas.id,canvases:canvases.map(c=>({id:c.id,width:c.width,height:c.height,ops:c.ctx.ops})),scale:2};
 fs.mkdirSync('.qa',{recursive:true});fs.writeFileSync('.qa/frame.json',JSON.stringify(snapshot));
 clearTimeout(game.ui.timer);clearTimeout(fresh.ui.timer);clearTimeout(restored.ui.timer);clearTimeout(migrated.ui.timer);
-console.log('PASS: village routes, collisions, movement, combat animation, loot, potions, quest rewards, boss, levels, death, save migration.');
+console.log('PASS: routes, collisions, movement, combat animation, 2D/3D switching, loot, quests, boss, levels, death and save migration.');
 console.log('Renderer exercised with real map and asset metadata; browser QA unavailable in this sandbox.');
