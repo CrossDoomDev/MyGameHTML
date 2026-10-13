@@ -1,1 +1,34 @@
-<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#17251c"><title>Тихолесье — RPG Prototype</title><link rel="stylesheet" href="style.css"></head><body><main id="app"><canvas id="game" aria-label="Игровой мир"></canvas><div id="hud"><div id="stats"></div><div id="quest"></div></div><div id="actions"><button id="zoomOut" title="Отдалить камеру">−</button><button id="zoomIn" title="Приблизить камеру">+</button><button id="potion" title="Лечебное зелье">🧪</button><button id="bag" title="Инвентарь">🎒</button><button id="help" title="Помощь">?</button></div><div id="panel" hidden></div><div id="toast"></div><div id="build" style="position:absolute;bottom:3px;left:8px;font:11px system-ui;color:#fff;background:#17251cbb;padding:2px 5px;pointer-events:none">v0.1.5 · камера ×0.85</div></main><script type="module" src="src/main.js?v=zoom-controls-015"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#26342a">
+<meta name="description" content="Тихолесье — маленький пиксельный мир. Исследуй деревню, помоги её жителям и встреть лесного стража.">
+<title>Тихолесье · Лесная деревня</title><link rel="stylesheet" href="style.css">
+</head>
+<body><main id="app">
+<canvas id="game" aria-label="Тихолесье. WASD — движение, пробел — атака, E — общение." tabindex="0"></canvas>
+<div id="loading"><div class="loading-leaf">✦</div><strong>Тихолесье</strong><span>Просыпается лес…</span></div>
+<div id="hud"><div class="portrait wood-frame"><canvas id="portrait" width="48" height="48"></canvas><span id="level">1</span></div><div class="vitals wood-frame"><div class="bar health"><i id="hpFill"></i><span id="hpText">120 / 120</span></div><div class="bar mana"><i id="manaFill"></i><span id="manaText">60 / 60</span></div><div class="xp"><i id="xpFill"></i></div></div></div>
+<div id="location"><span class="location-mark">✦</span><div><strong>Тихолесье</strong><span id="region">Лесная деревня</span></div></div>
+<button id="minimapButton" class="wood-frame" aria-label="Открыть карту (M)"><span id="sun">☀</span><canvas id="minimap" width="144" height="104"></canvas><span class="map-caption">M · КАРТА</span></button>
+<div id="quest"><span class="quest-mark">!</span><div><strong id="questTitle">Просьба старосты</strong><span id="questText">Поговори со старостой у таверны</span></div><button id="journal" aria-label="Журнал (J)">›</button></div>
+<div id="interaction" hidden>E <span>Поговорить</span></div>
+<div id="hotbar" class="wood-frame" aria-label="Быстрые предметы">
+<button class="slot selected" data-slot="0" title="Посох · атака (1 / пробел)"><kbd>1</kbd><span class="item item-staff"></span></button>
+<button class="slot" data-slot="1" title="Лесные травы (2)"><kbd>2</kbd><span class="item item-herb"></span><small id="herbCount">0</small></button>
+<button class="slot" data-slot="2" title="Зелье (3)"><kbd>3</kbd><span class="item item-potion"></span><small id="potionCount">2</small></button>
+<button class="slot" data-slot="3" title="Древесина (4)"><kbd>4</kbd><span class="item item-wood"></span><small id="woodCount">0</small></button>
+<button class="slot" data-slot="4" title="Рюкзак (5 / B)"><kbd>5</kbd></button>
+<button class="slot" data-slot="5" title="Журнал (6 / J)"><kbd>6</kbd></button>
+</div>
+<div id="actions">
+<button id="bag" class="wood-frame" title="Рюкзак (B)" aria-label="Рюкзак"><span class="item item-bag"></span><kbd>B</kbd></button>
+<button id="map" class="wood-frame" title="Карта (M)" aria-label="Карта"><span class="item item-map"></span><kbd>M</kbd></button>
+<button id="journalAction" class="wood-frame" title="Журнал (J)" aria-label="Журнал"><span class="item item-journal"></span><kbd>J</kbd></button>
+<button id="settings" class="wood-frame" title="Настройки (Esc)" aria-label="Настройки"><span class="item item-settings"></span><kbd>Esc</kbd></button>
+</div>
+<div id="hint">WASD · движение <span>Пробел · атака</span> E · общение</div>
+<div id="mobileActions"><button id="mobileInteract" aria-label="Взаимодействовать">E</button><button id="mobileAttack" aria-label="Атаковать">⚔</button></div><div id="joystick" aria-label="Джойстик движения"><i></i></div>
+<div id="panelBackdrop" hidden><section id="panel" class="wood-frame" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></section></div>
+<div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.2</span>
+</main><script type="module" src="src/main.js"></script></body></html>
