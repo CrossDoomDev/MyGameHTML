@@ -8,7 +8,7 @@ export class UI{
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>this.slot(Number(b.dataset.slot)));
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
  }
- portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.drawImage(assets.images.hero,16,20,48,48,0,0,48,48);}
+ portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,16,20,48,48,0,0,48,48);}
  show(title,subtitle,html){
   this.g.keys.clear();this.g.stick={x:0,y:0};this.g.path=[];this.g.target=null;
   this.panel.innerHTML='<button class="close" id="closePanel" aria-label="Закрыть">×</button><span class="eyebrow">'+subtitle+'</span><h2 id="panelTitle">'+title+'</h2>'+html;
@@ -74,10 +74,11 @@ export class UI{
   this.g.renderer.minimap(this.panel.querySelector('#largeMap'),true);
  }
  settings(){
-  this.show('У костра','Настройки и управление','<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на землю — идти; на врага — атаковать<br>Пробел — атака · E — общение и сбор<br>1–6 — быстрые предметы · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — строительство и тестирование механик</p><button class="button" id="openBuilder">Инструменты прототипа</button><p class="note">Прогресс сохраняется на этом устройстве.<br>Версия 0.2 · одиночный прототип</p>');
+  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="assets/hero-3d-preview.png" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="assets/hero-3d.glb" download>Скачать GLB</a></div></div><div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на землю — идти; на врага — атаковать<br>Пробел — атака · E — общение и сбор<br>1–6 — быстрые предметы · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — строительство и тестирование механик</p><button class="button" id="openBuilder">Инструменты прототипа</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.3 · одиночный прототип</p>');
   this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
+  this.panel.querySelector('#modelMode').onclick=()=>{this.g.setModelMode(this.g.modelMode==='3d'?'2d':'3d');this.settings();};
   this.panel.querySelector('#openBuilder').onclick=()=>this.builder();
  }
  builder(){
