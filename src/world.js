@@ -25,6 +25,8 @@ export class Game{
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
   // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
   this.modelMode=localStorage.getItem('tiholesye-model')==='2d'?'2d':'3d';
+  // NPC graphics can be changed independently from the player and gameplay.
+  this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='vector'?'vector':'pixel';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
   this.npcs=[
@@ -57,6 +59,11 @@ export class Game{
   this.modelMode=mode==='3d'?'3d':'2d';this.player.sprite=this.modelMode==='3d'?'hero3d':'hero';
   try{localStorage.setItem('tiholesye-model',this.modelMode);}catch{}
   this.ui.portrait(this.assets);this.toast(this.modelMode==='3d'?'Включена 3D-модель героя':'Включён пиксельный 2D-герой');
+ }
+ setNPCStyle(style){
+  this.npcStyle=style==='vector'?'vector':'pixel';
+  try{localStorage.setItem('tiholesye-npc-style',this.npcStyle);}catch{}
+  this.toast(this.npcStyle==='vector'?'Жители: векторный стиль':'Жители: пиксельный стиль');
  }
  bindInput(){
   this.canvas.addEventListener('pointerdown',e=>this.click(e));
