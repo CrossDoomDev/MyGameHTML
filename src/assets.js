@@ -28,7 +28,14 @@ export async function loadAssets() {
  for(const [name,{source,size}] of Object.entries(ENVIRONMENT)){
   const canvas=document.createElement('canvas'); [canvas.width,canvas.height]=size;
   const c=canvas.getContext('2d'); c.imageSmoothingEnabled=false;
-  c.drawImage(images['village-source'],...source,0,0,...size); environment[name]=canvas;
+  c.drawImage(images['village-source'],...source,0,0,...size);
+  // The generated atlas has detached 1–2 px dark vertical fragments on the
+  // far-left edge of the cottage (three streaks) and forge (one streak).
+  // Their actual connected artwork starts at x=9 and x=5 respectively.
+  // Clear only that stray edge area; do not modify the buildings themselves.
+  if(name==='cottage')c.clearRect(0,0,3,canvas.height);
+  if(name==='forge')c.clearRect(0,0,2,canvas.height);
+  environment[name]=canvas;
  }
  // Normalize generated poses into 10 equal 80px cells per direction. Foot
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
