@@ -24,6 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: python3 -m pip install --quiet Pillow
       - run: python3 tests/vector-npcs-art.py
       - run: node tests/mechanics.mjs
       - run: node tests/animation.mjs
