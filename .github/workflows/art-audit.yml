@@ -1,0 +1,28 @@
+name: Village art audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/art-audit.yml'
+      - 'tools/audit_environment_art.py'
+      - 'src/renderer.js'
+      - 'src/assets.js'
+      - 'tests/mechanics.mjs'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Inspect environmental tiles and isolate possible stray pixels
+        run: python3 tools/audit_environment_art.py
+      - name: Verify game mechanics
+        run: node tests/mechanics.mjs
