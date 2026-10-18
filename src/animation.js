@@ -3,11 +3,13 @@ export function updateAnimation(entity, dt, time) {
  const attacking=time<entity.attackUntil;
  const state=attacking?'attack':entity.moving?'walk':'idle';
  const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
- if(entity.animationState!==state||entity.animationDirection!==direction){
-  entity.animationState=state;entity.animationDirection=direction;entity.animationTime=0;
+ // Turning during a stride changes the view, not which foot takes the next step.
+ if(entity.animationState!==state||(entity.animationDirection!==direction&&state!=='walk')){
+  entity.animationTime=0;
  }else if(state!=='attack'){
   entity.animationTime+=dt*(state==='walk'?210/(entity.step?.duration||210):1);
  }
+ entity.animationState=state;entity.animationDirection=direction;
 }
 export function characterFrame(entity,time) {
  if(time<entity.attackUntil){

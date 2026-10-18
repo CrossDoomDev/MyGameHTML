@@ -8,6 +8,9 @@ on:
       - 'src/renderer.js'
       - 'src/assets.js'
       - 'tests/mechanics.mjs'
+      - 'assets/hero-walk*'
+      - 'tools/prepare_hero_walk.py'
+      - 'tests/hero_walk_art.py'
   workflow_dispatch:
 
 jobs:
@@ -26,3 +29,5 @@ jobs:
         run: python3 tools/audit_environment_art.py
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
+      - name: Verify alternating hero boot artwork
+        run: python3 tests/hero_walk_art.py

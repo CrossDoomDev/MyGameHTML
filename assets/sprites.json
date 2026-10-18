@@ -99,7 +99,58 @@
       ]
     },
     "bounds": "src/hero-frames.js",
-    "source": "assets/hero-source.png"
+    "source": "assets/hero-source.png",
+    "walk": {
+      "source": "assets/hero-walk-source.png",
+      "atlas": "assets/hero-walk.png",
+      "cell": [
+        80,
+        80
+      ],
+      "anchor": [
+        40,
+        64
+      ],
+      "sourceAnchors": [
+        [
+          32,
+          54
+        ],
+        [
+          32,
+          52
+        ],
+        [
+          33,
+          53
+        ],
+        [
+          32,
+          56
+        ]
+      ],
+      "sourceScale": 0.84375,
+      "directions": [
+        "down",
+        "left",
+        "right",
+        "up"
+      ],
+      "phases": [
+        "left_contact",
+        "right_passing",
+        "right_contact",
+        "left_passing"
+      ],
+      "destinationColumns": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "cycleMs": 420,
+      "build": "tools/prepare_hero_walk.py"
+    }
   },
   "npcs": {
     "source": "assets/npc-source.png",

@@ -28,5 +28,25 @@
     "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
     "sha12": "082c94a5f8ce",
     "label": "Tiholesye NPC fisher"
+  },
+  "assets/hero-reference.png": {
+    "asset_id": "6b4cfd3b-d607-4e6a-a960-802dad3c1fdd",
+    "sha12": "70b65f3de07d",
+    "label": "Canonical hero appearance"
+  },
+  "assets/hero-walk-guide.png": {
+    "asset_id": "ef557964-676b-4d5b-9583-2079284ab612",
+    "sha12": "950ac7154bbc",
+    "label": "Alternating contact and passing pose guide"
+  },
+  "assets/hero-walk-source.png": {
+    "asset_id": "3c207647-6ff1-4745-b661-2a0c176cb52d",
+    "sha12": "e6e8f62f9717",
+    "label": "SpriteCook redrawn four-direction walk"
+  },
+  "assets/hero-walk.png": {
+    "asset_id": "3c207647-6ff1-4745-b661-2a0c176cb52d",
+    "sha12": "9a96c49b1840",
+    "label": "Packed four-direction walk"
   }
 }

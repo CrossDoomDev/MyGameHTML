@@ -23,7 +23,7 @@ export const ENVIRONMENT = {
  crops: {source:[955,1004,299,250],size:[48,44]}
 };
 export async function loadAssets() {
- const names=['village-source','hero-source','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
+ const names=['village-source','hero-source','hero-walk','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src=assetURL(name+'.png');
  }))));
@@ -46,6 +46,11 @@ export async function loadAssets() {
  const hc=hero.getContext('2d');hc.imageSmoothingEnabled=false;
  const poses=[0,1,2,3,4,5,6,7,6,0];
  for(let row=0;row<4;row++)for(let col=0;col<10;col++){
+  if(col>=2&&col<=5){
+   // Authored contacts/passing poses, packed with fixed body anchors.
+   hc.drawImage(images['hero-walk'],(col-2)*80,row*80,80,80,col*80,row*80,80,80);
+   continue;
+  }
   // The supplied left attack faces right: mirror the matching right pose.
   const flip=row===1&&col>=6&&col<=8;
   const f=heroFrames[flip?2:row][poses[col]],[sx,sy,sw,sh]=f.source;
