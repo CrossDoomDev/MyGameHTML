@@ -49,7 +49,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   });
   assert.equal(assets.length,5);
   for(const a of assets){
-   assert(a.complete && a.width===(a.name==='elder'?48:384) && a.height===(a.name==='elder'?192:1536),
+   assert(a.complete && a.width===384 && a.height===1536,
     'Wrong SVG source dimensions: '+JSON.stringify(a));
   }
 
@@ -87,6 +87,17 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert.equal(await page.evaluate(()=>localStorage.getItem('tiholesye-npc-style')),'vector');
   await page.evaluate(()=>window.tiholesye.ui.close());
   await page.waitForTimeout(220);
+  const hiRes=await page.evaluate(()=>{
+   const overlay=document.getElementById('npcOverlay');
+   const c=overlay.getContext('2d'),data=c.getImageData(0,0,overlay.width,overlay.height).data;
+   let nonTransparent=0;
+   for(let i=3;i<data.length;i+=4)if(data[i]>16)nonTransparent++;
+   return {width:overlay.width,height:overlay.height,cssWidth:overlay.clientWidth,
+           nonTransparent,imageRendering:getComputedStyle(overlay).imageRendering};
+  });
+  assert(hiRes.nonTransparent>200,'Vector NPC overlay should contain visible artwork');
+  assert(hiRes.width>=hiRes.cssWidth,'Vector art must be drawn at device resolution');
+  assert.notEqual(hiRes.imageRendering,'pixelated','Vector art layer must not use nearest-neighbor scaling');
   await page.screenshot({path:'.qa/npc-vector-in-game.png'});
 
   await page.reload();

@@ -4,7 +4,10 @@ import { sceneryPlacement, buildingPlacement, coversActor } from './visibility.j
 
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),w,h);};
 export class Renderer{
- constructor(game){this.game=game;this.c=game.ctx;this.occlusionAlpha=new WeakMap();this.ground=document.createElement('canvas');this.ground.width=WIDTH*TILE;this.ground.height=HEIGHT*TILE;this.bakeGround();this.miniBase=document.createElement('canvas');this.miniBase.width=WIDTH*4;this.miniBase.height=HEIGHT*4;this.bakeMinimap();}
+ constructor(game){this.game=game;this.c=game.ctx;
+  const overlay=document.getElementById('npcOverlay');
+  this.npcOverlay=overlay&&typeof overlay.getContext==='function'?overlay:null;
+  this.occlusionAlpha=new WeakMap();this.ground=document.createElement('canvas');this.ground.width=WIDTH*TILE;this.ground.height=HEIGHT*TILE;this.bakeGround();this.miniBase=document.createElement('canvas');this.miniBase.width=WIDTH*4;this.miniBase.height=HEIGHT*4;this.bakeMinimap();}
  sceneryOpacity(object,placement){
   const g=this.game,mask=g.assets.environmentMasks?.[object.sprite];
   const obscures=this.protectedActors.some(actor=>coversActor(placement,actor,mask));
@@ -152,6 +155,42 @@ export class Renderer{
   // Ripples below the bridge.
   for(let n=0;n<9;n++)rect(c,X+10+n*8,18*TILE+7+Math.floor(Math.sin(time/900+n)*3),5,1,'#448e95');
  }
+ // Illustrations must be rendered at *screen* resolution. #game is intentionally
+ // pixelated for terrain; drawing SVG NPCs into that low-resolution canvas
+ // would turn even perfect vector curves into blocks after CSS upscaling.
+ drawNPCOverlay(){
+  const overlay=this.npcOverlay,g=this.game;
+  if(!overlay)return;
+  const cssW=overlay.clientWidth||g.canvas.clientWidth||innerWidth;
+  const cssH=overlay.clientHeight||g.canvas.clientHeight||innerHeight;
+  const pixelRatio=Math.min(window.devicePixelRatio||1,2);
+  const neededW=Math.max(1,Math.round(cssW*pixelRatio)),neededH=Math.max(1,Math.round(cssH*pixelRatio));
+  if(overlay.width!==neededW)overlay.width=neededW;
+  if(overlay.height!==neededH)overlay.height=neededH;
+  const c=overlay.getContext('2d');
+  c.setTransform(pixelRatio,0,0,pixelRatio,0,0);
+  c.clearRect(0,0,cssW,cssH);
+  if(g.npcStyle!=='vector'||!g.assets)return;
+  const sx=cssW/g.canvas.width,sy=cssH/g.canvas.height;
+  c.save();
+  c.imageSmoothingEnabled=true;
+  c.imageSmoothingQuality='high';
+  for(const npc of g.npcs){
+   const image=g.assets.images['vector-'+npc.sprite];
+   if(!image)continue;
+   const row={down:0,left:1,right:2,up:3}[npc.direction||'down']??0;
+   const x=(npc.px-g.camera.x-24)*sx,y=(npc.py-g.camera.y-42)*sy;
+   // Same 48x48 world-space footprint and 42px foot anchor as pixel NPCs.
+   // Drawing directly on this device-resolution layer preserves smooth lines.
+   c.drawImage(image,0,row*384,384,384,x,y,48*sx,48*sy);
+  }
+  if(g.night){
+   c.globalCompositeOperation='source-atop';
+   c.fillStyle='#13284755';
+   c.fillRect(0,0,cssW,cssH);
+  }
+  c.restore();
+ }
  draw(time){
   const g=this.game,c=this.c,w=g.canvas.width,h=g.canvas.height,p=g.player;
   this.fadeDelta=this.lastDrawTime===undefined?16:Math.max(0,time-this.lastDrawTime);this.lastDrawTime=time;
@@ -177,7 +216,9 @@ export class Renderer{
     if(entity.sprite==='guardian'||entity.sprite==='mossling'){
      const cell=entity.boss?64:48,frame=Math.floor(time/(entity.moving?130:250))%8,anchor=entity.boss?56:42;
      c.drawImage(g.assets.images[entity.sprite],frame*cell,0,cell,cell,Math.round(entity.px-cell/2),Math.round(entity.py-anchor),cell,cell);
-    }else drawCharacter(c,g.assets,entity,time,g.npcStyle);
+    }else if(!(this.npcOverlay&&g.npcStyle==='vector'&&entity.kind==='npc')){
+     drawCharacter(c,g.assets,entity,time,g.npcStyle);
+    }
     c.globalAlpha=1;
     if(entity.max&&entity.hp<entity.max){rect(c,entity.px-15,entity.py-(entity.boss?64:44),30,4,'#283427');rect(c,entity.px-14,entity.py-(entity.boss?63:43),Math.round(28*entity.hp/entity.max),2,entity.boss?'#cd9651':'#ba5741');}
     if(entity.kind==='npc'&&entity.id==='elder'&&!p.questReward){const y=entity.py-49+Math.round(Math.sin(time/450)*2);rect(c,entity.px-3,y-2,8,13,'#3d482c');c.fillStyle='#e4c85e';c.font='bold 12px Georgia';c.fillText('!',entity.px-1,y+8);}
@@ -214,6 +255,7 @@ export class Renderer{
   if(g.night){c.fillStyle='#13284755';c.fillRect(0,0,w,h);}
   // Warm late-afternoon color grade.
   c.fillStyle='#d5b65408';c.fillRect(0,0,w,h);
+  this.drawNPCOverlay();
   this.minimap(document.getElementById('minimap'));
  }
 }

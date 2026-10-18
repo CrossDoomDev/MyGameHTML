@@ -67,8 +67,8 @@ for(const npc of game.npcs){
   drawCharacter(game.ctx,game.assets,npc,0,'vector');
   const op=game.ctx.ops.at(-1);
   assert.equal(op.op,'drawImage');
-  assert(op.args[0].includes('vector-'+npc.sprite+(npc.sprite==='elder'?'.webp':'.svg')),'SVG NPC used: '+npc.sprite);
-  assert.equal(op.args[2],row*(npc.sprite==='elder'?48:384),'correct illustrated direction: '+npc.sprite+' '+direction);
+  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'SVG NPC used: '+npc.sprite);
+  assert.equal(op.args[2],row*384,'correct illustrated direction: '+npc.sprite+' '+direction);
   assert.equal(op.args[7],48,'same displayed NPC width');
   assert.equal(op.args[8],48,'same displayed NPC height');
  }
