@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SVG = "{http://www.w3.org/2000/svg}"
-names = ("elder", "smith", "merchant", "villager", "fisher")
+names = ("smith", "merchant", "villager", "fisher")
 for name in names:
     file = ROOT / "assets" / f"vector-{name}.svg"
     root = ET.parse(file).getroot()
@@ -21,3 +21,13 @@ for name in names:
     assert not root.findall("./"+SVG+"rect"),(name,"background rect found")
     print(f"[VECTOR] {name}: four poses, 384px source frames, transparent SVG")
 print("[VECTOR NPC] OK")
+
+# The approved lantern-carrying chibi elder is a transparent WebP turnaround.
+from PIL import Image
+atlas = Image.open(ROOT / "assets/vector-elder.webp").convert("RGBA")
+assert atlas.size == (48, 192)
+for row, side in enumerate(("down","left","right","up")):
+    frame = atlas.crop((0, row*48, 48, (row+1)*48))
+    box = frame.getchannel("A").getbbox()
+    assert box and box[1] <= 6 and box[3] == 45, (side,box)
+print("[CHIBI ELDER] OK: 4 transparent views, aligned boot baseline")

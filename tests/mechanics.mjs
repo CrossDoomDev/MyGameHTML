@@ -52,6 +52,9 @@ for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['i
 }
 assert(isBlocked(map,22,15),'river is impassable');assert(!isBlocked(map,23,16),'bridge is passable');
 for(const b of map.buildings)assert(isBlocked(map,b.x,b.y),'building must collide');
+const defaultStyle=new Game(new Canvas('default-npc-style'));
+assert.equal(defaultStyle.npcStyle,'vector','chibi elder active by default');
+store.set('tiholesye-npc-style','pixel');
 const game=new Game(document.getElementById('game'));await game.start();
 // Check original pixel mode, switch availability, persistence and every SVG
 // direction. This is intentionally independent from player 2D/3D choice.
@@ -64,8 +67,8 @@ for(const npc of game.npcs){
   drawCharacter(game.ctx,game.assets,npc,0,'vector');
   const op=game.ctx.ops.at(-1);
   assert.equal(op.op,'drawImage');
-  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'SVG NPC used: '+npc.sprite);
-  assert.equal(op.args[2],row*384,'correct SVG direction: '+npc.sprite+' '+direction);
+  assert(op.args[0].includes('vector-'+npc.sprite+(npc.sprite==='elder'?'.webp':'.svg')),'SVG NPC used: '+npc.sprite);
+  assert.equal(op.args[2],row*(npc.sprite==='elder'?48:384),'correct illustrated direction: '+npc.sprite+' '+direction);
   assert.equal(op.args[7],48,'same displayed NPC width');
   assert.equal(op.args[8],48,'same displayed NPC height');
  }

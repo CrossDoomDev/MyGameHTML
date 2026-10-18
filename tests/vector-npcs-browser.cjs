@@ -15,7 +15,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   fs.readFile(file,(err,data)=>{
    if(err){res.writeHead(404).end();return;}
    const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css',
-    '.png':'image/png','.svg':'image/svg+xml','.json':'application/json'};
+    '.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.json':'application/json'};
    res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
    res.end(data);
   });
@@ -27,7 +27,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const page=await browser.newPage({viewport:{width:1280,height:900}});
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().includes('favicon'))errors.push(r.status()+' '+r.url());});
-  await page.addInitScript(()=>localStorage.setItem('tiholesye-model','2d'));
+  await page.addInitScript(()=>{localStorage.setItem('tiholesye-model','2d');localStorage.setItem('tiholesye-npc-style','pixel');});
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
@@ -41,7 +41,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   });
   assert.equal(assets.length,5);
   for(const a of assets){
-   assert(a.complete && a.width===384 && a.height===1536,
+   assert(a.complete && a.width===(a.name==='elder'?48:384) && a.height===(a.name==='elder'?192:1536),
     'Wrong SVG source dimensions: '+JSON.stringify(a));
   }
 

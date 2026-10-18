@@ -26,7 +26,7 @@ export class Game{
   // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
   this.modelMode=localStorage.getItem('tiholesye-model')==='2d'?'2d':'3d';
   // NPC graphics can be changed independently from the player and gameplay.
-  this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='vector'?'vector':'pixel';
+  this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
   this.npcs=[

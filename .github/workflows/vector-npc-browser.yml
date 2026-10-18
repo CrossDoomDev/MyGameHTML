@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/vector-npc-browser.yml'
       - 'assets/vector-*.svg'
+      - 'assets/vector-*.webp'
+      - 'tests/vector-npcs-art.py'
       - 'src/assets.js'
       - 'src/world.js'
       - 'src/renderer.js'
@@ -26,6 +28,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify four-view cartoon elder and vector NPC assets
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 tests/vector-npcs-art.py
       - name: Install actual Chromium browser for screenshot comparison
         run: |
           npm install --no-save --no-audit --no-fund playwright

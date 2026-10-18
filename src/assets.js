@@ -26,7 +26,7 @@ export async function loadAssets() {
  const names=['village-source','hero-source','hero-walk','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  // Preserve the original pixel NPC art; SVG sheets are fully separate.
  const files=[...names.map(name=>[name,name+'.png']),
-  ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+'.svg'])];
+  ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+(name==='elder'?'.webp':'.svg')])];
  const images=Object.fromEntries(await Promise.all(files.map(([name,file])=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+file)); image.src=assetURL(file);
  }))));
@@ -81,7 +81,7 @@ export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
  const is3d=entity.sprite==='hero3d',hero=entity.sprite==='hero'||is3d;
  const vectorNPC=npcStyle==='vector'&&NPC_SPRITES.includes(entity.sprite);
  const image=vectorNPC?assets.images['vector-'+entity.sprite]:assets.images[entity.sprite||'hero'];
- const sourceCell=vectorNPC?384:is3d?128:hero?80:48;
+ const sourceCell=vectorNPC?(entity.sprite==='elder'?48:384):is3d?128:hero?80:48;
  const size=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;
  // Smooth only SVG NPCs; terrain, hero and original pixel NPCs stay crisp.
  if(vectorNPC){c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';}
