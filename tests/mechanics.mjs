@@ -51,6 +51,20 @@ for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['i
 assert(isBlocked(map,22,15),'river is impassable');assert(!isBlocked(map,23,16),'bridge is passable');
 for(const b of map.buildings)assert(isBlocked(map,b.x,b.y),'building must collide');
 const game=new Game(document.getElementById('game'));await game.start();
+// Artwork regressions: detached lines in the atlas must be clipped before
+// placing cottage / forge; connected dirt tiles must not have grid outlines.
+for(const [sprite,width] of [['cottage',3],['forge',2]]){
+ const operations=game.assets.environment[sprite].getContext('2d').ops;
+ assert(operations.some(op=>op.op==='clearRect'&&op.args[0]===0&&op.args[1]===0&&op.args[2]===width),
+  sprite+' must remove disconnected atlas edge streaks');
+}
+const groundOps=game.renderer.ground.getContext('2d').ops;
+assert(!groundOps.some(op=>op.op==='fillRect'&&op.state.fillStyle==='#a68052'),
+ 'Dirt paths must not draw the dark top/left square tile seams');
+const pathTiles=map.terrain.flat().filter(t=>t==='path').length;
+const pathBases=groundOps.filter(op=>op.op==='fillRect'&&op.state.fillStyle==='#b38c5b'
+ &&op.args[2]===TILE&&op.args[3]===TILE).length;
+assert.equal(pathBases,pathTiles,'Every path tile must use the same seamless dirt fill');
 assert.equal(game.modelMode,'3d','new players should see Blender hero by default');game.setModelMode('3d');assert.equal(game.player.sprite,'hero3d');assert.equal(store.get('tiholesye-model'),'3d');game.setModelMode('2d');assert.equal(game.player.sprite,'hero');
 for(const row of heroFrames)for(const frame of row){const [, ,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero art must fit within its exact frame');}
 for(const b of game.map.buildings)assert(game.findPath(b.doorX,b.doorY+1).length,b.id+' entrance must remain reachable');
