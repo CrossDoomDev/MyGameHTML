@@ -177,7 +177,7 @@ export class Renderer{
     if(entity.sprite==='guardian'||entity.sprite==='mossling'){
      const cell=entity.boss?64:48,frame=Math.floor(time/(entity.moving?130:250))%8,anchor=entity.boss?56:42;
      c.drawImage(g.assets.images[entity.sprite],frame*cell,0,cell,cell,Math.round(entity.px-cell/2),Math.round(entity.py-anchor),cell,cell);
-    }else drawCharacter(c,g.assets,entity,time);
+    }else drawCharacter(c,g.assets,entity,time,g.npcStyle);
     c.globalAlpha=1;
     if(entity.max&&entity.hp<entity.max){rect(c,entity.px-15,entity.py-(entity.boss?64:44),30,4,'#283427');rect(c,entity.px-14,entity.py-(entity.boss?63:43),Math.round(28*entity.hp/entity.max),2,entity.boss?'#cd9651':'#ba5741');}
     if(entity.kind==='npc'&&entity.id==='elder'&&!p.questReward){const y=entity.py-49+Math.round(Math.sin(time/450)*2);rect(c,entity.px-3,y-2,8,13,'#3d482c');c.fillStyle='#e4c85e';c.font='bold 12px Georgia';c.fillText('!',entity.px-1,y+8);}
