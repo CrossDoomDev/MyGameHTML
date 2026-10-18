@@ -1,0 +1,46 @@
+name: NPC vector graphics browser check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vector-npc-browser.yml'
+      - 'assets/vector-*.svg'
+      - 'src/assets.js'
+      - 'src/world.js'
+      - 'src/renderer.js'
+      - 'src/ui.js'
+      - 'style.css'
+      - 'tests/vector-npcs-browser.cjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-browser-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install actual Chromium browser for screenshot comparison
+        run: |
+          npm install --no-save --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+      - name: Run real browser tests, capture both styles
+        run: node tests/vector-npcs-browser.cjs
+      - name: Upload screenshot comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npc-vector-versus-pixel-screenshots
+          path: |
+            .qa/npc-pixel.png
+            .qa/npc-vector.png
+            .qa/npc-pixel-in-game.png
+            .qa/npc-vector-in-game.png
+          if-no-files-found: warn
+          retention-days: 30
