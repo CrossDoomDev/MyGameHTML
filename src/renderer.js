@@ -10,11 +10,36 @@ export class Renderer{
    const X=x*TILE,Y=y*TILE,type=map.terrain[y][x];
    if(type==='water'){rect(c,X,Y,32,32,['#195469','#1c5c70','#1c6070'][Math.floor(rand(x,y)*3)]);continue;}
    if(type==='bridge'){rect(c,X,Y,32,32,'#365c47');continue;}
-   const grass=['#53743b','#58793e','#5b7b40','#5d7d41'];
-   rect(c,X,Y,32,32,type==='path'?'#b38c5b':grass[Math.floor(rand(x,y)*4)]);
+   // Use one continuous base color for all connected dirt and grass cells.
+   // Per-cell shades and full-length top/left path strokes exposed a 32px
+   // checkerboard even on a straight road.
+   const grassColor='#58793e';
+   rect(c,X,Y,TILE,TILE,type==='path'?'#b38c5b':grassColor);
    if(type==='path'){
-    rect(c,X,Y,32,1,'#a68052');rect(c,X,Y,1,32,'#a68052');
-    for(let n=0;n<8;n++){const a=rand(x*8+n,y,3),b=rand(x,y*8+n,8);rect(c,X+Math.floor(a*30),Y+Math.floor(b*30),1+(n%2),1,n%2?'#c99f69':'#a47f51');}
+    // Small, deterministic, non-grid-aligned grit keeps the road textured.
+    for(let n=0;n<9;n++){
+     const a=rand(x*11+n,y,3),b=rand(x,y*11+n,8);
+     rect(c,X+1+Math.floor(a*(TILE-2)),Y+1+Math.floor(b*(TILE-2)),
+      1+(n%3===0?1:0),1,n%2?'#c99f69':'#a47f51');
+    }
+    // Only blend the *outer* border against grass. Between path/path tiles
+    // there are no seams or dark outlines. Subtle 4px groups give the dirt
+    // a continuous irregular contour instead of perfectly square edges.
+    const fringe=(neighbor,side)=>{
+     if(neighbor!=='grass')return;
+     for(let i=0;i<TILE;i++){
+      const group=Math.floor(i/4);
+      const thickness=1+Math.floor(rand(side<2?x*8+group:x,side<2?y:y*8+group,51+side)*3);
+      if(side===0)rect(c,X+i,Y,1,thickness,grassColor);          // north
+      else if(side===1)rect(c,X+i,Y+TILE-thickness,1,thickness,grassColor); // south
+      else if(side===2)rect(c,X,Y+i,thickness,1,grassColor);     // west
+      else rect(c,X+TILE-thickness,Y+i,thickness,1,grassColor); // east
+     }
+    };
+    fringe(map.terrain[y-1]?.[x],0);
+    fringe(map.terrain[y+1]?.[x],1);
+    fringe(map.terrain[y]?.[x-1],2);
+    fringe(map.terrain[y]?.[x+1],3);
    }else{
     for(let n=0;n<38;n++){
      const a=rand(x*51+n,y,5),b=rand(x,y*51+n,13),color=['#789548','#466b34','#688741','#8b9d50','#3f622f'][n%5];
