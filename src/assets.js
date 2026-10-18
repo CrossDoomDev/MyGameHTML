@@ -2,6 +2,7 @@
 // Source rectangles isolate each illustration; gameplay never relies on image borders.
 import { heroFrames } from './hero-frames.js';
 import { characterFrame } from './animation.js';
+import { assetURL } from './asset-url.js';
 export const NPC_SPRITES=['elder','smith','merchant','villager','fisher'];
 export const ENVIRONMENT = {
  inn: {source:[0,0,402,355],size:[192,160]},
@@ -24,7 +25,7 @@ export const ENVIRONMENT = {
 export async function loadAssets() {
  const names=['village-source','hero-source','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
-  const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src='assets/'+name+'.png';
+  const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src=assetURL(name+'.png');
  }))));
  const environment={};
  for(const [name,{source,size}] of Object.entries(ENVIRONMENT)){
