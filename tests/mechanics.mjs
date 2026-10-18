@@ -44,6 +44,7 @@ globalThis.Image=class{
 };
 globalThis.requestAnimationFrame=()=>{};
 const { Game }=await import('../src/world.js');
+const { drawCharacter, NPC_SPRITES }=await import('../src/assets.js');
 const map=createMap();
 for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['inn',12,15]]){
  const path=findPath(map,SPAWN.x,SPAWN.y,x,y);assert(path.length>0,label+' must be reachable');
@@ -52,6 +53,36 @@ for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['i
 assert(isBlocked(map,22,15),'river is impassable');assert(!isBlocked(map,23,16),'bridge is passable');
 for(const b of map.buildings)assert(isBlocked(map,b.x,b.y),'building must collide');
 const game=new Game(document.getElementById('game'));await game.start();
+// Check original pixel mode, switch availability, persistence and every SVG
+// direction. This is intentionally independent from player 2D/3D choice.
+assert.deepEqual(NPC_SPRITES,['elder','smith','merchant','villager','fisher']);
+assert.equal(game.npcStyle,'pixel','pixel NPC style is the default');
+for(const npc of game.npcs){
+ assert(game.assets.images['vector-'+npc.sprite],'vector SVG loaded for '+npc.sprite);
+ for(const [direction,row] of [['down',0],['left',1],['right',2],['up',3]]){
+  npc.direction=direction;
+  drawCharacter(game.ctx,game.assets,npc,0,'vector');
+  const op=game.ctx.ops.at(-1);
+  assert.equal(op.op,'drawImage');
+  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'SVG NPC used: '+npc.sprite);
+  assert.equal(op.args[2],row*384,'correct SVG direction: '+npc.sprite+' '+direction);
+  assert.equal(op.args[7],48,'same displayed NPC width');
+  assert.equal(op.args[8],48,'same displayed NPC height');
+ }
+ npc.direction='down';
+}
+game.ui.settings();
+assert(game.ui.panel.html.includes('id="npcStyle"'),'settings include style control');
+game.ui.panel.querySelector('#npcStyle').click();
+assert.equal(game.npcStyle,'vector','NPCs switch to vector style');
+assert.equal(store.get('tiholesye-npc-style'),'vector','style choice persisted');
+assert(game.ui.panel.html.includes('aria-pressed="true"'),'selected style reflected in settings');
+const npcStyleRestore=new Game(new Canvas('npc-style-restored'));
+assert.equal(npcStyleRestore.npcStyle,'vector','style restored next time');
+game.ui.panel.querySelector('#npcStyle').click();
+assert.equal(game.npcStyle,'pixel','NPCs switch back to original pixel mode');
+game.ui.close();
+
 // Artwork regressions: detached lines in the atlas must be clipped before
 // placing cottage / forge; connected dirt tiles must not have grid outlines.
 for(const [sprite,width] of [['cottage',3],['forge',2]]){
@@ -108,5 +139,5 @@ store.clear();const fresh=new Game(new Canvas('preview'));await fresh.start();fr
 const snapshot={canvas:fresh.canvas.id,canvases:canvases.map(c=>({id:c.id,width:c.width,height:c.height,ops:c.ctx.ops})),scale:2};
 fs.mkdirSync('.qa',{recursive:true});fs.writeFileSync('.qa/frame.json',JSON.stringify(snapshot));
 clearTimeout(game.ui.timer);clearTimeout(fresh.ui.timer);clearTimeout(restored.ui.timer);clearTimeout(migrated.ui.timer);
-console.log('PASS: routes, collisions, movement, combat animation, 2D/3D switching, loot, quests, boss, levels, death and save migration.');
+console.log('PASS: pixel/vector NPC art, local persistence, routes, movement, combat, hero 2D/3D, quests, boss and saves.');
 console.log('Renderer exercised with map and asset metadata; run tests/browser.cjs for Chrome validation.');
