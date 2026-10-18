@@ -1,6 +1,8 @@
 // Generated environment artwork is sampled onto fixed integer-sized sprites.
 // Source rectangles isolate each illustration; gameplay never relies on image borders.
 import { heroFrames } from './hero-frames.js';
+import { characterFrame } from './animation.js';
+export const NPC_SPRITES=['elder','smith','merchant','villager','fisher'];
 export const ENVIRONMENT = {
  inn: {source:[0,0,402,355],size:[192,160]},
  cottage: {source:[402,0,267,355],size:[144,152]},
@@ -20,7 +22,7 @@ export const ENVIRONMENT = {
  crops: {source:[955,1004,299,250],size:[48,44]}
 };
 export async function loadAssets() {
- const names=['village-source','hero-source','hero-3d-atlas','hero','elder','smith','merchant','villager','goblin','mossling','guardian','icons'];
+ const names=['village-source','hero-source','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src='assets/'+name+'.png';
  }))));
@@ -34,12 +36,17 @@ export async function loadAssets() {
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
  const hero=document.createElement('canvas');hero.width=800;hero.height=320;
  const hc=hero.getContext('2d');hc.imageSmoothingEnabled=false;
- const poses=[0,1,2,3,4,5,6,6,7,7];
+ const poses=[0,1,2,3,4,5,6,7,6,0];
  for(let row=0;row<4;row++)for(let col=0;col<10;col++){
-  const f=heroFrames[row][poses[col]],[sx,sy,sw,sh]=f.source;
+  // The supplied left attack faces right: mirror the matching right pose.
+  const flip=row===1&&col>=6&&col<=8;
+  const f=heroFrames[flip?2:row][poses[col]],[sx,sy,sw,sh]=f.source;
   const scale=.175,w=Math.round(sw*scale),h=Math.round(sh*scale);
-  const anchor=Math.round(f.anchor[0]*scale),dx=col*80+40-anchor,dy=row*80+64-h;
-  hc.drawImage(images['hero-source'],sx,sy,sw,sh,dx,dy,w,h);
+  const anchor=Math.round(f.anchor[0]*scale),dx=col*80+40-anchor,dy=row*80+64-Math.round(f.anchor[1]*scale);
+  hc.save();
+  if(flip){hc.translate(col*80+40,0);hc.scale(-1,1);}
+  hc.drawImage(images['hero-source'],sx,sy,sw,sh,flip?-anchor:dx,dy,w,h);
+  hc.restore();
  }
  images.hero=hero;
  images.hero3d=images['hero-3d-atlas'];
@@ -47,10 +54,10 @@ export async function loadAssets() {
 }
 export const directions=['down','left','right','up'];
 export function drawCharacter(c,assets,entity,time) {
- const moving=entity.moving, attacking=time<entity.attackUntil;
- const frame=attacking?6+Math.min(3,Math.floor((time-entity.attackStarted)/90)):
-  moving?2+Math.floor(time/125)%4:Math.floor(time/650)%2;
- const row=Math.max(0,directions.indexOf(entity.direction||'down'));
+ const attacking=time<entity.attackUntil;
+ const frame=NPC_SPRITES.includes(entity.sprite)?0:characterFrame(entity,time);
+ const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
+ const row=Math.max(0,directions.indexOf(direction||'down'));
  const is3d=entity.sprite==='hero3d',hero=entity.sprite==='hero'||is3d;
  const image=assets.images[entity.sprite||'hero'],sourceCell=is3d?128:hero?80:48;
  const size=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;

@@ -1,0 +1,32 @@
+{
+  "assets/npc-source.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "53d36d467597",
+    "label": "Tiholesye NPC npc-source"
+  },
+  "assets/elder.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "c6c55b0d740c",
+    "label": "Tiholesye NPC elder"
+  },
+  "assets/smith.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "59722f850ebb",
+    "label": "Tiholesye NPC smith"
+  },
+  "assets/merchant.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "5210436218f0",
+    "label": "Tiholesye NPC merchant"
+  },
+  "assets/villager.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "a7712bb17bc8",
+    "label": "Tiholesye NPC villager"
+  },
+  "assets/fisher.png": {
+    "asset_id": "dd3983d1-316e-4a44-8c31-ce152d3ae46c",
+    "sha12": "082c94a5f8ce",
+    "label": "Tiholesye NPC fisher"
+  }
+}

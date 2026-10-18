@@ -1,11 +1,10 @@
 """Original integer-grid character art. No external packages besides Pillow.
 
 48x48 cells; rows down/left/right/up; columns idle(2), walk(4), attack(4).
-All drawing uses solid palette pixels. Re-run to reproduce the shipped sheets.
+Legacy creature/icon art only. SpriteCook NPCs are built by prepare_npcs.py.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
-import json
 
 OUT = Path(__file__).resolve().parents[1] / 'assets'
 OUT.mkdir(exist_ok=True)
@@ -84,10 +83,6 @@ def sheet(name, palette=None, role='hero'):
     image.save(OUT / f'{name}.png')
 
 sheet('hero')
-sheet('elder',{'cloth':'#85775a','light':'#bca27c','shade':'#635744'},'merchant')
-sheet('smith',{'cloth':'#715243','light':'#a47755','shade':'#51392e'},'smith')
-sheet('merchant',{'cloth':'#896734','light':'#bc954c','shade':'#5c482e'},'merchant')
-sheet('villager',{'cloth':'#749ca1','light':'#a1bdb5','shade':'#456973'},'woman')
 sheet('goblin',{'cloth':'#754c39','light':'#98784b','shade':'#4b3b29','skin':'#879052','skinlight':'#bbc174','gem':'#daab53'})
 
 def creature(boss=False):
@@ -134,5 +129,5 @@ r=icon(5); r(4,5,16,15,'#e3cf9a'); r(6,6,3,13,'#b79a62'); r(15,6,3,13,'#b79a62')
 r=icon(6); r(6,4,14,17,'#604631'); r(5,4,12,17,'#9d7850'); r(7,5,8,15,'#d5bd8a'); r(9,8,5,1,'#9d8057'); r(9,12,5,1,'#9d8057'); r(9,16,4,1,'#9d8057')
 r=icon(7); r(9,3,6,18,'#afaf92'); r(3,9,18,6,'#afaf92'); r(5,5,14,14,'#afaf92'); r(7,7,10,10,'#52584c'); r(9,9,6,6,'#bac2ae')
 icons.save(OUT/'icons.png')
-(OUT/'sprites.json').write_text(json.dumps({'tileSize':32,'characters':{'cell':[48,48],'anchor':[24,42],'directions':['down','left','right','up'],'animations':{'idle':[0,1],'walk':[2,3,4,5],'attack':[6,7,8,9]}},'creatures':{'mossling':{'cell':[48,48],'frames':8,'anchor':[24,42]},'guardian':{'cell':[64,64],'frames':8,'anchor':[32,56]}},'icons':{'cell':[24,24],'frames':8}},indent=2)+'\n')
-print('Generated 9 pixel atlases and sprites.json')
+# Keep curated hero/NPC metadata and SpriteCook artwork intact.
+print('Generated legacy hero, goblin, mossling, guardian and icon atlases')

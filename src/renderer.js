@@ -154,7 +154,7 @@ export class Renderer{
   // Attack arcs and hit particles are kept on the same native pixel grid.
   if(p.attackUntil>time){
    const progress=(time-p.attackStarted)/360,angles={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2};
-   const a=angles[p.direction]-1.15+progress*2.3;c.globalAlpha=.85;
+   const a=angles[p.attackDirection||p.direction]-1.15+progress*2.3;c.globalAlpha=.85;
    for(let i=0;i<8;i++){const angle=a-i*.07;rect(c,p.px+Math.cos(angle)*28,p.py-15+Math.sin(angle)*25,2,2,i%2?'#c9e0a0':'#7bb888');}c.globalAlpha=1;
   }
   for(const e of g.effects){

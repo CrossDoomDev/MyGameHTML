@@ -100,5 +100,39 @@
     },
     "bounds": "src/hero-frames.js",
     "source": "assets/hero-source.png"
+  },
+  "npcs": {
+    "source": "assets/npc-source.png",
+    "sourceGrid": [
+      5,
+      4
+    ],
+    "roles": [
+      "elder",
+      "smith",
+      "merchant",
+      "villager",
+      "fisher"
+    ],
+    "cell": [
+      48,
+      48
+    ],
+    "anchor": [
+      24,
+      42
+    ],
+    "directions": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ],
+    "animations": {
+      "idle": [
+        0
+      ]
+    },
+    "build": "tools/prepare_npcs.py"
   }
 }

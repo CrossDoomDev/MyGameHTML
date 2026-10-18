@@ -7,6 +7,7 @@ class Context{
  constructor(canvas){this.canvas=canvas;this.ops=[];this.state={fillStyle:'#000000',strokeStyle:'#000000',globalAlpha:1,font:'10px sans-serif',textAlign:'left',lineWidth:1,tx:0,ty:0};this.stack=[];}
  save(){this.stack.push({...this.state});}
  restore(){this.state=this.stack.pop()||this.state;}
+ scale(x,y){this.record('scale',[x,y]);}
  translate(x,y){this.state.tx+=x;this.state.ty+=y;}
  record(op,args){this.ops.push({op,args,state:{...this.state}});}
  fillRect(...a){this.record('fillRect',a);}
@@ -55,6 +56,9 @@ assert.equal(game.modelMode,'3d','new players should see Blender hero by default
 for(const row of heroFrames)for(const frame of row){const [, ,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero art must fit within its exact frame');}
 for(const b of game.map.buildings)assert(game.findPath(b.doorX,b.doorY+1).length,b.id+' entrance must remain reachable');
 const tick=(count)=>{for(let i=0;i<count;i++){game.time+=50;game.update(50);}};
+game.clearSpawn(18,15);game.clearSpawn(19,15);game.keys.add('ArrowRight');tick(1);assert.equal(game.player.animationTime,0);tick(4);
+const beforeBoundary=game.player.animationTime;tick(1);assert(game.player.moving);assert(game.player.animationTime>beforeBoundary,'walk phase survives a tile boundary');
+game.keys.clear();tick(5);assert(!game.player.moving);assert.equal(game.player.animationState,'idle');
 game.path=game.findPath(26,16);assert(game.path.length,'path must avoid NPCs and fences');tick(120);assert.equal(game.player.x,26);assert.equal(game.player.y,16);assert(!game.player.step);
 game.player.x=21;game.player.y=15;game.player.px=21.5*TILE;game.player.py=15.8*TILE;
 assert(!game.beginStep(game.player,22,15),'cannot walk into water');
@@ -67,7 +71,7 @@ game.ui.dialogue(game.npcs[0]);game.ui.panel.querySelector('#questAccept').click
 game.player.kills=3;game.ui.dialogue(game.npcs[0]);game.ui.panel.querySelector('#questAccept').click();assert(game.player.questReward);assert.equal(game.player.coins,25);assert.equal(game.player.potions,3);
 game.ui.dialogue(game.npcs[0]);assert(!game.ui.panel.html.includes('id="questAccept"'),'quest reward cannot be claimed twice');game.ui.close();
 const boss=game.mobs.find(m=>m.boss);boss.alive=true;Object.assign(boss,{x:18,y:15,px:18.5*TILE,py:15.8*TILE,hp:1,step:null});game.time+=700;game.attack(boss);assert(game.player.boss,'boss progression saved');assert.equal(game.player.level,2);assert.equal(game.player.xp,40,'XP remainder retained');
-game.player.hp=1;mob.alive=true;mob.hp=mob.max;mob.lastAttack=0;game.time+=2000;game.update(20);assert.equal(game.player.hp,game.player.maxHp,'death restores health');assert.equal(game.player.x,SPAWN.x);
+game.player.hp=1;mob.alive=true;mob.hp=mob.max;mob.lastAttack=0;game.time+=2000;game.update(20);assert.equal(game.player.hp,game.player.maxHp,'death restores health');assert.equal(game.player.x,SPAWN.x);assert.equal(game.player.attackUntil,0,'respawn cancels old attack');
 game.save();const restored=new Game(new Canvas('restore-test'));assert.equal(restored.player.coins,game.player.coins);assert(restored.player.boss);assert(!restored.mobs.find(m=>m.boss).alive);
 store.set('tiholesye-v01',JSON.stringify({hp:70,maxHp:100,kills:2,coins:10,x:9,y:7}));const migrated=new Game(new Canvas('migration-test'));assert.equal(migrated.player.hp,70);assert.equal(migrated.player.kills,2);assert.equal(migrated.player.x,SPAWN.x);
 store.clear();const fresh=new Game(new Canvas('preview'));await fresh.start();fresh.setModelMode('3d');fresh.renderer.draw(800);fresh.ui.update();
@@ -75,4 +79,4 @@ const snapshot={canvas:fresh.canvas.id,canvases:canvases.map(c=>({id:c.id,width:
 fs.mkdirSync('.qa',{recursive:true});fs.writeFileSync('.qa/frame.json',JSON.stringify(snapshot));
 clearTimeout(game.ui.timer);clearTimeout(fresh.ui.timer);clearTimeout(restored.ui.timer);clearTimeout(migrated.ui.timer);
 console.log('PASS: routes, collisions, movement, combat animation, 2D/3D switching, loot, quests, boss, levels, death and save migration.');
-console.log('Renderer exercised with real map and asset metadata; browser QA unavailable in this sandbox.');
+console.log('Renderer exercised with map and asset metadata; run tests/browser.cjs for Chrome validation.');

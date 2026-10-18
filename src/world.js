@@ -1,4 +1,5 @@
 import { loadAssets } from './assets.js';
+import { updateAnimation } from './animation.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath } from './map.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
@@ -30,7 +31,7 @@ export class Game{
    anchored({id:'smith',kind:'npc',name:'Кузнец Бран',sprite:'smith',x:21,y:16}),
    anchored({id:'merchant',kind:'npc',name:'Торговка Мира',sprite:'merchant',x:28,y:15}),
    anchored({id:'villager',kind:'npc',name:'Травница Лина',sprite:'villager',x:12,y:22}),
-   anchored({id:'fisher',kind:'npc',name:'Рыбак Финн',sprite:'merchant',x:27,y:20})
+   anchored({id:'fisher',kind:'npc',name:'Рыбак Финн',sprite:'fisher',x:27,y:20})
   ];
   this.mobs=[this.makeMob(30,18),this.makeMob(33,21),this.makeMob(31,9,'goblin'),this.makeMob(19,25),this.makeMob(33,5,'guardian')];
   for(const m of this.mobs){this.clearSpawn(m.x,m.y);if(m.boss&&p.boss)m.alive=false;}
@@ -133,7 +134,7 @@ export class Game{
    this.advance(m,dt);
    const d=distance(m,p),aggro=d<(m.boss?190:120),adjacent=d<43;
    if(adjacent&&this.time-m.lastAttack>1400){
-    m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);
+    m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);m.attackDirection=m.direction;
     p.hp=Math.max(0,p.hp-(m.boss?14:6));p.hitUntil=this.time+250;this.effect('-'+(m.boss?14:6),p,'#e59973');this.bip(110,.07);
     if(p.hp<=0){this.respawn();break;}this.save();
    }
@@ -151,6 +152,7 @@ export class Game{
     if(tx!==undefined)this.beginStep(m,tx,ty,aggro?310:460);
    }
   }
+  for(const entity of [p,...this.npcs,...this.mobs])updateAnimation(entity,dt,this.time);
   this.effects=this.effects.filter(e=>this.time-e.time<(e.type==='text'?950:500));
   if(this.time-this.lastSave>5000){this.save();this.lastSave=this.time;}
  }
@@ -165,17 +167,18 @@ export class Game{
   this.player.direction=directionTo(t.px-this.player.px,t.py-this.player.py);
   if(t.kind==='mob'){if(t.alive)this.attack(t);else this.target=null;return;}
   this.target=null;
-  if(t.kind==='npc'){this.ui.dialogue(t);return;}
+  if(t.kind==='npc'){t.direction=directionTo(this.player.px-t.px,this.player.py-t.py);this.ui.dialogue(t);return;}
   if(t.kind==='herb'){t.collected=true;this.player.herbs++;this.effect('+1 трава',t,'#c7dda0');this.save();this.toast('Собрана лесная трава.');}
  }
  attack(target){
   if(this.ui.open||this.time-this.lastAttack<600)return;
   if(this.player.mana<2)return this.toast('Посоху нужно немного маны.');
   this.lastAttack=this.time;this.player.mana-=2;this.player.attackStarted=this.time;this.player.attackUntil=this.time+360;
+  this.player.attackDirection=this.player.direction;
   const m=target||this.mobs.filter(m=>m.alive&&distance(m,this.player)<49).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
   this.bip(360,.05);
   if(!m||!m.alive||distance(m,this.player)>49)return;
-  this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
+  this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);this.player.attackDirection=this.player.direction;
   const damage=10+this.player.level*3;m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
   if(m.hp<=0){
    m.alive=false;m.step=null;m.respawnAt=this.time+20000;
@@ -192,7 +195,7 @@ export class Game{
   if(this.player.hp===this.player.maxHp)return this.toast('Здоровье уже полное.');
   this.player.potions--;this.player.hp=Math.min(this.player.maxHp,this.player.hp+45);this.effect('+45',this.player,'#b9dc93');this.save();this.toast('Зелье восстановило здоровье.');
  }
- respawn(){Object.assign(this.player,{hp:this.player.maxHp,x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE,step:null,moving:false});this.target=null;this.path=[];this.toast('Жители помогли тебе вернуться в деревню.');this.save();}
+ respawn(){Object.assign(this.player,{hp:this.player.maxHp,x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE,step:null,moving:false,attackUntil:0,attackStarted:0,animationTime:0,animationState:'idle'});this.target=null;this.path=[];this.toast('Жители помогли тебе вернуться в деревню.');this.save();}
  save(){const data=initial();for(const key of Object.keys(data))data[key]=this.player[key];data.version=2;try{localStorage.setItem(STORAGE,JSON.stringify(data));}catch{}}
  toast(text){this.ui.toast(text);}
  bip(hz,seconds){
