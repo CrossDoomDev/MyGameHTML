@@ -24,8 +24,11 @@ export const ENVIRONMENT = {
 };
 export async function loadAssets() {
  const names=['village-source','hero-source','hero-walk','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
- const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
-  const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src=assetURL(name+'.png');
+ // Preserve the original pixel NPC art; SVG sheets are fully separate.
+ const files=[...names.map(name=>[name,name+'.png']),
+  ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+'.svg'])];
+ const images=Object.fromEntries(await Promise.all(files.map(([name,file])=>new Promise((resolve,reject)=>{
+  const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+file)); image.src=assetURL(file);
  }))));
  const environment={},environmentMasks={};
  for(const [name,{source,size}] of Object.entries(ENVIRONMENT)){
@@ -70,13 +73,18 @@ export async function loadAssets() {
  return {images,environment,environmentMasks};
 }
 export const directions=['down','left','right','up'];
-export function drawCharacter(c,assets,entity,time) {
+export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
  const attacking=time<entity.attackUntil;
  const frame=NPC_SPRITES.includes(entity.sprite)?0:characterFrame(entity,time);
  const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
  const row=Math.max(0,directions.indexOf(direction||'down'));
  const is3d=entity.sprite==='hero3d',hero=entity.sprite==='hero'||is3d;
- const image=assets.images[entity.sprite||'hero'],sourceCell=is3d?128:hero?80:48;
+ const vectorNPC=npcStyle==='vector'&&NPC_SPRITES.includes(entity.sprite);
+ const image=vectorNPC?assets.images['vector-'+entity.sprite]:assets.images[entity.sprite||'hero'];
+ const sourceCell=vectorNPC?384:is3d?128:hero?80:48;
  const size=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;
+ // Smooth only SVG NPCs; terrain, hero and original pixel NPCs stay crisp.
+ if(vectorNPC){c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';}
  c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
+ if(vectorNPC)c.restore();
 }
