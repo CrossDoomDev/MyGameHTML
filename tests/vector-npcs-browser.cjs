@@ -27,7 +27,15 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const page=await browser.newPage({viewport:{width:1280,height:900}});
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().includes('favicon'))errors.push(r.status()+' '+r.url());});
-  await page.addInitScript(()=>{localStorage.setItem('tiholesye-model','2d');localStorage.setItem('tiholesye-npc-style','pixel');});
+  await page.addInitScript(()=>{
+    localStorage.setItem('tiholesye-model','2d');
+    // Seed the old pixel preference only on first navigation: a reload must
+    // preserve the user's newly selected illustrated style.
+    if(!sessionStorage.getItem('seeded-npc-pixel')){
+      localStorage.setItem('tiholesye-npc-style','pixel');
+      sessionStorage.setItem('seeded-npc-pixel','1');
+    }
+  });
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
