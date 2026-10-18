@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import { coversActor, sceneryPlacement, buildingPlacement } from '../src/visibility.js';
+import { createMap, removeScenery, isBlocked } from '../src/map.js';
+
+const actor={px:100,py:100,sprite:'hero'};
+const front={x:80,y:50,width:40,height:80,depth:130};
+assert(coversActor(front,actor));
+assert(!coversActor({...front,depth:99},actor),'scenery behind an actor cannot hide it');
+assert(!coversActor({...front,x:130},actor),'unrelated scenery remains solid');
+const transparent=new Uint8Array(40*80);
+assert(!coversActor(front,actor,transparent),'transparent sprite gutters must not cause fading');
+transparent[25*40+20]=1;
+assert(coversActor(front,actor,transparent),'an opaque pixel over the head causes fading');
+assert.deepEqual(sceneryPlacement({px:100,py:150,offset:8},{width:48,height:60}),{x:76,y:98,width:48,height:60,depth:150});
+assert.deepEqual(buildingPlacement({x:4,y:3,w:4,h:3},{width:144,height:160}),{x:120,y:32,width:144,height:160,depth:188});
+const map=createMap();
+map.objects.push({sprite:'barrel',x:4,y:4,block:true},{sprite:'fence',x:4,y:4,block:true});map.blocked[4][4]=true;
+removeScenery(map,o=>o.x===4&&o.y===4&&o.sprite==='barrel');
+assert(isBlocked(map,4,4),'a remaining prop still blocks its shared tile');
+removeScenery(map,o=>o.x===4&&o.y===4);
+assert(!isBlocked(map,4,4),'removed scenery leaves a passable grass tile');
+map.objects.push({sprite:'bush',x:22,y:4});removeScenery(map,o=>o.x===22&&o.y===4);
+assert(isBlocked(map,22,4),'removing a decoration never unblocks water');
+map.objects.push({sprite:'bush',x:9,y:10});removeScenery(map,o=>o.x===9&&o.y===10);
+assert(isBlocked(map,9,10),'removing a decoration never unblocks a building');
+console.log('PASS: depth/alpha-aware occlusion, placements and safe scenery collision cleanup.');

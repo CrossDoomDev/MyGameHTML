@@ -1,9 +1,17 @@
 import { TILE, WIDTH, HEIGHT, rand } from './map.js';
 import { drawCharacter } from './assets.js';
+import { sceneryPlacement, buildingPlacement, coversActor } from './visibility.js';
 
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),w,h);};
 export class Renderer{
- constructor(game){this.game=game;this.c=game.ctx;this.ground=document.createElement('canvas');this.ground.width=WIDTH*TILE;this.ground.height=HEIGHT*TILE;this.bakeGround();this.miniBase=document.createElement('canvas');this.miniBase.width=WIDTH*4;this.miniBase.height=HEIGHT*4;this.bakeMinimap();}
+ constructor(game){this.game=game;this.c=game.ctx;this.occlusionAlpha=new WeakMap();this.ground=document.createElement('canvas');this.ground.width=WIDTH*TILE;this.ground.height=HEIGHT*TILE;this.bakeGround();this.miniBase=document.createElement('canvas');this.miniBase.width=WIDTH*4;this.miniBase.height=HEIGHT*4;this.bakeMinimap();}
+ sceneryOpacity(object,placement){
+  const g=this.game,mask=g.assets.environmentMasks?.[object.sprite];
+  const obscures=this.protectedActors.some(actor=>coversActor(placement,actor,mask));
+  const target=obscures ? .25 : 1,previous=this.occlusionAlpha.get(object)??1;
+  const alpha=previous+(target-previous)*(1-Math.exp(-this.fadeDelta/75));
+  this.occlusionAlpha.set(object,alpha);return alpha;
+ }
  bakeGround(){
   const c=this.ground.getContext('2d'),map=this.game.map;
   for(let y=0;y<HEIGHT;y++)for(let x=0;x<WIDTH;x++){
@@ -87,9 +95,10 @@ export class Renderer{
  }
  environment(o){
   const c=this.c,s=this.game.assets.environment[o.sprite];if(!s)return;
-  const x=Math.round(o.px-s.width/2),y=Math.round(o.py-s.height+(o.offset||0));
-  if(o.tree){c.globalAlpha=.16;rect(c,o.px-30,o.py-10,63,12,'#1a3921');c.globalAlpha=1;}
-  c.drawImage(s,x,y);
+  const placement=sceneryPlacement(o,s),alpha=this.sceneryOpacity(o,placement);
+  c.save();
+  if(o.tree){c.globalAlpha=.16*alpha;rect(c,o.px-30,o.py-10,63,12,'#1a3921');}
+  c.globalAlpha=alpha;c.drawImage(s,placement.x,placement.y);c.restore();
  }
  bridge(){
   const c=this.c,X=21*TILE,Y=16*TILE;
@@ -145,6 +154,8 @@ export class Renderer{
  }
  draw(time){
   const g=this.game,c=this.c,w=g.canvas.width,h=g.canvas.height,p=g.player;
+  this.fadeDelta=this.lastDrawTime===undefined?16:Math.max(0,time-this.lastDrawTime);this.lastDrawTime=time;
+  this.protectedActors=[p,...g.npcs,...g.herbs.filter(herb=>!herb.collected)];
   g.camera.x=Math.round(Math.max(0,Math.min(WIDTH*TILE-w,p.px-w/2)));
   g.camera.y=Math.round(Math.max(0,Math.min(HEIGHT*TILE-h,p.py-h/2)));
   c.fillStyle='#3c5c38';c.fillRect(0,0,w,h);c.save();c.translate(-g.camera.x,-g.camera.y);
@@ -152,8 +163,8 @@ export class Renderer{
   if(g.path.length){c.globalAlpha=.26;for(const step of g.path){rect(c,step.x*TILE+14,step.y*TILE+14,4,4,'#ece5b1');}c.globalAlpha=1;const end=g.path.at(-1);c.strokeStyle='#e6d48d';c.strokeRect(end.x*TILE+7,end.y*TILE+7,18,18);}
   const objects=g.map.objects.map(o=>({y:o.py,draw:()=>this.environment(o)}));
   for(const b of g.map.buildings){
-   const sprite=g.assets.environment[b.sprite],px=b.x*TILE+b.w*TILE/2,py=(b.y+b.h)*TILE;
-   objects.push({y:py-4,draw:()=>{c.globalAlpha=.17;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');c.globalAlpha=1;c.drawImage(sprite,Math.round(px-sprite.width/2),py-sprite.height);}});
+   const sprite=g.assets.environment[b.sprite],placement=buildingPlacement(b,sprite,TILE),py=(b.y+b.h)*TILE;
+   objects.push({y:placement.depth,draw:()=>{const alpha=this.sceneryOpacity(b,placement);c.save();c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);c.restore();}});
   }
   for(const herb of g.herbs)if(!herb.collected)objects.push({y:herb.py,draw:()=>{
    c.drawImage(g.assets.images.icons,24,0,24,24,herb.px-12,herb.py-21,24,24);
@@ -190,9 +201,9 @@ export class Renderer{
   }
   // Lantern light, fireplace sparks and smoke: understated and never blurred.
   for(const o of g.map.objects)if(o.glow){
-   const x=o.px+9,y=o.py-49;
-   for(let i=3;i>0;i--){c.globalAlpha=(.025+.012*Math.sin(time/350+o.x))*i;rect(c,x-7-i*4,y-7-i*4,14+i*8,14+i*8,'#ffd16e');}
-   c.globalAlpha=1;rect(c,x-1,y-1,3,3,'#ffe9a1');
+   const x=o.px+9,y=o.py-49,alpha=this.occlusionAlpha.get(o)??1;
+   for(let i=3;i>0;i--){c.globalAlpha=(.025+.012*Math.sin(time/350+o.x))*i*alpha;rect(c,x-7-i*4,y-7-i*4,14+i*8,14+i*8,'#ffd16e');}
+   c.globalAlpha=alpha;rect(c,x-1,y-1,3,3,'#ffe9a1');c.globalAlpha=1;
   }
   for(const b of g.map.buildings)if(b.sprite==='forge'||b.sprite==='inn'){
    const X=(b.x+b.w*.68)*TILE,Y=b.y*TILE+8;

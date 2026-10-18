@@ -26,6 +26,7 @@ jobs:
           node-version: '22'
       - run: node tests/mechanics.mjs
       - run: node tests/animation.mjs
+      - run: node tests/visibility.mjs
       - run: node tools/build-pages.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

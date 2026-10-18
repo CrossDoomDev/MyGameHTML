@@ -27,7 +27,7 @@ export async function loadAssets() {
  const images=Object.fromEntries(await Promise.all(names.map(name=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+name)); image.src=assetURL(name+'.png');
  }))));
- const environment={};
+ const environment={},environmentMasks={};
  for(const [name,{source,size}] of Object.entries(ENVIRONMENT)){
   const canvas=document.createElement('canvas'); [canvas.width,canvas.height]=size;
   const c=canvas.getContext('2d'); c.imageSmoothingEnabled=false;
@@ -39,6 +39,10 @@ export async function loadAssets() {
   if(name==='cottage')c.clearRect(0,0,3,canvas.height);
   if(name==='forge')c.clearRect(0,0,2,canvas.height);
   environment[name]=canvas;
+  if(c.getImageData){
+   const pixels=c.getImageData(0,0,...size).data;
+   environmentMasks[name]=Uint8Array.from({length:size[0]*size[1]},(_,i)=>pixels[i*4+3]>=32?1:0);
+  }
  }
  // Normalize generated poses into 10 equal 80px cells per direction. Foot
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
@@ -63,7 +67,7 @@ export async function loadAssets() {
  }
  images.hero=hero;
  images.hero3d=images['hero-3d-atlas'];
- return {images,environment};
+ return {images,environment,environmentMasks};
 }
 export const directions=['down','left','right','up'];
 export function drawCharacter(c,assets,entity,time) {

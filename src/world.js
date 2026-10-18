@@ -1,6 +1,7 @@
 import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
-import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath } from './map.js';
+import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
+import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
 
@@ -85,7 +86,12 @@ export class Game{
   stick.onpointermove=move;stick.onpointerup=stick.onpointercancel=()=>{pointer=null;this.stick={x:0,y:0};knob.style.transform='';};
  }
  async start(){
-  this.assets=await loadAssets();this.renderer=new Renderer(this);this.ui.portrait(this.assets);this.ready=true;
+  this.assets=await loadAssets();
+  // Keep residents, pickups and doorways readable. Later placed scenery uses
+  // the runtime transparency rule rather than being silently removed.
+  const important=[...this.npcs,...this.herbs,...this.map.buildings.map(b=>({px:(b.doorX+.5)*TILE,py:(b.doorY+.8)*TILE}))];
+  removeScenery(this.map,o=>{const sprite=this.assets.environment[o.sprite];return sprite&&important.some(actor=>coversActor(sceneryPlacement(o,sprite),actor,this.assets.environmentMasks?.[o.sprite]));});
+  this.renderer=new Renderer(this);this.ui.portrait(this.assets);this.ready=true;
   document.getElementById('loading').hidden=true;this.prev=performance.now();
   const frame=now=>{const dt=Math.min(60,now-this.prev);this.prev=now;if(!document.hidden&&!this.ui.open){this.time+=dt;this.update(dt);}this.renderer.draw(this.time);this.ui.update();requestAnimationFrame(frame);};
   requestAnimationFrame(frame);
@@ -94,14 +100,29 @@ export class Game{
   if(!this.ready||this.ui.open)return;
   this.canvas.focus({preventScroll:true});
   const r=this.canvas.getBoundingClientRect(),wx=(e.clientX-r.left)/r.width*this.canvas.width+this.camera.x,wy=(e.clientY-r.top)/r.height*this.canvas.height+this.camera.y;
-  const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);if(x<0||y<0||x>=WIDTH||y>=HEIGHT)return;
-  if(this.buildMode){this.place(this.buildMode,x,y);return;}
-  const entity=[...this.mobs.filter(m=>m.alive),...this.npcs,...this.herbs.filter(h=>!h.collected)].filter(t=>Math.abs(t.px-wx)<20&&wy>t.py-40&&wy<t.py+8).sort((a,b)=>Math.abs(a.py-wy)-Math.abs(b.py-wy))[0];
-  if(entity){this.target=entity;this.approach(entity.x,entity.y);return;}
-  const building=this.map.buildings.find(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
-  if(building){this.target={...building,kind:'building',px:(building.doorX+.5)*TILE,py:(building.doorY+1.8)*TILE,x:building.doorX,y:building.doorY+1};this.path=this.findPath(this.target.x,this.target.y);if(!this.path.length)this.interactTarget();return;}
-  this.target=null;this.path=this.findPath(x,y);
-  if(!this.path.length&&(x!==this.player.x||y!==this.player.y))this.toast('Здесь не пройти. Выбери дорожку.');
+  const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);
+  if(this.buildMode){if(x>=0&&y>=0&&x<WIDTH&&y<HEIGHT)this.place(this.buildMode,x,y);return;}
+  this.stopMovement();
+  if(x<0||y<0||x>=WIDTH||y>=HEIGHT)return;
+  if(this.blocked(x,y)){
+   // Adjacent actors can still be used without walking to a substitute cell.
+   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>t.x===x&&t.y===y&&distance(t,this.player)<=49);
+   if(actor){this.target=actor;this.interactTarget();}else this.toast('Здесь не пройти. Выбери дорожку.');
+   return;
+  }
+  const route=this.findPath(x,y);
+  if(!route.length&&(x!==this.player.x||y!==this.player.y)){this.toast('Здесь не пройти. Выбери дорожку.');return;}
+  const p=this.player;
+  if(Math.hypot(p.px-(p.x+.5)*TILE,p.py-(p.y+.8)*TILE)>.01)route.unshift({x:p.x,y:p.y});
+  this.path=route;
+  this.target=this.herbs.find(herb=>!herb.collected&&herb.x===x&&herb.y===y)||null;
+ }
+ stopMovement(){
+  const p=this.player;
+  this.path=[];this.target=null;this.keys.clear();this.stick={x:0,y:0};
+  // Stop at the exact current position, without completing an old tile step.
+  p.x=Math.round(p.px/TILE-.5);p.y=Math.round(p.py/TILE-.8);p.step=null;p.moving=false;
+  p.animationState='idle';p.animationTime=0;
  }
  approach(x,y){
   if(Math.abs(this.player.x-x)+Math.abs(this.player.y-y)<=1){this.path=[];if(this.target&&distance(this.target,this.player)<49)this.interactTarget();return;}
@@ -111,7 +132,9 @@ export class Game{
  }
  beginStep(entity,x,y,duration=210){
   if(this.blocked(x,y,entity))return false;
-  entity.direction=directionTo(x-entity.x,y-entity.y);entity.step={x,y,fromX:entity.px,fromY:entity.py,elapsed:0,duration};entity.moving=true;return true;
+  const dx=(x+.5)*TILE-entity.px,dy=(y+.8)*TILE-entity.py;
+  if(dx||dy)entity.direction=directionTo(dx,dy);
+  entity.step={x,y,fromX:entity.px,fromY:entity.py,elapsed:0,duration:Math.max(1,duration*Math.hypot(dx,dy)/TILE)};entity.moving=true;return true;
  }
  advance(entity,dt){
   if(!entity.step){entity.moving=false;return;}

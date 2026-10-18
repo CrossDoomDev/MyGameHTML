@@ -70,6 +70,22 @@ assert.equal(game.modelMode,'3d','new players should see Blender hero by default
 for(const row of heroFrames)for(const frame of row){const [, ,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero art must fit within its exact frame');}
 for(const b of game.map.buildings)assert(game.findPath(b.doorX,b.doorY+1).length,b.id+' entrance must remain reachable');
 const tick=(count)=>{for(let i=0;i<count;i++){game.time+=50;game.update(50);}};
+const clickTile=(x,y)=>{const r=game.canvas.getBoundingClientRect();game.click({clientX:((x+.5)*TILE-game.camera.x)/game.canvas.width*r.width+r.left,clientY:((y+.5)*TILE-game.camera.y)/game.canvas.height*r.height+r.top});};
+for(const [x,y] of [[22,15],[9,10],[11,15]]){
+ game.path=[{x:18,y:15}];clickTile(x,y);
+ assert.equal(game.path.length,0,'water, buildings and occupied NPC cells cannot redirect the player');
+ assert.equal(game.target,null);assert(!game.player.moving);
+}
+game.clearSpawn(18,15);game.beginStep(game.player,18,15);game.advance(game.player,105);
+const stoppedAt=[game.player.px,game.player.py];clickTile(22,15);tick(2);
+assert.deepEqual([game.player.px,game.player.py],stoppedAt,'an invalid click immediately stops an active step');
+assert(!game.player.step);
+clickTile(17,15);tick(12);assert.equal(game.player.x,17);assert.equal(game.player.y,15);
+assert.equal(game.player.px,17.5*TILE,'a subsequent valid click reaches its exact tile center');
+const island=[[4,4],[3,4],[5,4],[4,3],[4,5]],savedIsland=island.map(([x,y])=>game.map.blocked[y][x]);
+island.forEach(([x,y],i)=>game.map.blocked[y][x]=i!==0);game.path=[{x:18,y:15}];clickTile(4,4);
+assert.equal(game.path.length,0,'an isolated free tile does not fall back to a reachable neighbor');
+island.forEach(([x,y],i)=>game.map.blocked[y][x]=savedIsland[i]);
 game.clearSpawn(18,15);game.clearSpawn(19,15);game.keys.add('ArrowRight');tick(1);assert.equal(game.player.animationTime,0);tick(4);
 const beforeBoundary=game.player.animationTime;tick(1);assert(game.player.moving);assert(game.player.animationTime>beforeBoundary,'walk phase survives a tile boundary');
 game.keys.clear();tick(5);assert(!game.player.moving);assert.equal(game.player.animationState,'idle');

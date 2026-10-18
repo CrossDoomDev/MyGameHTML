@@ -52,6 +52,12 @@ export function createMap(){
  return {terrain,objects,buildings,blocked};
 }
 export function isBlocked(map,x,y){return !Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=WIDTH||y>=HEIGHT||map.blocked[y][x];}
+export function removeScenery(map,predicate){
+ const removed=map.objects.filter(predicate);
+ const removedSet=new Set(removed);map.objects=map.objects.filter(object=>!removedSet.has(object));
+ for(const {x,y} of removed)map.blocked[y][x]=x===0||y===0||x===WIDTH-1||y===HEIGHT-1||map.terrain[y][x]==='water'||map.buildings.some(b=>inRect(x,y,b))||map.objects.some(o=>o.block&&o.x===x&&o.y===y);
+ return removed;
+}
 export function findPath(map,sx,sy,tx,ty,occupied=()=>false){
  if(isBlocked(map,tx,ty)||occupied(tx,ty))return [];
  const key=(x,y)=>y*WIDTH+x,start=key(sx,sy),end=key(tx,ty);
