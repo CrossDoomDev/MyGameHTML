@@ -5,7 +5,7 @@ import {HOUSES,FOUNTAIN,ART_ATLAS,ATLAS_SOURCE,facadeFootprint,fountainFootprint
 const scene=createMap('village');
 assert.equal(TILE,32);
 assert.equal(ART_ATLAS,'village-compact.webp');
-assert.deepEqual(ATLAS_SOURCE,[288,192]);
+assert.deepEqual(ATLAS_SOURCE,[240,160]);
 for(const [id,spec] of Object.entries(HOUSES)){
  assert.equal(spec.w%2,1,id+' footprint must have odd width');
  assert(spec.chimneys.every(([x,y])=>x>=0&&y>=0&&x<spec.w*TILE&&y<spec.h*TILE),'chimney lies on sprite '+id);
