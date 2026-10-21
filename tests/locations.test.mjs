@@ -31,6 +31,12 @@ const forest = createMap('forest');
 const tavern = createMap('tavern');
 assert.equal(TILE, 32);
 assert(village.buildings.some(b => b.id === 'inn'), 'missing tavern building');
+assert(village.buildings.some(b => b.id === 'chapel'), 'missing chapel');
+assert(village.objects.some(o => o.sprite === 'fountain'), 'missing central fountain');
+for(const b of village.buildings){
+ assert(b.w % 2 === 1, 'odd house width: '+b.id);
+ assert.equal(b.doorX, b.x+(b.w-1)/2,'door in center tile: '+b.id);
+}
 assert.equal(forest.buildings.length, 0, 'forest must not contain village houses');
 assert(forest.objects.filter(o => o.tree).length > 600, 'forest must have a dense tree canopy');
 assert(village.objects.filter(o => o.tree).length < 100, 'village must remain open');
