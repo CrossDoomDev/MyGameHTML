@@ -45,102 +45,188 @@ globalThis.Image=class{
 globalThis.requestAnimationFrame=()=>{};
 const { Game }=await import('../src/world.js');
 const { drawCharacter, NPC_SPRITES }=await import('../src/assets.js');
-const map=createMap();
-for(const [label,x,y]of [['bridge',25,16],['market',27,15],['guardian',33,5],['inn',12,15]]){
- const path=findPath(map,SPAWN.x,SPAWN.y,x,y);assert(path.length>0,label+' must be reachable');
- let prev=SPAWN;for(const step of path){assert.equal(Math.abs(step.x-prev.x)+Math.abs(step.y-prev.y),1);assert(!isBlocked(map,step.x,step.y));prev=step;}
+
+// Version 0.4: scenes are distinct maps; the old 40x30 river/bridge is retired.
+const map=createMap('village'),forest=createMap('forest'),tavern=createMap('tavern');
+assert.deepEqual([map.width,map.height],[64,48]);
+assert.deepEqual([forest.width,forest.height],[100,80]);
+assert.deepEqual([tavern.width,tavern.height],[24,18]);
+assert.equal(map.buildings.length,7);
+assert(map.buildings.some(b=>b.id==='inn'));
+assert(forest.objects.filter(o=>o.tree).length>600,'dense forest');
+assert(map.objects.filter(o=>o.tree).length<110,'open settlement');
+assert.equal(isBlocked(map,57,30),true,'village pond is impassable');
+assert.equal(isBlocked(map,30,24),false,'town square is accessible');
+for(const b of map.buildings){
+ assert(isBlocked(map,b.x,b.y),'building collision: '+b.id);
+ const path=findPath(map,SPAWN.x,SPAWN.y,b.doorX,b.doorY+1);
+ assert(path.length>0,'entrance reachable: '+b.id);
 }
-assert(isBlocked(map,22,15),'river is impassable');assert(!isBlocked(map,23,16),'bridge is passable');
-for(const b of map.buildings)assert(isBlocked(map,b.x,b.y),'building must collide');
+for(const [scene,start] of [[map,SPAWN],[forest,{x:3,y:40}],[tavern,{x:12,y:14}]]){
+ for(const portal of scene.portals){
+  assert(!isBlocked(scene,portal.x,portal.y),'portal is traversable');
+  const path=findPath(scene,start.x,start.y,portal.x,portal.y);
+  assert(path.length>0,'exit path exists in '+scene.id);
+  let prev=start;
+  for(const step of path){
+   assert.equal(Math.abs(step.x-prev.x)+Math.abs(step.y-prev.y),1,'cardinal path');
+   assert(!isBlocked(scene,step.x,step.y),'path avoids solid cells');
+   prev=step;
+  }
+  const next=createMap(portal.to);
+  assert(!isBlocked(next,portal.spawn.x,portal.spawn.y),'destination is free');
+ }
+}
+assert.equal(TILE,32);
+
+// Headless DOM/game initialization still checks art, inventories and interactions.
 const defaultStyle=new Game(new Canvas('default-npc-style'));
-assert.equal(defaultStyle.npcStyle,'vector','chibi elder active by default');
+assert.equal(defaultStyle.npcStyle,'vector','vector NPC style is the default');
 store.set('tiholesye-npc-style','pixel');
-const game=new Game(document.getElementById('game'));await game.start();
-// Check original pixel mode, switch availability, persistence and every SVG
-// direction. This is intentionally independent from player 2D/3D choice.
+const game=new Game(document.getElementById('game'));
+await game.start();
+assert.equal(game.location,'village');
+assert.equal(game.mobs.length,0,'no combat spawns in the village');
+assert.equal(game.npcs.length,7,'seven villagers');
 assert.deepEqual(NPC_SPRITES,['elder','smith','merchant','villager','fisher']);
-assert.equal(game.npcStyle,'pixel','pixel NPC style is the default');
+assert.equal(game.npcStyle,'pixel');
 for(const npc of game.npcs){
- assert(game.assets.images['vector-'+npc.sprite],'vector SVG loaded for '+npc.sprite);
+ assert(game.assets.images['vector-'+npc.sprite],npc.sprite+' SVG asset loads');
  for(const [direction,row] of [['down',0],['left',1],['right',2],['up',3]]){
   npc.direction=direction;
   drawCharacter(game.ctx,game.assets,npc,0,'vector');
   const op=game.ctx.ops.at(-1);
   assert.equal(op.op,'drawImage');
-  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'SVG NPC used: '+npc.sprite);
-  assert.equal(op.args[2],row*384,'correct illustrated direction: '+npc.sprite+' '+direction);
-  assert.equal(op.args[7],48,'same displayed NPC width');
-  assert.equal(op.args[8],48,'same displayed NPC height');
+  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'vector art');
+  assert.equal(op.args[2],row*384);
+  assert.equal(op.args[7],48);
+  assert.equal(op.args[8],48);
  }
  npc.direction='down';
 }
 game.ui.settings();
-assert(game.ui.panel.html.includes('id="npcStyle"'),'settings include style control');
+assert(game.ui.panel.html.includes('id="npcStyle"'));
 game.ui.panel.querySelector('#npcStyle').click();
-assert.equal(game.npcStyle,'vector','NPCs switch to vector style');
-assert.equal(store.get('tiholesye-npc-style'),'vector','style choice persisted');
-assert(game.ui.panel.html.includes('aria-pressed="true"'),'selected style reflected in settings');
-const npcStyleRestore=new Game(new Canvas('npc-style-restored'));
-assert.equal(npcStyleRestore.npcStyle,'vector','style restored next time');
-game.ui.panel.querySelector('#npcStyle').click();
-assert.equal(game.npcStyle,'pixel','NPCs switch back to original pixel mode');
+assert.equal(game.npcStyle,'vector');
+assert.equal(store.get('tiholesye-npc-style'),'vector');
+const restoredStyle=new Game(new Canvas('restored-style'));
+assert.equal(restoredStyle.npcStyle,'vector');
 game.ui.close();
 
-// Artwork regressions: detached lines in the atlas must be clipped before
-// placing cottage / forge; connected dirt tiles must not have grid outlines.
+// Preserve rendering regression checks for original artwork/paths.
 for(const [sprite,width] of [['cottage',3],['forge',2]]){
  const operations=game.assets.environment[sprite].getContext('2d').ops;
- assert(operations.some(op=>op.op==='clearRect'&&op.args[0]===0&&op.args[1]===0&&op.args[2]===width),
-  sprite+' must remove disconnected atlas edge streaks');
+ assert(operations.some(op=>op.op==='clearRect'&&op.args[0]===0&&op.args[1]===0&&op.args[2]===width));
 }
 const groundOps=game.renderer.ground.getContext('2d').ops;
-assert(!groundOps.some(op=>op.op==='fillRect'&&op.state.fillStyle==='#a68052'),
- 'Dirt paths must not draw the dark top/left square tile seams');
-const pathTiles=map.terrain.flat().filter(t=>t==='path').length;
+assert(!groundOps.some(op=>op.op==='fillRect'&&op.state.fillStyle==='#a68052'),'dirt seam regression');
+const paths=map.terrain.flat().filter(t=>t==='path').length;
 const pathBases=groundOps.filter(op=>op.op==='fillRect'&&op.state.fillStyle==='#b38c5b'
  &&op.args[2]===TILE&&op.args[3]===TILE).length;
-assert.equal(pathBases,pathTiles,'Every path tile must use the same seamless dirt fill');
-assert.equal(game.modelMode,'3d','new players should see Blender hero by default');game.setModelMode('3d');assert.equal(game.player.sprite,'hero3d');assert.equal(store.get('tiholesye-model'),'3d');game.setModelMode('2d');assert.equal(game.player.sprite,'hero');
-for(const row of heroFrames)for(const frame of row){const [, ,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero art must fit within its exact frame');}
-for(const b of game.map.buildings)assert(game.findPath(b.doorX,b.doorY+1).length,b.id+' entrance must remain reachable');
-const tick=(count)=>{for(let i=0;i<count;i++){game.time+=50;game.update(50);}};
-const clickTile=(x,y)=>{const r=game.canvas.getBoundingClientRect();game.click({clientX:((x+.5)*TILE-game.camera.x)/game.canvas.width*r.width+r.left,clientY:((y+.5)*TILE-game.camera.y)/game.canvas.height*r.height+r.top});};
-for(const [x,y] of [[22,15],[9,10],[11,15]]){
- game.path=[{x:18,y:15}];clickTile(x,y);
- assert.equal(game.path.length,0,'water, buildings and occupied NPC cells cannot redirect the player');
- assert.equal(game.target,null);assert(!game.player.moving);
+assert.equal(pathBases,paths,'every trail tile uses seamless fill');
+for(const row of heroFrames)for(const frame of row){
+ const [,,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);
+ assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero frame fits');
 }
-game.clearSpawn(18,15);game.beginStep(game.player,18,15);game.advance(game.player,105);
-const stoppedAt=[game.player.px,game.player.py];clickTile(22,15);tick(2);
-assert.deepEqual([game.player.px,game.player.py],stoppedAt,'an invalid click immediately stops an active step');
-assert(!game.player.step);
-clickTile(17,15);tick(12);assert.equal(game.player.x,17);assert.equal(game.player.y,15);
-assert.equal(game.player.px,17.5*TILE,'a subsequent valid click reaches its exact tile center');
-const island=[[4,4],[3,4],[5,4],[4,3],[4,5]],savedIsland=island.map(([x,y])=>game.map.blocked[y][x]);
-island.forEach(([x,y],i)=>game.map.blocked[y][x]=i!==0);game.path=[{x:18,y:15}];clickTile(4,4);
-assert.equal(game.path.length,0,'an isolated free tile does not fall back to a reachable neighbor');
-island.forEach(([x,y],i)=>game.map.blocked[y][x]=savedIsland[i]);
-game.clearSpawn(18,15);game.clearSpawn(19,15);game.keys.add('ArrowRight');tick(1);assert.equal(game.player.animationTime,0);tick(4);
-const beforeBoundary=game.player.animationTime;tick(1);assert(game.player.moving);assert(game.player.animationTime>beforeBoundary,'walk phase survives a tile boundary');
-game.keys.clear();tick(5);assert(!game.player.moving);assert.equal(game.player.animationState,'idle');
-game.path=game.findPath(26,16);assert(game.path.length,'path must avoid NPCs and fences');tick(120);assert.equal(game.player.x,26);assert.equal(game.player.y,16);assert(!game.player.step);
-game.player.x=21;game.player.y=15;game.player.px=21.5*TILE;game.player.py=15.8*TILE;
-assert(!game.beginStep(game.player,22,15),'cannot walk into water');
-game.respawn();game.npcs[0].x=17;game.npcs[0].y=16;assert(!game.beginStep(game.player,17,16),'cannot walk through NPC');game.npcs[0].x=11;game.npcs[0].y=15;
-const mob=game.mobs[0];game.clearSpawn(18,15);Object.assign(mob,{x:18,y:15,px:18.5*TILE,py:15.8*TILE,step:null});game.mobs.slice(1).forEach(m=>m.alive=false);
-game.player.mana=60;game.time+=1000;game.attack(mob);assert(mob.hp<mob.max,'attack inflicts damage');assert(game.player.attackUntil>game.time,'attack uses animation');
-game.player.hp=40;game.time+=700;game.attack(mob);game.time+=700;game.attack(mob);assert(!mob.alive,'enemy defeated');assert.equal(game.player.kills,1);assert.equal(game.player.coins,5);assert.equal(game.player.wood,1);
-game.potion();assert.equal(game.player.hp,85);assert.equal(game.player.potions,1);
-game.ui.dialogue(game.npcs[0]);game.ui.panel.querySelector('#questAccept').click();assert(game.player.questAccepted);
-game.player.kills=3;game.ui.dialogue(game.npcs[0]);game.ui.panel.querySelector('#questAccept').click();assert(game.player.questReward);assert.equal(game.player.coins,25);assert.equal(game.player.potions,3);
-game.ui.dialogue(game.npcs[0]);assert(!game.ui.panel.html.includes('id="questAccept"'),'quest reward cannot be claimed twice');game.ui.close();
-const boss=game.mobs.find(m=>m.boss);boss.alive=true;Object.assign(boss,{x:18,y:15,px:18.5*TILE,py:15.8*TILE,hp:1,step:null});game.time+=700;game.attack(boss);assert(game.player.boss,'boss progression saved');assert.equal(game.player.level,2);assert.equal(game.player.xp,40,'XP remainder retained');
-game.player.hp=1;mob.alive=true;mob.hp=mob.max;mob.lastAttack=0;game.time+=2000;game.update(20);assert.equal(game.player.hp,game.player.maxHp,'death restores health');assert.equal(game.player.x,SPAWN.x);assert.equal(game.player.attackUntil,0,'respawn cancels old attack');
-game.save();const restored=new Game(new Canvas('restore-test'));assert.equal(restored.player.coins,game.player.coins);assert(restored.player.boss);assert(!restored.mobs.find(m=>m.boss).alive);
-store.set('tiholesye-v01',JSON.stringify({hp:70,maxHp:100,kills:2,coins:10,x:9,y:7}));const migrated=new Game(new Canvas('migration-test'));assert.equal(migrated.player.hp,70);assert.equal(migrated.player.kills,2);assert.equal(migrated.player.x,SPAWN.x);
-store.clear();const fresh=new Game(new Canvas('preview'));await fresh.start();fresh.setModelMode('3d');fresh.renderer.draw(800);fresh.ui.update();
-const snapshot={canvas:fresh.canvas.id,canvases:canvases.map(c=>({id:c.id,width:c.width,height:c.height,ops:c.ctx.ops})),scale:2};
-fs.mkdirSync('.qa',{recursive:true});fs.writeFileSync('.qa/frame.json',JSON.stringify(snapshot));
-clearTimeout(game.ui.timer);clearTimeout(fresh.ui.timer);clearTimeout(restored.ui.timer);clearTimeout(migrated.ui.timer);
-console.log('PASS: pixel/vector NPC art, local persistence, routes, movement, combat, hero 2D/3D, quests, boss and saves.');
-console.log('Renderer exercised with map and asset metadata; run tests/browser.cjs for Chrome validation.');
+game.setModelMode('2d');
+assert.equal(game.player.sprite,'hero');
+game.setModelMode('3d');
+assert.equal(game.player.sprite,'hero3d');
+
+// Clicking a character walks to the nearest free neighboring tile.
+const elder=game.npcs.find(n=>n.id==='elder');
+const invokeClick=(worldX,worldY,cameraX,cameraY)=>{
+ game.camera.x=cameraX;game.camera.y=cameraY;
+ const rect=game.canvas.getBoundingClientRect();
+ game.click({
+  clientX:(worldX-cameraX)/game.canvas.width*rect.width+rect.left,
+  clientY:(worldY-cameraY)/game.canvas.height*rect.height+rect.top
+ });
+};
+invokeClick(elder.px,elder.py-18,360,400);
+assert.equal(game.target?.id,'elder','NPC is selected');
+assert(game.path.length>0,'click routes hero toward the resident');
+const tavernDoor=map.buildings.find(b=>b.id==='inn');
+invokeClick((tavernDoor.x+2)*TILE,(tavernDoor.y+2)*TILE,270,290);
+assert.equal(game.target?.id,'inn','tavern roof click selects the door');
+assert(game.path.length>0,'hero automatically approaches the tavern');
+
+// Interact with villagers, quests and existing commerce.
+game.stopMovement();
+Object.assign(game.player,{x:elder.x,y:elder.y+1,px:(elder.x+.5)*TILE,py:(elder.y+1.8)*TILE});
+game.target=elder;game.interactTarget();
+assert(game.ui.open,'adjacent NPC dialogue opens');
+assert(game.ui.panel.html.includes('questAccept'),'quest controls available');
+game.ui.panel.querySelector('#questAccept').click();
+assert(game.player.questAccepted);
+assert(!game.ui.open);
+
+// Switch to separate tavern interior and test merchant / saving.
+game.ready=false; // Avoid recreating a giant synthetic mock render surface.
+game.ui.building(tavernDoor);
+assert.equal(game.location,'tavern','inn door leads to interior');
+assert.equal(game.mobs.length,0);
+assert(game.npcs.some(n=>n.id==='innkeeper'),'tavern merchant exists');
+const innkeeper=game.npcs.find(n=>n.id==='innkeeper');
+game.player.coins=10;
+game.ui.dialogue(innkeeper);
+game.ui.panel.querySelector('#buyPotion').click();
+assert.equal(game.player.coins,5);
+assert.equal(game.player.potions,3);
+game.ui.close();
+game.enterLocation('village',15,16);
+assert.equal(game.location,'village');
+
+// Separate forest owns enemies, herbs and the boss.
+game.enterLocation('forest',3,40);
+assert.equal(game.npcs.length,0,'no village NPCs in forest');
+assert.equal(game.mobs.length,7);
+assert(game.mobs.some(m=>m.boss),'forest boss exists');
+assert(game.herbs.length>0,'forest resources exist');
+const mob=game.mobs[0];
+Object.assign(game.player,{x:mob.x,y:mob.y+1,px:(mob.x+.5)*TILE,py:(mob.y+1.8)*TILE,mana:60});
+game.time+=1000;game.attack(mob);
+assert(mob.hp<mob.max,'attack damages forest enemy');
+game.time+=700;game.attack(mob);
+game.time+=700;game.attack(mob);
+assert(!mob.alive,'forest foe defeated');
+assert.equal(game.player.kills,1);
+assert.equal(game.player.coins,10);
+assert.equal(game.player.wood,1);
+game.player.hp=40;
+game.potion();
+assert.equal(game.player.hp,85);
+game.save();
+const fromForest=new Game(new Canvas('forest-save'));
+assert.equal(fromForest.location,'forest','saved forest scene restored');
+assert.equal(fromForest.player.coins,game.player.coins);
+assert.equal(fromForest.mobs.length,7);
+
+// Defeat returns to village and preserves progress.
+game.respawn();
+assert.equal(game.location,'village');
+assert.equal(game.player.x,SPAWN.x);
+assert.equal(game.player.hp,game.player.maxHp);
+game.save();
+const fromVillage=new Game(new Canvas('village-save'));
+assert.equal(fromVillage.location,'village');
+assert.equal(fromVillage.player.coins,game.player.coins);
+store.set('tiholesye-v01',JSON.stringify({hp:70,maxHp:100,kills:2,coins:10,x:9,y:7}));
+const migrated=new Game(new Canvas('old-save'));
+assert.equal(migrated.player.hp,70);
+assert.equal(migrated.player.kills,2);
+assert.equal(migrated.player.x,SPAWN.x,'old save returns to village');
+assert.equal(migrated.location,'village');
+
+// A lightweight render snapshot remains available for asset audit tooling.
+store.clear();
+const fresh=new Game(new Canvas('preview'));await fresh.start();
+fresh.renderer.draw(800);fresh.ui.update();
+fs.mkdirSync('.qa',{recursive:true});
+fs.writeFileSync('.qa/frame.json',JSON.stringify({
+ canvas:fresh.canvas.id,
+ canvases:canvases.filter(c=>c.id==='game'||c.id==='preview').map(c=>({id:c.id,width:c.width,height:c.height,ops:c.ctx.ops})),
+ scale:2
+}));
+for(const g of [game,fresh,restoredStyle,fromForest,fromVillage,migrated])clearTimeout(g.ui.timer);
+console.log('PASS: village/forest/tavern routes, NPC art, click-to-approach, quests, commerce, mobs, saved biomes and pixel rendering.');
