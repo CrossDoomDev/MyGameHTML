@@ -113,11 +113,15 @@ const restoredStyle=new Game(new Canvas('restored-style'));
 assert.equal(restoredStyle.npcStyle,'vector');
 game.ui.close();
 
-// Preserve rendering regression checks for original artwork/paths.
-for(const [sprite,width] of [['cottage',3],['forge',2]]){
- const operations=game.assets.environment[sprite].getContext('2d').ops;
- assert(operations.some(op=>op.op==='clearRect'&&op.args[0]===0&&op.args[1]===0&&op.args[2]===width));
+// All new houses are sourced from the concept-art atlas (legacy repair used
+// clearRect, but replacing that canvas with authored artwork should not).
+for(const [sprite,width] of [['cottage',7*TILE],['forge',7*TILE],['inn',9*TILE],['chapel',7*TILE]]){
+ const image=game.assets.environment[sprite];
+ assert.equal(image.width,width,'new art grid width: '+sprite);
+ const operations=image.getContext('2d').ops;
+ assert(operations.some(op=>op.op==='drawImage'),'new building artwork is drawn: '+sprite);
 }
+assert.equal(game.assets.environment.fountain.width,3*TILE);
 const groundOps=game.renderer.ground.getContext('2d').ops;
 assert(!groundOps.some(op=>op.op==='fillRect'&&op.state.fillStyle==='#a68052'),'dirt seam regression');
 const paths=map.terrain.flat().filter(t=>t==='path').length;
