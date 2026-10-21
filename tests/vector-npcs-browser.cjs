@@ -49,26 +49,26 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    });
    const ctx=hero.getContext('2d');
    const packed=document.createElement('canvas');
-   packed.width=800;packed.height=320;
+   packed.width=480;packed.height=192;
    const p=packed.getContext('2d');p.imageSmoothingEnabled=false;
    const mapping=[0,1,1,2,3,4,5,6,7,0];
    for(let row=0;row<4;row++)for(let frame=0;frame<10;frame++)
-    p.drawImage(source,mapping[frame]*80,row*80,80,80,frame*80,row*80,80,80);
-   const a=ctx.getImageData(0,0,800,320).data,b=p.getImageData(0,0,800,320).data;
+    p.drawImage(source,mapping[frame]*80,row*80,80,80,frame*48+1,row*48+7,46,46);
+   const a=ctx.getImageData(0,0,480,192).data,b=p.getImageData(0,0,480,192).data;
    let diff=0,opaque=0;
    for(let i=0;i<a.length;i+=4){
     opaque+=a[i+3]>160?1:0;
     for(let j=0;j<4;j++)if(a[i+j]!==b[i+j])diff++;
    }
-   return {loaded:hero.width===800&&hero.height===320,src:source.width,
+   return {loaded:hero.width===480&&hero.height===192,src:source.width,
     defaultSprite:g.player.sprite,difference:diff,opaque,
     png:hero.toDataURL('image/png').split(',')[1]};
   });
-  assert.equal(heroReview.loaded,true,'40 atlas cells available');
+  assert.equal(heroReview.loaded,true,'40 compact 48px atlas cells available');
   assert.equal(heroReview.src,640,'the real PNG is present');
   assert.equal(heroReview.defaultSprite,'hero','2D druid selected');
   assert.equal(heroReview.difference,0,'PNG is actually loaded and used instead of fallback');
-  assert(heroReview.opaque>10000,'all 40 poses contain graphics');
+  assert(heroReview.opaque>8000,'all 40 compact poses contain graphics');
   fs.writeFileSync('.qa/hero-druid-sprites.png',Buffer.from(heroReview.png,'base64'));
 
   const assets=await page.evaluate(()=>{
