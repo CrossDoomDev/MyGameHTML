@@ -98,7 +98,7 @@ export class Game{
   if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
   Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
   this.path=[];this.target=null;this.effects=[];
-  this.skillCooldowns={};
+  // Skill cooldowns persist between rooms and biomes.
   if(this.ready)this.renderer=new Renderer(this);
   this.save();
   this.toast(location==='forest'?'Ты входишь в Великий лес.':location==='tavern'?'Добро пожаловать в таверну.':'Ты вернулся в деревню.');
