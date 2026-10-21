@@ -228,7 +228,7 @@
     },
     "packingSourceColumns": [
       0,
-      1,
+      0,
       1,
       2,
       3,
@@ -242,6 +242,30 @@
     "walkCycleMs": 720,
     "tileStepMs": 240,
     "sideViews": "Independently illustrated, no horizontal mirroring",
-    "sha256": "dd42f14801a7f80ce5b0cbc431bd1fbf394742fb17562589104013cadd244f74"
+    "sha256": "dd42f14801a7f80ce5b0cbc431bd1fbf394742fb17562589104013cadd244f74",
+    "renderAtlas": "runtime canvas derived from assets/hero-druid.png",
+    "renderSize": [
+      480,
+      192
+    ],
+    "renderCell": [
+      48,
+      48
+    ],
+    "renderAnchor": [
+      24,
+      43
+    ],
+    "renderSourceScale": 0.575,
+    "framePaddingMin": 2,
+    "staticIdle": true,
+    "sourceAtlasSize": [
+      640,
+      320
+    ],
+    "sourceCell": [
+      80,
+      80
+    ]
   }
 }

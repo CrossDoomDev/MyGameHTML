@@ -9,7 +9,7 @@ export class UI{
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>this.slot(Number(b.dataset.slot)));
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
  }
- portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,13,3,54,62,0,0,48,48);}
+ portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
   if(this.g.editor?.active)this.g.editor.close();
   this.g.keys.clear();this.g.stick={x:0,y:0};this.g.path=[];this.g.target=null;

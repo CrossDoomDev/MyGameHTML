@@ -38,3 +38,25 @@ assert emeralds(2,0,40,80)>10 and emeralds(2,0,0,40)<4,'RIGHT staff must remain 
 for row in range(4):
  assert emeralds(row,6,0,80)>90,(row,'missing green magic attack')
 print('PASS: 32 real painted poses, clean alpha, alternating boots, independent left/right hand, four magical attacks.')
+
+# Preview the actual runtime packing rule: 80px original painted frames are
+# sampled into a ten-by-four atlas with 48px cells and transparent margins.
+from PIL import Image as PILImage
+render_columns = [0,0,1,2,3,4,5,6,7,0]
+atlas = PILImage.new('RGBA',(480,192))
+for row in range(4):
+ for col,source_col in enumerate(render_columns):
+  source_cell=frame(row,source_col)
+  scaled=source_cell.resize((46,46),PILImage.Resampling.NEAREST)
+  destination=PILImage.new('RGBA',(48,48))
+  destination.alpha_composite(scaled,(1,7))
+  bbox=destination.getchannel('A').getbbox()
+  assert bbox,(row,col,'missing rendered pose')
+  assert bbox[0]>=2 and bbox[1]>=2 and bbox[2]<=46 and bbox[3]<=46, (
+   row,col,bbox,'staff, hood or spell touches frame edge')
+  atlas.alpha_composite(destination,(col*48,row*48))
+ for_idle=atlas.crop((row*48, row*48, row*48+1,row*48+1)) if False else None
+ first=atlas.crop((0,row*48,48,(row+1)*48))
+ second=atlas.crop((48,row*48,96,(row+1)*48))
+ assert first.tobytes()==second.tobytes(),(row,'idle must have identical frames')
+print('PASS: runtime 48px atlas preserves transparent margins on all 40 frames and a fully static idle.')

@@ -18,6 +18,9 @@ export function characterFrame(entity,time) {
   const duration=Math.max(1,entity.attackUntil-entity.attackStarted);
   return 6+Math.min(3,Math.max(0,Math.floor((time-entity.attackStarted)/duration*4)));
  }
+ // A stopped druid must not rock back and forth between different feet.
+ // Keep a single neutral pose until movement or attack begins.
+ if(entity.sprite==='hero'&&!entity.moving)return 0;
  const elapsed=entity.animationTime||0;
  const poseMs=entity.sprite==='hero'?180:105;
  return entity.moving?2+Math.floor(elapsed/poseMs)%4:Math.floor(elapsed/650)%2;

@@ -23,8 +23,8 @@ for(const from of directions)for(const to of directions.filter(direction=>direct
  assert.equal(characterFrame(e,360),4,'the opposite foot contact follows a turn');
  const ops=[],c={drawImage(...args){ops.push(args);}};
  drawCharacter(c,{images:{hero:{}}},e,360);
- assert.equal(ops[0][1],4*80,'turned character renders the continuing walk pose');
- assert.equal(ops[0][2],directions.indexOf(to)*80,'turned character renders its new facing row');
+ assert.equal(ops[0][1],4*48,'turned character renders the continuing 48px walk pose');
+ assert.equal(ops[0][2],directions.indexOf(to)*48,'turned character renders its new facing row');
  e.direction=from;updateAnimation(e,180,540);
  assert.equal(characterFrame(e,540),5,'a second turn continues the second passing pose');
  updateAnimation(e,180,720);
@@ -43,7 +43,7 @@ for(const direction of ['down','left','right','up']){
  const ops=[],c={drawImage(...args){ops.push(args);}},assets={images:{hero:{}}};
  for(const [i,offset] of [0,90,180,270].entries()){
   assert.equal(characterFrame(e,1000+offset),6+i);drawCharacter(c,assets,e,1000+offset);
-  assert.equal(ops.at(-1)[2],['down','left','right','up'].indexOf(direction)*80,'attack direction remains locked');
+  assert.equal(ops.at(-1)[2],['down','left','right','up'].indexOf(direction)*48,'attack direction remains locked');
  }
  assert.equal(characterFrame(e,1360),0,'attack returns to idle');
 }
@@ -64,4 +64,18 @@ const slowHero={sprite:'hero',direction:'up',moving:true,attackUntil:0,step:{dur
 updateAnimation(slowHero,0,0);
 updateAnimation(slowHero,360,360);
 assert.equal(characterFrame(slowHero,360),3,'step duration scales gait with movement speed');
+// The hero is completely motionless while waiting, independent of clock time.
+const resting={sprite:'hero',direction:'right',moving:false,attackUntil:0,px:64,py:75};
+for(const moment of [0,180,650,1300,6500,30123]){
+ updateAnimation(resting,180,moment);
+ assert.equal(characterFrame(resting,moment),0,'idle pose must never step between feet');
+ const ops=[],c={drawImage(...args){ops.push(args);}};
+ drawCharacter(c,{images:{hero:{}}},resting,moment);
+ assert.deepEqual(ops[0].slice(1,5),[0,2*48,48,48],'single idle source frame in 48px atlas');
+ assert.deepEqual(ops[0].slice(5),[40,32,48,48],'48px size, feet anchored on the tile');
+}
+resting.attackDirection='right';resting.attackStarted=32000;resting.attackUntil=32360;
+assert.equal(characterFrame(resting,32180),8,'still character can attack');
+resting.attackUntil=0;
+assert.equal(characterFrame(resting,32400),0,'after attack player returns to neutral pose');
 console.log('PASS: stable 720ms druid gait, four directions, slow steps, turns, attack phases and NPC frames.');

@@ -133,6 +133,12 @@ for(const row of heroFrames)for(const frame of row){
  assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero frame fits');
 }
 assert.equal(game.modelMode,'2d','pixel druid is the default for new players');
+assert.deepEqual([game.assets.images.hero.width,game.assets.images.hero.height],[480,192],
+ 'the hero should have ten 48px frames by four directions, not 80px frames');
+const heroOps=[],heroContext={drawImage(...args){heroOps.push(args);}};
+drawCharacter(heroContext,game.assets,game.player,0);
+assert.deepEqual(heroOps[0].slice(1,5),[0,0,48,48],'48px source frame');
+assert.deepEqual(heroOps[0].slice(7),[48,48],'48px rendered hero, without oversize scaling');
 game.setModelMode('2d');
 assert.equal(game.player.sprite,'hero');
 game.setModelMode('3d');

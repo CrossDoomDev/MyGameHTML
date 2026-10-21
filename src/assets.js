@@ -162,27 +162,29 @@ export async function loadAssets() {
   hc.drawImage(images['hero-source'],sx,sy,sw,sh,flip?-anchor:dx,dy,w,h);
   hc.restore();
  }
- // The redesigned 2D hero includes individually drawn LEFT and RIGHT profiles,
- // four natural walk poses, and emerald staff attacks in every direction.
- // Keep the previous hero canvas only if the new file cannot be fetched.
+ // The new pixel druid uses compact 48x48 cells. Import the original 80px
+ // painted frames, then bake the smaller atlas ONCE at startup. A generous
+ // transparent inset leaves room for the staff and magical attacks. Never
+ // crop a pose by drawing a large frame inside a too-small destination cell.
  const redesigned=await new Promise(resolve=>{
   const image=new Image();
   image.onload=()=>resolve(image);
   image.onerror=()=>resolve(null);
   image.src=assetURL('hero-druid.png');
  });
- if(redesigned?.width===640&&redesigned?.height===320){
-  // 8 authentic painted frames per direction are packed without duplication.
-  // Expand them to the engine's 10-frame idle/walk/attack contract exactly
-  // once at startup (never during a draw call).
-  const atlas=document.createElement('canvas');
-  atlas.width=800;atlas.height=320;
-  const druidCtx=atlas.getContext('2d');druidCtx.imageSmoothingEnabled=false;
-  const sourceColumns=[0,1,1,2,3,4,5,6,7,0];
-  for(let row=0;row<4;row++)for(let col=0;col<sourceColumns.length;col++)
-   druidCtx.drawImage(redesigned,sourceColumns[col]*80,row*80,80,80,col*80,row*80,80,80);
-  images.hero=atlas;
- }else images.hero=hero;
+ const originalReady=redesigned?.width===640&&redesigned?.height===320;
+ const compact=document.createElement('canvas');
+ compact.width=480;compact.height=192; // 10 columns x 4 rows, 48 pixels per cell
+ const compactCtx=compact.getContext('2d');compactCtx.imageSmoothingEnabled=false;
+ const source=originalReady?redesigned:hero;
+ const sourceColumns=originalReady?[0,0,1,2,3,4,5,6,7,0]:[0,0,2,3,4,5,6,7,8,0];
+ for(let row=0;row<4;row++)for(let col=0;col<10;col++){
+  // Original foot anchor (40,64) maps to (24,43) at 0.575x.
+  // Every opaque pixel remains >=2px from the 48px frame boundaries.
+  compactCtx.drawImage(source,sourceColumns[col]*80,row*80,80,80,
+   col*48+1,row*48+7,46,46);
+ }
+ images.hero=compact;
  images.hero3d=images['hero-3d-atlas'];
  return {images,environment,environmentMasks};
 }
@@ -192,11 +194,13 @@ export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
  const frame=NPC_SPRITES.includes(entity.sprite)?0:characterFrame(entity,time);
  const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
  const row=Math.max(0,directions.indexOf(direction||'down'));
- const is3d=entity.sprite==='hero3d',hero=entity.sprite==='hero'||is3d;
+ const is3d=entity.sprite==='hero3d',isPixelHero=entity.sprite==='hero';
  const vectorNPC=npcStyle==='vector'&&NPC_SPRITES.includes(entity.sprite);
  const image=vectorNPC?assets.images['vector-'+entity.sprite]:assets.images[entity.sprite||'hero'];
- const sourceCell=vectorNPC?384:is3d?128:hero?80:48;
- const size=hero?80:48,anchorX=hero?40:24,anchorY=hero?64:42;
+ const sourceCell=vectorNPC?384:is3d?128:48;
+ // Only the optional 3D model is drawn at 80px. The pixel hero has an
+ // actual 48x48 source cell AND a 48x48 world footprint with safe insets.
+ const size=is3d?80:48,anchorX=is3d?40:24,anchorY=is3d?64:isPixelHero?43:42;
  // Smooth SVG source art in canvases that draw it at native screen resolution.
  if(vectorNPC){c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';}
  c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
