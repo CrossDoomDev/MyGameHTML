@@ -13,15 +13,16 @@ const distance=(a,b)=>Math.hypot(a.px-b.px,a.py-b.py);
 const directionTo=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down');
 export class Game{
  constructor(canvas){
-  this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.map=createMap();
+  this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.map=null;
   const p=initial();let data={};try{data=JSON.parse(localStorage.getItem(STORAGE)||'{}')||{};}catch{}
   for(const key of Object.keys(p)){
    if(typeof p[key]==='number'&&Number.isFinite(data[key]))p[key]=Math.max(0,data[key]);
    else if(typeof p[key]==='boolean'&&typeof data[key]==='boolean')p[key]=data[key];
   }
   p.level=clamp(Math.floor(p.level),1,99);p.maxHp=clamp(p.maxHp,100,2080);p.hp=clamp(p.hp||p.maxHp,1,p.maxHp);p.maxMana=60;p.mana=clamp(p.mana,0,60);
-  // Migrate progress from the 20x20 prototype; only the new map's positions change.
-  if(data.version!==2){p.x=SPAWN.x;p.y=SPAWN.y;}
+  this.location=data.version===3&&['village','forest','tavern'].includes(data.location)?data.location:'village';
+  this.map=createMap(this.location);
+  if(data.version!==3){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
   // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
   this.modelMode=localStorage.getItem('tiholesye-model')==='2d'?'2d':'3d';
@@ -29,19 +30,44 @@ export class Game{
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
-  this.npcs=[
-   anchored({id:'elder',kind:'npc',name:'Староста Ольгерд',sprite:'elder',x:11,y:15}),
-   anchored({id:'smith',kind:'npc',name:'Кузнец Бран',sprite:'smith',x:21,y:16}),
-   anchored({id:'merchant',kind:'npc',name:'Торговка Мира',sprite:'merchant',x:28,y:15}),
-   anchored({id:'villager',kind:'npc',name:'Травница Лина',sprite:'villager',x:12,y:22}),
-   anchored({id:'fisher',kind:'npc',name:'Рыбак Финн',sprite:'fisher',x:27,y:20})
-  ];
-  this.mobs=[this.makeMob(30,18),this.makeMob(33,21),this.makeMob(31,9,'goblin'),this.makeMob(19,25),this.makeMob(33,5,'guardian')];
-  for(const m of this.mobs){this.clearSpawn(m.x,m.y);if(m.boss&&p.boss)m.alive=false;}
-  for(const n of this.npcs)this.clearSpawn(n.x,n.y);
-  this.herbs=[[16,16],[18,19],[29,18],[30,8],[12,23],[19,26]].map(([x,y])=>anchored({x,y,kind:'herb',collected:false}));
+  this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
   this.ui=new UI(this);this.bindInput();this.resize();
+ }
+ populateLocation(){
+  this.npcs=(this.location==='village'?[
+   ['elder','Староста Ольгерд','elder',20,20],['smith','Кузнец Бран','smith',36,17],
+   ['merchant','Торговка Мира','merchant',49,23],['villager','Травница Лина','villager',39,36],
+   ['fisher','Рыбак Финн','fisher',53,29],['resident-1','Жительница Тихолесья','villager',23,32],
+   ['resident-2','Деревенский путник','smith',9,21]
+  ]:this.location==='tavern'?[
+   ['innkeeper','Трактирщица Эльма','merchant',16,8],['patron','Посетитель таверны','villager',8,10]
+  ]:[]).map(([id,name,sprite,x,y])=>anchored({id,kind:'npc',name,sprite,x,y}));
+  this.mobs=this.location==='forest'?[
+   this.makeMob(18,40),this.makeMob(27,38),this.makeMob(36,63,'goblin'),
+   this.makeMob(50,47),this.makeMob(70,20,'goblin'),
+   this.makeMob(80,63),this.makeMob(88,33,'guardian')
+  ]:[];
+  for(const m of this.mobs){this.clearSpawn(m.x,m.y);if(m.boss&&this.player.boss)m.alive=false;}
+  for(const n of this.npcs)this.clearSpawn(n.x,n.y);
+  this.herbs=(this.location==='forest'?[[11,40],[25,40],[48,36],[62,40],[72,23],[38,63],[82,60]]:[])
+   .map(([x,y])=>anchored({x,y,kind:'herb',collected:false}));
+  for(const h of this.herbs)this.clearSpawn(h.x,h.y);
+ }
+ enterLocation(location,x,y){
+  this.location=location;this.map=createMap(location);this.populateLocation();
+  let sx=x,sy=y;
+  if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
+  Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
+  this.path=[];this.target=null;this.effects=[];
+  if(this.ready)this.renderer=new Renderer(this);
+  this.save();
+  this.toast(location==='forest'?'Ты входишь в Великий лес.':location==='tavern'?'Добро пожаловать в таверну.':'Ты вернулся в деревню.');
+ }
+ checkPortals(){
+  const p=this.player,portal=this.map.portals?.find(t=>t.x===p.x&&t.y===p.y);
+  if(!portal||p.step)return false;
+  this.enterLocation(portal.to,portal.spawn.x,portal.spawn.y);return true;
  }
  makeMob(x,y,sprite='mossling'){
   const boss=sprite==='guardian',hp=boss?130:sprite==='goblin'?42:32;
@@ -108,15 +134,18 @@ export class Game{
   this.canvas.focus({preventScroll:true});
   const r=this.canvas.getBoundingClientRect(),wx=(e.clientX-r.left)/r.width*this.canvas.width+this.camera.x,wy=(e.clientY-r.top)/r.height*this.canvas.height+this.camera.y;
   const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);
-  if(this.buildMode){if(x>=0&&y>=0&&x<WIDTH&&y<HEIGHT)this.place(this.buildMode,x,y);return;}
+  if(this.buildMode){if(x>=0&&y>=0&&x<this.map.width&&y<this.map.height)this.place(this.buildMode,x,y);return;}
   this.stopMovement();
-  if(x<0||y<0||x>=WIDTH||y>=HEIGHT)return;
-  if(this.blocked(x,y)){
-   // Adjacent actors can still be used without walking to a substitute cell.
-   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>t.x===x&&t.y===y&&distance(t,this.player)<=49);
-   if(actor){this.target=actor;this.interactTarget();}else this.toast('Здесь не пройти. Выбери дорожку.');
-   return;
+  if(x<0||y<0||x>=this.map.width||y>=this.map.height)return;
+  const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
+   Math.abs(wx-t.px)<22&&wy>=t.py-49&&wy<=t.py+9);
+  if(actor){this.target=actor;this.approach(actor.x,actor.y);return;}
+  const building=this.map.buildings.find(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
+  if(building){
+   this.target=anchored({...building,kind:'building',x:building.doorX,y:building.doorY});
+   this.approach(building.doorX,building.doorY);return;
   }
+  if(this.blocked(x,y)){this.toast('Здесь не пройти. Выбери дорожку.');return;}
   const route=this.findPath(x,y);
   if(!route.length&&(x!==this.player.x||y!==this.player.y)){this.toast('Здесь не пройти. Выбери дорожку.');return;}
   const p=this.player;
@@ -132,7 +161,7 @@ export class Game{
   p.animationState='idle';p.animationTime=0;
  }
  approach(x,y){
-  if(Math.abs(this.player.x-x)+Math.abs(this.player.y-y)<=1){this.path=[];if(this.target&&distance(this.target,this.player)<49)this.interactTarget();return;}
+  if(Math.abs(this.player.x-x)+Math.abs(this.player.y-y)<=1){this.path=[];this.interactTarget();return;}
   const options=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>!this.blocked(a,b)).map(([a,b])=>this.findPath(a,b)).filter(p=>p.length);
   options.sort((a,b)=>a.length-b.length);this.path=options[0]||[];
   if(!this.path.length)this.toast('Не удаётся подойти.');
@@ -151,6 +180,7 @@ export class Game{
  }
  update(dt){
   const p=this.player;this.advance(p,dt);
+  if(!p.step&&this.checkPortals())return;
   if(!p.step){
    let dx=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0),dy=(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0);
    if(this.stick.x||this.stick.y){if(Math.abs(this.stick.x)>Math.abs(this.stick.y))dx=Math.sign(this.stick.x);else dy=Math.sign(this.stick.y);}
@@ -189,13 +219,13 @@ export class Game{
  nearestInteractable(){
   return [...this.npcs,...this.herbs.filter(h=>!h.collected)].filter(e=>distance(e,this.player)<55).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
  }
- interactNearest(){const t=this.nearestInteractable();if(t){this.target=t;this.interactTarget();return;}const b=this.map.buildings.find(b=>Math.abs(this.player.x-b.doorX)<=1&&this.player.y===b.doorY+1);if(b)this.ui.building(b);else this.toast('Подойди к жителю, дому или лесной траве.');}
+ interactNearest(){const t=this.nearestInteractable();if(t){this.target=t;this.interactTarget();return;}const b=this.map.buildings.find(b=>Math.abs(this.player.x-b.doorX)+Math.abs(this.player.y-b.doorY)<=2);if(b){this.target=anchored({...b,kind:'building',x:b.doorX,y:b.doorY});this.interactTarget();}else if(this.location==='tavern'&&this.player.y>=14)this.enterLocation('village',15,16);else this.toast('Рядом нет доступного объекта.');}
  interactTarget(){
   const t=this.target;if(!t)return;
-  if(t.kind==='building'){if(this.player.x===t.x&&this.player.y===t.y){this.target=null;this.ui.building(t);}return;}
+  if(t.kind==='building'){if(Math.abs(this.player.x-t.x)+Math.abs(this.player.y-t.y)>1){if(!this.path.length&&!this.player.step)this.approach(t.x,t.y);return;}this.target=null;this.ui.building(t);return;}
   if(distance(t,this.player)>49){if(!this.path.length&&!this.player.step)this.approach(t.x,t.y);return;}
   this.player.direction=directionTo(t.px-this.player.px,t.py-this.player.py);
-  if(t.kind==='mob'){if(t.alive)this.attack(t);else this.target=null;return;}
+  if(t.kind==='mob'){this.target=null;if(t.alive)this.attack(t);return;}
   this.target=null;
   if(t.kind==='npc'){t.direction=directionTo(this.player.px-t.px,this.player.py-t.py);this.ui.dialogue(t);return;}
   if(t.kind==='herb'){t.collected=true;this.player.herbs++;this.effect('+1 трава',t,'#c7dda0');this.save();this.toast('Собрана лесная трава.');}
@@ -225,8 +255,8 @@ export class Game{
   if(this.player.hp===this.player.maxHp)return this.toast('Здоровье уже полное.');
   this.player.potions--;this.player.hp=Math.min(this.player.maxHp,this.player.hp+45);this.effect('+45',this.player,'#b9dc93');this.save();this.toast('Зелье восстановило здоровье.');
  }
- respawn(){Object.assign(this.player,{hp:this.player.maxHp,x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE,step:null,moving:false,attackUntil:0,attackStarted:0,animationTime:0,animationState:'idle'});this.target=null;this.path=[];this.toast('Жители помогли тебе вернуться в деревню.');this.save();}
- save(){const data=initial();for(const key of Object.keys(data))data[key]=this.player[key];data.version=2;try{localStorage.setItem(STORAGE,JSON.stringify(data));}catch{}}
+ respawn(){this.player.hp=this.player.maxHp;this.player.attackUntil=0;this.enterLocation('village',SPAWN.x,SPAWN.y);this.toast('Жители помогли тебе вернуться в деревню.');}
+ save(){const data=initial();for(const key of Object.keys(data))data[key]=this.player[key];data.version=3;data.location=this.location;try{localStorage.setItem(STORAGE,JSON.stringify(data));}catch{}}
  toast(text){this.ui.toast(text);}
  bip(hz,seconds){
   if(!this.sound)return;try{this.audio??=new(window.AudioContext||window.webkitAudioContext)();if(this.audio.state==='suspended')this.audio.resume();const osc=this.audio.createOscillator(),gain=this.audio.createGain();osc.type='triangle';osc.frequency.value=hz;gain.gain.setValueAtTime(.035,this.audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,this.audio.currentTime+seconds);osc.connect(gain).connect(this.audio.destination);osc.start();osc.stop(this.audio.currentTime+seconds);}catch{}
@@ -246,7 +276,7 @@ export class Game{
   this.renderer.bakeMinimap();this.toast('Объект установлен · F2 — инструменты.');
  }
  exportMap(){
-  const data={tileSize:TILE,width:WIDTH,height:HEIGHT,terrain:this.map.terrain,buildings:this.map.buildings,objects:this.map.objects,enemies:this.mobs.map(m=>({sprite:m.sprite,x:m.homeX,y:m.homeY}))};
+  const data={tileSize:TILE,location:this.location,width:this.map.width,height:this.map.height,terrain:this.map.terrain,buildings:this.map.buildings,objects:this.map.objects,enemies:this.mobs.map(m=>({sprite:m.sprite,x:m.homeX,y:m.homeY}))};
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='tiholesye-map.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }
 }
