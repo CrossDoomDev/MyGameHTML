@@ -1,0 +1,47 @@
+name: Install Village Artwork
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/village-buildings.png'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  optimize-artwork:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pillow
+        run: python3 -m pip install --quiet Pillow
+      - name: Validate and optimize transparent pixel-art atlas
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          source=Path('assets/village-buildings.png')
+          if not source.is_file():
+              raise SystemExit('Upload village-buildings.png to the assets folder first')
+          atlas=Image.open(source).convert('RGBA')
+          if atlas.size!=(864,416):
+              raise SystemExit(f'Expected exactly 864x416 atlas, got {atlas.size}')
+          if not atlas.getchannel('A').getextrema()[0]<250:
+              raise SystemExit('Source image lacks transparent background')
+          output=Path('assets/village-buildings.webp')
+          atlas.save(output,'WEBP',quality=82,method=6)
+          loaded=Image.open(output)
+          assert loaded.size==(864,416)
+          print('Converted village buildings to WebP:',output.stat().st_size,'bytes')
+          PY
+      - name: Commit deployable atlas
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/village-buildings.webp
+          if ! git diff --cached --quiet; then
+            git commit -m "Install transparent six-building atlas and animated fountain"
+            git push origin HEAD:main
+          fi
