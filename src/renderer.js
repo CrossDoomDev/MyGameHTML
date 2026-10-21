@@ -202,8 +202,11 @@ export class Renderer{
     c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');
     const model=HOUSES[b.sprite];
     const newArt=!!model&&sprite.width===model.w*TILE&&sprite.height===model.h*TILE;
-    if(newArt)drawSmoke(c,model.chimneys,placement.x,placement.y,time,alpha);
-    c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);
+    // Restore building opacity after the faint ground shadow, otherwise smoke
+    // inherits 17% shadow alpha and is barely visible at normal zoom.
+    c.globalAlpha=alpha;
+    if(newArt)drawSmoke(c,model.chimneys,placement.x,placement.y,time);
+    c.drawImage(sprite,placement.x,placement.y);
     if(newArt)drawBuildingLights(c,b.sprite,placement.x,placement.y,time);
     else if(b.sprite==='forge')drawForgeEffects(c,placement.x,placement.y,time);
     c.restore();
