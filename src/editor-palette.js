@@ -2,7 +2,7 @@
 // Terrain is rendered with the exact same tile painter as the active world.
 import {TILE} from './map.js';
 import {Renderer} from './renderer.js';
-import {buildingTemplate} from './map-editor-data.js';
+import {buildingTemplate,objectTemplate} from './map-editor-data.js';
 import {buildingPlacement,sceneryPlacement} from './visibility.js';
 
 const cell=72;
@@ -65,7 +65,7 @@ export function drawPlacementGhost(c,game,kind,id,x,y,valid=true){
  }else if(kind==='object'){
   const img=environment[id];
   if(img){
-   const obj={sprite:id,x,y,px:(x+.5)*TILE,py:(y+1)*TILE};
+   const obj=objectTemplate(id,x,y);
    const placement=sceneryPlacement(obj,img);
    c.drawImage(img,Math.round(placement.x),Math.round(placement.y));
   }
