@@ -164,7 +164,7 @@ export class Game{
   if(Math.abs(this.player.x-x)+Math.abs(this.player.y-y)<=1){this.path=[];this.interactTarget();return;}
   const options=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>!this.blocked(a,b)).map(([a,b])=>this.findPath(a,b)).filter(p=>p.length);
   options.sort((a,b)=>a.length-b.length);this.path=options[0]||[];
-  if(!this.path.length)this.toast('Не удаётся подойти.');
+  if(!this.path.length){this.target=null;this.toast('Не удаётся подойти.');}
  }
  beginStep(entity,x,y,duration=210){
   if(this.blocked(x,y,entity))return false;
@@ -217,7 +217,10 @@ export class Game{
   if(this.time-this.lastSave>5000){this.save();this.lastSave=this.time;}
  }
  nearestInteractable(){
-  return [...this.npcs,...this.herbs.filter(h=>!h.collected)].filter(e=>distance(e,this.player)<55).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
+  const doors=this.map.buildings.filter(b=>Math.abs(this.player.x-b.doorX)+Math.abs(this.player.y-b.doorY)<=2)
+   .map(b=>anchored({...b,kind:'building',x:b.doorX,y:b.doorY}));
+  return [...this.npcs,...this.herbs.filter(h=>!h.collected),...doors]
+   .filter(e=>distance(e,this.player)<70).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
  }
  interactNearest(){const t=this.nearestInteractable();if(t){this.target=t;this.interactTarget();return;}const b=this.map.buildings.find(b=>Math.abs(this.player.x-b.doorX)+Math.abs(this.player.y-b.doorY)<=2);if(b){this.target=anchored({...b,kind:'building',x:b.doorX,y:b.doorY});this.interactTarget();}else if(this.location==='tavern'&&this.player.y>=14)this.enterLocation('village',15,16);else this.toast('Рядом нет доступного объекта.');}
  interactTarget(){
@@ -263,6 +266,8 @@ export class Game{
  }
  // Prototype construction tools: grid-aligned placement, explicit collision checks, JSON export.
  place(sprite,x,y){
+  if(['mossling','goblin','guardian'].includes(sprite)&&this.location!=='forest')
+   return this.toast('Враги размещаются только в Великом лесу.');
   if(this.blocked(x,y))return this.toast('Клетка занята.');
   if(['mossling','goblin','guardian'].includes(sprite)){this.mobs.push(this.makeMob(x,y,sprite));}
   else if(sprite==='cabin'){
