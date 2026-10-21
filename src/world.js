@@ -1,5 +1,6 @@
 import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
+import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
@@ -39,7 +40,7 @@ export class Game{
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
-  this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
+  this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
   this.ui=new UI(this);this.editor=new MapEditor(this);this.bindInput();this.resize();
@@ -97,6 +98,7 @@ export class Game{
   if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
   Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
   this.path=[];this.target=null;this.effects=[];
+  this.skillCooldowns={};
   if(this.ready)this.renderer=new Renderer(this);
   this.save();
   this.toast(location==='forest'?'Ты входишь в Великий лес.':location==='tavern'?'Добро пожаловать в таверну.':'Ты вернулся в деревню.');
@@ -162,6 +164,7 @@ export class Game{
    if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];}
    if(e.repeat)return;
    if(e.code==='Space')this.attack();
+   if(SKILL_KEYS[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey)this.castSkill(SKILL_KEYS[e.code]);
    if(e.code==='KeyE')this.interactNearest();
    if(e.code==='KeyB')this.ui.inventory();
    if(e.code==='KeyM')this.ui.map();
@@ -249,14 +252,14 @@ export class Game{
   p.mana=Math.min(p.maxMana,p.mana+dt*.004);
   for(const m of this.mobs){
    if(!m.alive){if(!m.boss&&this.time>=m.respawnAt){m.alive=true;m.hp=m.max;m.x=m.homeX;m.y=m.homeY;m.px=(m.x+.5)*TILE;m.py=(m.y+.8)*TILE;m.step=null;}continue;}
-   this.advance(m,dt);
+   if(this.time>=(m.rootedUntil||0))this.advance(m,dt);
    const d=distance(m,p),aggro=d<(m.boss?190:120),adjacent=d<43;
    if(adjacent&&this.time-m.lastAttack>1400){
     m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);m.attackDirection=m.direction;
     p.hp=Math.max(0,p.hp-(m.boss?14:6));p.hitUntil=this.time+250;this.effect('-'+(m.boss?14:6),p,'#e59973');this.bip(110,.07);
     if(p.hp<=0){this.respawn();break;}this.save();
    }
-   if(!m.step&&this.time>m.nextThink&&!adjacent){
+   if(this.time>=(m.rootedUntil||0)&&!m.step&&this.time>m.nextThink&&!adjacent){
     m.nextThink=this.time+(aggro?350:1600)+((m.homeX*71+m.homeY*29)%700);
     let tx,ty;
     if(aggro){
@@ -271,7 +274,7 @@ export class Game{
    }
   }
   for(const entity of [p,...this.npcs,...this.mobs])updateAnimation(entity,dt,this.time);
-  this.effects=this.effects.filter(e=>this.time-e.time<(e.type==='text'?950:500));
+  this.effects=this.effects.filter(e=>this.time-e.time<(e.duration||(e.type==='text'?950:500)));
   if(this.time-this.lastSave>5000){this.save();this.lastSave=this.time;}
  }
  nearestInteractable(){
@@ -291,6 +294,55 @@ export class Game{
   if(t.kind==='npc'){t.direction=directionTo(this.player.px-t.px,this.player.py-t.py);this.ui.dialogue(t);return;}
   if(t.kind==='herb'){t.collected=true;this.player.herbs++;this.effect('+1 трава',t,'#c7dda0');this.save();this.toast('Собрана лесная трава.');}
  }
+ damageMob(m,damage){
+  if(!m?.alive||damage<=0)return false;
+  m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);
+  this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
+  if(m.hp>0)return true;
+  m.alive=false;m.step=null;m.rootedUntil=0;m.respawnAt=this.time+20000;
+  this.player.xp+=m.boss?70:20;this.player.coins+=m.boss?35:5;this.player.wood++;
+  if(m.boss)this.player.boss=true;else this.player.kills++;
+  while(this.player.xp>=this.player.level*50){
+   this.player.xp-=this.player.level*50;this.player.level++;this.player.maxHp+=20;
+   this.player.hp=this.player.maxHp;this.toast('Новый уровень! Здоровье восстановлено.');
+  }
+  if(this.player.level===1)this.toast(m.boss?'Лесной страж повержен!':'Победа! +20 опыта · +5 монет');
+  this.target=null;this.save();
+  return true;
+ }
+ castSkill(id){
+  const skill=DRUID_SKILLS[id],p=this.player;
+  if(!skill||this.ui.open||this.editor?.active||!this.ready)return false;
+  const remaining=skillRemaining(this.skillCooldowns,id,this.time);
+  if(remaining){this.toast(skill.name+': ещё '+Math.ceil(remaining/1000)+' с');return false;}
+  if(p.mana<skill.mana){this.toast('Недостаточно маны: нужно '+skill.mana);return false;}
+  if(id==='heal'&&p.hp>=p.maxHp){this.toast('Здоровье уже полное.');return false;}
+  p.mana-=skill.mana;this.skillCooldowns[id]=this.time+skill.cooldown;
+  p.attackStarted=this.time;p.attackUntil=this.time+360;p.attackDirection=p.direction;
+  this.lastAttack=this.time;
+  if(id==='bolt'){
+   const result=boltTrace(this.map,p,p.direction,this.mobs);
+   this.effects.push({type:'bolt',x:p.px,y:p.py-22,tx:result.x,ty:result.y-16,
+    time:this.time,duration:460,color:skill.color});
+   if(result.target)this.damageMob(result.target,skill.damage+p.level*3);
+   this.bip(550,.13);
+  }else if(id==='roots'){
+   const victims=rootsTargets(p,this.mobs);
+   for(const mob of victims){
+    mob.rootedUntil=this.time+skill.rootMs;
+    this.damageMob(mob,skill.damage+p.level*2);
+   }
+   this.effects.push({type:'roots',x:p.px,y:p.py,time:this.time,
+    duration:700,radius:skill.radius,color:skill.color});
+   this.bip(190,.16);
+  }else if(id==='heal'){
+   const gain=Math.min(p.maxHp-p.hp,skill.heal+p.level*5);
+   p.hp+=gain;this.effect('+'+gain+' здоровье',p,skill.color);
+   this.effects.push({type:'heal',x:p.px,y:p.py-21,time:this.time,duration:850,color:skill.color});
+   this.bip(770,.18);
+  }
+  this.save();return true;
+ }
  attack(target){
   if(this.ui.open||this.time-this.lastAttack<600)return;
   if(this.player.mana<2)return this.toast('Посоху нужно немного маны.');
@@ -299,16 +351,9 @@ export class Game{
   const m=target||this.mobs.filter(m=>m.alive&&distance(m,this.player)<49).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
   this.bip(360,.05);
   if(!m||!m.alive||distance(m,this.player)>49)return;
-  this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);this.player.attackDirection=this.player.direction;
-  const damage=10+this.player.level*3;m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
-  if(m.hp<=0){
-   m.alive=false;m.step=null;m.respawnAt=this.time+20000;
-   this.player.xp+=m.boss?70:20;this.player.coins+=m.boss?35:5;this.player.wood++;
-   if(m.boss)this.player.boss=true;else this.player.kills++;
-   while(this.player.xp>=this.player.level*50){this.player.xp-=this.player.level*50;this.player.level++;this.player.maxHp+=20;this.player.hp=this.player.maxHp;this.toast('Новый уровень! Здоровье восстановлено.');}
-   if(this.player.level===1)this.toast(m.boss?'Лесной страж повержен!':'Победа! +20 опыта · +5 монет');
-   this.target=null;this.save();
-  }
+  this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
+  this.player.attackDirection=this.player.direction;
+  this.damageMob(m,10+this.player.level*3);
  }
  effect(text,e,color){this.effects.push({type:'text',text,x:e.px,y:e.py,time:this.time,color});}
  potion(){
