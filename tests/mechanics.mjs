@@ -89,10 +89,12 @@ assert.equal(defaultStyle.modelMode,'2d','old oversized hero preference is migra
 assert.equal(defaultStyle.player.sprite,'hero','new compact hero is selected');
 assert.equal(store.get('tiholesye-model'),'2d','migration persists new pixel default');
 assert.equal(store.get('tiholesye-compact-hero-48'),'1','migration runs once');
-defaultStyle.setModelMode('3d');
+// Simulate a later explicit 3D choice; a fresh Game must retain it once the
+// one-time migration flag exists. Don't call UI setters before assets load.
+store.set('tiholesye-model','3d');
 const restoredChoice=new Game(new Canvas('restored-3d-choice'));
 assert.equal(restoredChoice.modelMode,'3d','explicit new choice persists after migration');
-restoredChoice.setModelMode('2d');
+store.set('tiholesye-model','2d');
 store.set('tiholesye-npc-style','pixel');
 const game=new Game(document.getElementById('game'));
 await game.start();
