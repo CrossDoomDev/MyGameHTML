@@ -33,13 +33,13 @@ export class UI{
  slot(index){
   document.querySelectorAll('[data-slot]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.slot)===index));
   if(index===0)this.g.attack();
-  if(index===1){if(this.g.player.herbs<1)this.toast('Собирай травы на опушке леса.');else if(this.g.player.hp>=this.g.player.maxHp)this.toast('Здоровье уже полное.');else{this.g.player.herbs--;this.g.player.hp=Math.min(this.g.player.maxHp,this.g.player.hp+15);this.g.save();this.toast('Лесная трава: +15 здоровья.');}}
+  if(index===1){if(this.g.player.herbs<1)this.toast('Собирай травы в Великом лесу.');else if(this.g.player.hp>=this.g.player.maxHp)this.toast('Здоровье уже полное.');else{this.g.player.herbs--;this.g.player.hp=Math.min(this.g.player.maxHp,this.g.player.hp+15);this.g.save();this.toast('Лесная трава: +15 здоровья.');}}
   if(index===2)this.g.potion();if(index===3)this.toast('Древесина: '+this.g.player.wood+' · трофеи лесных существ');if(index===4)this.inventory();if(index===5)this.journal();
  }
  inventory(){
   const p=this.g.player;
   const items=[['staff','Посох лесника','Экипирован · урон '+(10+p.level*3)],['potion','Лечебное зелье',p.potions+' шт. · +45 здоровья'],['herb','Лесная трава',p.herbs+' шт. · +15 здоровья'],['wood','Древесина',p.wood+' шт. · трофеи']];
-  this.show('Рюкзак','Снаряжение и находки','<div class="inventory-grid">'+items.map(([icon,name,desc])=>'<div class="inventory-item"><span class="item item-'+icon+'"></span><span>'+name+'<br><small>'+desc+'</small></span></div>').join('')+'</div><p>Монеты: <strong>'+p.coins+'</strong> · Уровень '+p.level+'</p><p class="note">Опыт '+p.xp+' / '+p.level*50+'<br>Лавка Миры у реки продаёт лечебные зелья.</p><button class="button" id="usePotion">Выпить зелье</button>');
+  this.show('Рюкзак','Снаряжение и находки','<div class="inventory-grid">'+items.map(([icon,name,desc])=>'<div class="inventory-item"><span class="item item-'+icon+'"></span><span>'+name+'<br><small>'+desc+'</small></span></div>').join('')+'</div><p>Монеты: <strong>'+p.coins+'</strong> · Уровень '+p.level+'</p><p class="note">Опыт '+p.xp+' / '+p.level*50+'<br>Купить лечебные зелья можно у Миры на рынке или у трактирщицы.</p><button class="button" id="usePotion">Выпить зелье</button>');
   this.panel.querySelector('#usePotion').onclick=()=>{this.g.potion();this.inventory();};
  }
  dialogue(npc){
@@ -65,7 +65,7 @@ export class UI{
    this.show(npc.name,'Кузница Брана','<p>Хороший посох прослужит долго. Держи его крепче, а у лесного стража не стой прямо перед ударом.</p><p class="note">Урон посоха: '+(10+p.level*3)+'<br>Получай опыт, чтобы увеличить силу и запас здоровья.</p>');
   }else if(npc.id==='villager'){
    this.show(npc.name,'Дом травницы','<p>Лесная трава узнаётся по светлым листьям. Собирай её на опушке — она восстановит пятнадцать единиц здоровья. Нажми 2, чтобы использовать траву.</p>');
-  }else this.show(npc.name,'Рыбак','<p>Здесь река тихая. А выше по течению — водопад и старая роща. Перейди каменный мост и держись северной тропы.</p>');
+  }else this.show(npc.name,'Житель Тихолесья','<p>За домами тихий пруд, а дальше начинаются широкие лесные тропы. За пределами деревни встречаются лесные существа. Береги себя.</p>');
  }
  building(b){
   if(b.id==='inn'){this.g.enterLocation('tavern',12,14);return;}
