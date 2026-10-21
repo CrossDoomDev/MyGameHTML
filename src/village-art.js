@@ -2,23 +2,25 @@
 // an odd-width grid footprint; the door's center is at tile w // 2.
 // Artwork is sliced from one compact transparent atlas.
 export const TILE_ART=32;
-export const ART_ATLAS='village-buildings.webp';
-export const ATLAS_SOURCE=[864,416];
+// New compact art from the final six-row concept. All facades occupy an odd
+// five-column footprint; each doorway is precisely on the middle tile.
+export const ART_ATLAS='village-compact.webp';
+export const ATLAS_SOURCE=[288,192];
 export const HOUSES={
- cabin: {name:'Домик',w:5,h:5,atlas:[64,0,160,160],chimneys:[[126,9]],
-  lights:[[80,63],[46,117],[115,117],[82,113]]},
- cottage: {name:'Большой дом',w:7,h:5,atlas:[320,0,224,160],chimneys:[[161,7]],
-  lights:[[112,62],[67,115],[166,114],[111,137]]},
- inn: {name:'Таверна',w:9,h:5,atlas:[576,0,288,160],chimneys:[[72,18],[225,18]],
-  lights:[[79,65],[144,78],[218,67],[95,115],[196,111]]},
- forge: {name:'Кузница',w:7,h:5,atlas:[32,160,224,160],chimneys:[[44,30]],
-  lights:[[122,59],[159,117]],hearth:[54,131]},
- market: {name:'Лавка',w:7,h:5,atlas:[320,160,224,160],chimneys:[[159,30]],
-  lights:[[111,72],[76,118],[165,118]]},
- chapel: {name:'Часовня',w:7,h:5,atlas:[608,160,224,160],chimneys:[],
-  lights:[[112,123],[46,116],[180,116]]}
+ cabin: {name:'Домик',w:5,h:5,atlas:[96,0,96,96],chimneys:[[113,12]],
+  lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
+ cottage: {name:'Большой дом',w:5,h:5,atlas:[96,0,96,96],chimneys:[[113,12]],
+  lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
+ inn: {name:'Таверна',w:5,h:5,atlas:[0,0,96,96],chimneys:[[104,15]],
+  lights:[[63,67],[48,111],[112,113]],lanterns:[[27,106],[111,111]]},
+ forge: {name:'Кузница',w:5,h:5,atlas:[192,0,96,96],chimneys:[[111,19]],
+  lights:[[81,69]],hearth:[114,119],lanterns:[]},
+ market: {name:'Лавка',w:5,h:3,atlas:[0,134,96,58],chimneys:[],
+  lights:[[70,52]],lanterns:[[129,33]]},
+ chapel: {name:'Часовня',w:5,h:5,atlas:[96,96,96,96],chimneys:[],
+  lights:[[80,74]],lanterns:[[36,116],[121,116]]}
 };
-export const FOUNTAIN={w:3,h:3,atlas:[0,320,96,96]};
+export const FOUNTAIN={w:3,h:3,atlas:[192,96,96,96]};
 
 // Separate footprint from display texture: the scene and editor both use
 // these dimensions, so an entrance always occupies the central grid cell.
@@ -62,6 +64,16 @@ export function drawBuildingLights(c,id,x,y,time=0){
   c.globalAlpha=baseAlpha*pulse*.7;
   c.fillStyle='#ffe075';
   c.fillRect(Math.round(x+lx-6),Math.round(y+ly-1),12,2);
+ }
+ // Pixel-sized glows at actual lantern positions; no blurred effects.
+ for(let i=0;i<(model.lanterns?.length||0);i++){
+  const [lx,ly]=model.lanterns[i];
+  const phase=.5+.5*Math.sin(time/(355+i*77)+i*1.8+x*.002);
+  const alpha=baseAlpha*(.06+phase*.11);
+  c.globalAlpha=alpha;c.fillStyle='#ffb446';
+  c.fillRect(Math.round(x+lx-5),Math.round(y+ly-6),11,13);
+  c.globalAlpha=alpha*.8;c.fillStyle='#fff3b1';
+  c.fillRect(Math.round(x+lx-2),Math.round(y+ly-3),5,7);
  }
  if(model.hearth){
   const [hx,hy]=model.hearth;
