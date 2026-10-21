@@ -1,4 +1,5 @@
 import {TILE,createMap} from './map.js';
+import {drawPaletteThumbnail,drawPlacementGhost} from './editor-palette.js';
 import {LOCATIONS,TERRAINS,SCENERY,BUILDINGS,PEOPLE,ENEMIES,buildingTemplate,objectTemplate,
  insideBuilding,sceneSnapshot,normalizeSnapshot,rebuildBlocked,writeEditedMaps,
  exportEditedMaps,importEditedMaps} from './map-editor-data.js';
@@ -48,7 +49,10 @@ export class MapEditor{
   const layerMenu=Object.entries(kinds).map(([key,label])=>
    '<button type="button" class="editor-tab'+(this.kind===key?' active':'')+'" data-layer="'+key+'">'+label+'</button>').join('');
   const palette=this.palette().map(([id,name])=>
-   '<button type="button" class="editor-choice'+(this.brush===id?' active':'')+'" data-palette="'+htmlEscape(id)+'">'+htmlEscape(name)+'</button>').join('');
+   '<button type="button" class="editor-choice'+(this.brush===id?' active':'')+
+   '" data-palette="'+htmlEscape(id)+'" title="'+htmlEscape(name)+'" aria-label="Выбрать: '+htmlEscape(name)+'">'+
+   '<canvas class="editor-sprite" width="72" height="72" data-preview="'+htmlEscape(id)+'" aria-hidden="true"></canvas>'+
+   '<span class="editor-sprite-label">'+htmlEscape(name)+'</span></button>').join('');
   const tools=[['select','Выбрать'],['move','Переместить'],['erase','Удалить'],['pan','Камера']].map(([id,label])=>
    '<button type="button" class="editor-tool'+(this.tool===id?' active':'')+'" data-tool="'+id+'">'+label+'</button>').join('');
   this.panel.classList.toggle('minimized',!!this.collapsed);
@@ -70,8 +74,17 @@ export class MapEditor{
    '<div class="editor-inline"><button type="button" data-editor="reset">Сбросить локацию</button>'+
    '<button type="button" data-editor="close">▶ Играть</button></div>'+
    '<input hidden type="file" accept=".json,application/json" id="editorImport">'+
-   '<p id="editorStatus" aria-live="polite">'+htmlEscape(this.status||'ЛКМ/касание: редактировать · ПКМ: двигать карту · WASD: камера · F2: выйти')+'</p>'+
-   '<p class="editor-tip">Для рисования выберите слой и элемент, затем проведите по клеткам. Для переноса выделите объект, нажмите «Переместить» и укажите новое место или перетащите его. Ctrl+Z / Ctrl+Y — история.</p>';
+   '<p id="editorStatus" aria-live="polite">'+htmlEscape(this.status||'ЛКМ: поставить тайл · Зажать колёсико/ПКМ: двигать карту в любом режиме · F2: выйти')+'</p>'+
+   '<p class="editor-tip">Выбери графический тайл, затем нажми или проведи по карте. Колёсико мыши удерживай для перемещения камеры в любом инструменте. Ctrl+Z / Ctrl+Y — история.</p>';
+  this.paintPalette();
+ }
+ paintPalette(){
+  // Canvas tiles contain the *actual* textures and art used in the world.
+  // Repaint after each inspector rerender so images never disappear.
+  if(!this.g.assets||!this.panel.querySelectorAll)return;
+  for(const tile of this.panel.querySelectorAll('.editor-sprite')){
+   drawPaletteThumbnail(tile,this.g,this.kind,tile.dataset.preview);
+  }
  }
  selectionLabel(sel){
   const value=sel.value;
@@ -276,7 +289,9 @@ export class MapEditor{
  }
  pointerDown(e){
   if(!this.active)return false;
-  if(e.button===2||this.tool==='pan'){
+  // Middle mouse is an unconditional navigation modifier: it must not
+  // place, delete, select or relocate objects in any active tool.
+  if(e.button===1||e.button===2||this.tool==='pan'){
    this.drag={mode:'pan',fromX:e.clientX,fromY:e.clientY,camera:{...this.camera}};
    return true;
   }
@@ -443,7 +458,15 @@ export class MapEditor{
    c.strokeRect(x,y,(s.kind==='building'?v.w:1)*TILE,(s.kind==='building'?v.h:1)*TILE);
   }
   if(this.hover&&this.validCell(this.hover.x,this.hover.y)){
-   c.strokeStyle='#ffffff';c.lineWidth=2;c.strokeRect(this.hover.x*TILE+1,this.hover.y*TILE+1,TILE-2,TILE-2);
+   const {x,y}=this.hover;
+   if((this.tool==='paint'||this.tool==='place')&&this.brush){
+    const valid=this.kind==='terrain'?this.brush!=='water'||(!this.solidAt(x,y)&&!this.actorAt(x,y)):
+     this.kind==='building'?this.canPlaceBuilding(buildingTemplate(this.brush,x,y)??{x,y,w:0,h:0,doorX:x,doorY:y}):
+     this.kind==='mob'?this.g.location==='forest'&&this.canOccupy(x,y):this.canOccupy(x,y);
+    drawPlacementGhost(c,g,this.kind,this.brush,x,y,valid);
+    c.strokeStyle=valid?'#a8f3b8':'#ed7774';
+   }else c.strokeStyle='#ffffff';
+   c.lineWidth=2;c.strokeRect(x*TILE+1,y*TILE+1,TILE-2,TILE-2);
   }
   c.restore();
  }
