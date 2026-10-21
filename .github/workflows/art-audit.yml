@@ -22,6 +22,9 @@ on:
       - 'tests/pixel-art-sharp.mjs'
       - 'tests/mechanics.mjs'
       - 'assets/hero-walk*'
+      - 'assets/hero-druid.png'
+      - 'tests/hero-druid-art.py'
+      - 'src/animation.js'
       - 'tools/prepare_hero_walk.py'
       - 'tests/hero_walk_art.py'
   workflow_dispatch:
@@ -57,6 +60,8 @@ jobs:
         run: node tests/forge-animation.mjs
       - name: Verify interactive map editor and autosave
         run: node tests/map-editor.mjs
+      - name: Verify redesigned pixel druid and right-side staff
+        run: python3 tests/hero-druid-art.py
       - name: Verify alternating hero boot artwork
         run: python3 tests/hero_walk_art.py
       - name: Commit normalized tavern sprite
