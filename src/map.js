@@ -33,15 +33,16 @@ function baseMap(id,width,height,fill){
 }
 function finish(m){
  const {width,height,terrain,objects}=m;
- // Every map edge is blocked, except its explicitly marked exits.
+ const solids=new Set(objects.filter(o=>o.block).map(o=>o.y*width+o.x));
+ for(const b of m.buildings)for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)solids.add(y*width+x);
  const blocked=Array.from({length:height},(_,y)=>Array.from({length:width},(_,x)=>
-   x===0||y===0||x===width-1||y===height-1||terrain[y][x]==='water'||
-   m.buildings.some(b=>inRect(x,y,b))||objects.some(o=>o.block&&o.x===x&&o.y===y)
+   x===0||y===0||x===width-1||y===height-1||terrain[y][x]==='water'||solids.has(y*width+x)
  ));
  for(const portal of m.portals||[])blocked[portal.y][portal.x]=false;
  const {add,road,...map}=m;
  return {...map,blocked};
 }
+
 function village(){
  const m=baseMap('village',WIDTH,HEIGHT,'grass');m.label='Деревня Тихолесье';m.buildings=buildings.map(b=>({...b}));
  // Village is an open settlement, NOT a dense wood with scattered cabins.
@@ -109,6 +110,7 @@ function forest(){
 }
 function tavern(){
  const m=baseMap('tavern',24,18,'wood');m.label='Таверна «Зелёный лист»';
+ for(let y=7;y<=12;y++)for(let x=8;x<=15;x++)setTerrain(m.terrain,x,y,'rug');
  // One cozy accessible room, with the exit opposite the serving area.
  for(const [x,y] of [[4,4],[5,4],[4,5],[19,4],[20,4],[19,5],[5,11],[6,11],[18,12],[19,12]])m.add('barrel',x,y,{block:true});
  for(const [x,y] of [[9,4],[10,4],[11,4],[12,4]])m.add('crates',x,y,{block:true});
