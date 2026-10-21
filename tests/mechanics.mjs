@@ -207,6 +207,33 @@ assert.equal(game.npcs.length,0,'no village NPCs in forest');
 assert.equal(game.mobs.length,7);
 assert(game.mobs.some(m=>m.boss),'forest boss exists');
 assert(game.herbs.length>0,'forest resources exist');
+// Cast all druid spells against a durable enemy; preserve normal mob reward test.
+const boss=game.mobs.find(m=>m.boss);
+const beforeBoss=boss.hp;
+Object.assign(game.player,{
+ x:boss.x,y:boss.y+2,px:(boss.x+.5)*TILE,py:(boss.y+2.8)*TILE,
+ direction:'up',mana:60,hp:35
+});
+game.time=5000;game.ready=true;
+assert.equal(game.castSkill('bolt'),true,'Q casts emerald bolt');
+assert(boss.hp<beforeBoss,'bolt damages enemy directly ahead');
+assert(game.effects.some(e=>e.type==='bolt'),'projectile effect spawned');
+const afterBoltMana=game.player.mana;
+assert.equal(game.castSkill('bolt'),false,'spell cannot be recast during cooldown');
+assert.equal(game.player.mana,afterBoltMana,'failed skill consumes no mana');
+assert.equal(game.castSkill('roots'),true,'R creates roots');
+assert(boss.rootedUntil>game.time,'nearby boss is rooted');
+assert(game.effects.some(e=>e.type==='roots'),'roots effect spawned');
+const oldBossPx=boss.px;
+boss.step={x:boss.x+1,y:boss.y,fromX:boss.px,fromY:boss.py,elapsed:0,duration:300};
+game.update(80);
+assert.equal(boss.px,oldBossPx,'root immobilizes an enemy mid-stride');
+boss.step=null;
+assert.equal(game.castSkill('heal'),true,'F restores health');
+assert(game.player.hp>35,'healing improves HP');
+assert(game.effects.some(e=>e.type==='heal'),'healing particles spawned');
+assert(game.player.mana>15&&game.player.mana<17,'three spells spend 44 mana');
+game.ready=false;
 const mob=game.mobs[0];
 Object.assign(game.player,{x:mob.x,y:mob.y+1,px:(mob.x+.5)*TILE,py:(mob.y+1.8)*TILE,mana:60});
 game.time+=1000;game.attack(mob);
