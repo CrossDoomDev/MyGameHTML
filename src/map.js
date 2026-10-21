@@ -1,16 +1,24 @@
 // Separate connected locations. Every cell is 32 x 32 pixels; no diagonal movement.
+import { facadeFootprint, fountainFootprint } from './village-art.js';
 export const TILE=32, WIDTH=64, HEIGHT=48;
 export const SPAWN={x:30,y:24};
 export const rand=(x,y,seed=0)=>{let n=Math.imul(x+13+seed,374761393)+Math.imul(y+29,668265263);n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967295};
-export const buildings=[
- {id:'inn',name:'Таверна «Зелёный лист»',sprite:'inn',x:12,y:10,w:6,h:5,doorX:15,doorY:14},
- {id:'forge',name:'Кузница Брана',sprite:'forge',x:29,y:9,w:4,h:5,doorX:31,doorY:13},
- {id:'market',name:'Лавка Миры',sprite:'market',x:44,y:16,w:4,h:3,doorX:46,doorY:18},
- {id:'cottage',name:'Дом старосты',sprite:'cottage',x:12,y:29,w:5,h:4,doorX:14,doorY:32},
- {id:'cabin',name:'Дом травницы',sprite:'cabin',x:35,y:30,w:4,h:4,doorX:37,doorY:33},
- {id:'cabin-west',name:'Дом лесника',sprite:'cabin',x:7,y:34,w:4,h:4,doorX:9,doorY:37},
- {id:'cottage-east',name:'Дом ремесленника',sprite:'cottage',x:48,y:31,w:5,h:4,doorX:50,doorY:34}
+// Existing door cells remain fixed while all facade footprints become odd-width.
+const villageBuildingPlacements=[
+ ['inn','Таверна «Зелёный лист»','inn',11,10],
+ ['forge','Кузница Брана','forge',28,9],
+ ['market','Лавка Миры','market',43,16],
+ ['cottage','Дом старосты','cottage',11,29],
+ ['cabin','Дом травницы','cabin',35,30],
+ ['cabin-west','Дом лесника','cabin',7,34],
+ ['cottage-east','Дом ремесленника','cottage',47,31],
+ ['chapel','Часовня Тихолесья','chapel',39,6]
 ];
+export const buildings=villageBuildingPlacements.map(([id,name,sprite,x,y])=>{
+ const {w,h,doorOffset}=facadeFootprint(sprite);
+ return {id,name,sprite,x,y,w,h,doorX:x+doorOffset,doorY:y+h-1};
+});
+
 const inRect=(x,y,r)=>x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;
 const setTerrain=(terrain,x,y,t)=>{if(terrain[y]?.[x]!==undefined)terrain[y][x]=t;};
 function baseMap(id,width,height,fill){
@@ -33,7 +41,11 @@ function baseMap(id,width,height,fill){
 }
 function finish(m){
  const {width,height,terrain,objects}=m;
- const solids=new Set(objects.filter(o=>o.block).map(o=>o.y*width+o.x));
+ const solids=new Set();
+ for(const o of objects)if(o.block){
+  const {w,h}=fountainFootprint(o.sprite);
+  for(let yy=o.y;yy<o.y+h;yy++)for(let xx=o.x;xx<o.x+w;xx++)solids.add(yy*width+xx);
+ }
  for(const b of m.buildings)for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)solids.add(y*width+x);
  const blocked=Array.from({length:height},(_,y)=>Array.from({length:width},(_,x)=>
    x===0||y===0||x===width-1||y===height-1||terrain[y][x]==='water'||solids.has(y*width+x)
@@ -62,6 +74,8 @@ function village(){
  for(const b of m.buildings){
   for(let y=b.y-2;y<b.y+b.h+3;y++)for(let x=b.x-2;x<b.x+b.w+3;x++)if(m.terrain[y]?.[x]!==undefined)setTerrain(m.terrain,x,y,'path');
  }
+ // Animated three-cell fountain at the central square (player spawn remains clear).
+ m.add('fountain',27,22,{block:true,w:3,h:3,px:(27+1.5)*TILE,py:(22+3)*TILE});
  for(const [x,y] of [[21,16],[39,16],[22,29],[40,29],[7,26],[54,26],[20,40],[43,41]])m.add('lamp',x,y,{block:true,glow:true});
  for(const [x,y] of [[9,17],[23,15],[41,23],[54,34],[18,37]])m.add('barrel',x,y,{block:true});
  for(const [x,y] of [[10,18],[40,35],[54,35]])m.add('crates',x,y,{block:true});
@@ -129,7 +143,7 @@ export function isBlocked(map,x,y){return !Number.isInteger(x)||!Number.isIntege
 export function removeScenery(map,predicate){
  const removed=map.objects.filter(predicate),removedSet=new Set(removed);
  map.objects=map.objects.filter(object=>!removedSet.has(object));
- for(const {x,y} of removed)map.blocked[y][x]=x===0||y===0||x===map.width-1||y===map.height-1||map.terrain[y][x]==='water'||map.buildings.some(b=>inRect(x,y,b))||map.objects.some(o=>o.block&&o.x===x&&o.y===y);
+ for(const {x,y} of removed)map.blocked[y][x]=x===0||y===0||x===map.width-1||y===map.height-1||map.terrain[y][x]==='water'||map.buildings.some(b=>inRect(x,y,b))||map.objects.some(o=>o.block&&x>=o.x&&y>=o.y&&x<o.x+fountainFootprint(o.sprite).w&&y<o.y+fountainFootprint(o.sprite).h);
  return removed;
 }
 // A* with Manhattan heuristic on the same four-direction grid.
