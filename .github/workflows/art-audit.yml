@@ -6,6 +6,9 @@ on:
       - '.github/workflows/art-audit.yml'
       - 'tools/audit_environment_art.py'
       - 'src/renderer.js'
+      - 'src/village-art.js'
+      - 'tests/village-art.mjs'
+      - 'assets/village-buildings.webp'
       - 'src/forge-animation.js'
       - 'tests/forge-animation.mjs'
       - 'src/map-editor.js'
@@ -34,6 +37,8 @@ jobs:
         run: python3 tools/audit_environment_art.py
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
+      - name: Verify six houses, correct doors and animated fountain
+        run: node tests/village-art.mjs
       - name: Verify forge chimney, flame and smoke alignment
         run: node tests/forge-animation.mjs
       - name: Verify interactive map editor and autosave
