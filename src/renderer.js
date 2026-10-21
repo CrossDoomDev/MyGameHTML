@@ -21,6 +21,7 @@ export class Renderer{
    const X=x*TILE,Y=y*TILE,type=map.terrain[y][x];
    if(type==='water'){rect(c,X,Y,32,32,['#195469','#1c5c70','#1c6070'][Math.floor(rand(x,y)*3)]);continue;}
    if(type==='bridge'){rect(c,X,Y,32,32,'#365c47');continue;}
+   if(type==='rug'){rect(c,X,Y,32,32,'#8b3934');rect(c,X+2,Y+2,28,28,'#a14c3d');rect(c,X+5,Y+5,22,22,'#743d35');continue;}
    if(type==='wood'){
     rect(c,X,Y,32,32,'#684528');
     for(let z=0;z<3;z++){rect(c,X,Y+z*11,32,1,'#3c291c');rect(c,X+Math.floor(rand(x,y+z,9)*26),Y+z*11+3,1,7,'#835637');}
@@ -176,7 +177,10 @@ export class Renderer{
   g.camera.x=Math.round(Math.max(0,Math.min(WIDTH*TILE-w,p.px-w/2)));
   g.camera.y=Math.round(Math.max(0,Math.min(HEIGHT*TILE-h,p.py-h/2)));
   c.fillStyle='#3c5c38';c.fillRect(0,0,w,h);c.save();c.translate(-g.camera.x,-g.camera.y);
-  c.drawImage(this.ground,0,0);this.water(time);this.bridge();
+  const sx=Math.max(0,Math.floor(g.camera.x)),sy=Math.max(0,Math.floor(g.camera.y));
+  const sw=Math.min(w,this.ground.width-sx),sh=Math.min(h,this.ground.height-sy);
+  if(sw>0&&sh>0)c.drawImage(this.ground,sx,sy,sw,sh,sx,sy,sw,sh);
+  this.water(time);this.bridge();
   if(g.path.length){c.globalAlpha=.26;for(const step of g.path){rect(c,step.x*TILE+14,step.y*TILE+14,4,4,'#ece5b1');}c.globalAlpha=1;const end=g.path.at(-1);c.strokeStyle='#e6d48d';c.strokeRect(end.x*TILE+7,end.y*TILE+7,18,18);}
   // Cull world decoration before depth-sorting to keep large biomes fast on phones.
   const objects=g.map.objects.filter(o=>o.px>g.camera.x-110&&o.px<g.camera.x+w+110&&o.py>g.camera.y-110&&o.py<g.camera.y+h+140).map(o=>({y:o.py,draw:()=>this.environment(o)}));
