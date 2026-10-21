@@ -62,6 +62,35 @@ export async function loadAssets() {
    image.onerror=()=>resolve(null);image.src=assetURL(ART_ATLAS);
   });
  }catch{}
+ if(!buildingAtlas){
+  // Graceful fallback when the optional atlas has not reached the CDN yet.
+  // All facades retain the correct odd-width collision dimensions.
+  for(const [name,model] of Object.entries(HOUSES)){
+   const old=environment[name]||environment.cottage;
+   const canvas=document.createElement('canvas');
+   canvas.width=model.w*32;canvas.height=model.h*32;
+   const c=canvas.getContext('2d');c.imageSmoothingEnabled=false;
+   if(old)c.drawImage(old,0,0,old.width,old.height,0,0,canvas.width,canvas.height);
+   if(name==='chapel'){
+    c.fillStyle='#324d68';c.fillRect(Math.round(canvas.width/2)-16,22,32,32);
+    c.fillStyle='#d7c492';c.fillRect(Math.round(canvas.width/2)-9,10,18,15);
+   }
+   environment[name]=canvas;
+  }
+  const fountain=document.createElement('canvas');
+  fountain.width=96;fountain.height=96;
+  const c=fountain.getContext('2d');c.imageSmoothingEnabled=false;
+  const rect=(x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(x,y,w,h);};
+  // Small stone octagon with bright water and a three-tier center jet.
+  for(let row=0;row<6;row++){
+   let edge=[18,12,8,8,12,18][row];
+   rect(edge,34+row*8,96-edge*2,8,['#7c7c69','#a7a18a','#696e61'][row%3]);
+  }
+  rect(20,42,56,32,'#417d9c');rect(26,47,44,22,'#298ab1');
+  for(let i=0;i<7;i++)rect(28+i*6,49+(i%3)*4,3,2,'#b6e9f0');
+  rect(45,26,6,27,'#83d6eb');rect(43,20,10,5,'#bdeefa');
+  environment.fountain=fountain;
+ }
  if(buildingAtlas){
   const importSprite=(name,rect,size)=>{
    const [x,y,w,h]=rect;
