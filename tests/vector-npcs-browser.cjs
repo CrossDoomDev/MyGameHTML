@@ -70,6 +70,26 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(heroReview.opaque>8000,'all 40 compact poses contain graphics');
   fs.writeFileSync('.qa/hero-druid-sprites.png',Buffer.from(heroReview.png,'base64'));
 
+  // Real Chromium skill controls: mouse button for Q, keyboard R/F, mana and cooldown.
+  assert.equal(await page.locator('#skillbar [data-skill]').count(),3,'three accessible druid abilities');
+  await page.evaluate(()=>{const g=window.tiholesye;g.player.hp=40;g.player.mana=60;});
+  await page.locator('#skill-bolt').click();
+  assert(await page.evaluate(()=>window.tiholesye.skillCooldowns.bolt>window.tiholesye.time),
+    'button casts emerald bolt');
+  await page.keyboard.press('r');
+  assert(await page.evaluate(()=>window.tiholesye.skillCooldowns.roots>window.tiholesye.time),
+    'R keyboard casts roots');
+  await page.keyboard.press('f');
+  const skillState=await page.evaluate(()=>{
+   const g=window.tiholesye;
+   return {mana:g.player.mana,hp:g.player.hp,heal:g.skillCooldowns.heal>g.time,
+    fx:g.effects.map(e=>e.type)};
+  });
+  assert(skillState.heal&&skillState.hp>40,'F heals and enters cooldown');
+  assert(skillState.mana<60,'skills consume mana');
+  assert(skillState.fx.includes('bolt')&&skillState.fx.includes('roots')&&skillState.fx.includes('heal'),
+    'effects rendered by the game state');
+
   const assets=await page.evaluate(()=>{
    const g=window.tiholesye;
    return g.npcs.map(n=>{
