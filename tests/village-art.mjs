@@ -4,8 +4,8 @@ import {HOUSES,FOUNTAIN,ART_ATLAS,ATLAS_SOURCE,facadeFootprint,fountainFootprint
  drawSmoke,drawBuildingLights,drawFountainWater} from '../src/village-art.js';
 const scene=createMap('village');
 assert.equal(TILE,32);
-assert.equal(ART_ATLAS,'village-buildings.webp');
-assert.deepEqual(ATLAS_SOURCE,[864,416]);
+assert.equal(ART_ATLAS,'village-compact.webp');
+assert.deepEqual(ATLAS_SOURCE,[288,192]);
 for(const [id,spec] of Object.entries(HOUSES)){
  assert.equal(spec.w%2,1,id+' footprint must have odd width');
  assert(spec.chimneys.every(([x,y])=>x>=0&&y>=0&&x<spec.w*TILE&&y<spec.h*TILE),'chimney lies on sprite '+id);
@@ -16,6 +16,7 @@ for(const [id,spec] of Object.entries(HOUSES)){
 for(const b of scene.buildings){
  const spec=HOUSES[b.sprite];assert(spec,'unknown house sprite '+b.sprite);
  assert.equal(b.w%2,1,'odd number of columns');
+ assert.equal(b.w,5,'compact facade must occupy five columns');
  assert.equal(b.doorX-b.x,Math.floor(b.w/2),'door is precisely centered');
  assert.equal(b.doorY,b.y+b.h-1,'door is on bottom row');
  assert(!isBlocked(scene,b.doorX,b.doorY+1),'clear entry to '+b.id);
