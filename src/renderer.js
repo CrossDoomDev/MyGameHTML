@@ -2,6 +2,7 @@ import { TILE, WIDTH, HEIGHT, rand } from './map.js';
 import { drawCharacter } from './assets.js';
 import { sceneryPlacement, buildingPlacement, coversActor } from './visibility.js';
 import { drawForgeEffects } from './forge-animation.js';
+import { HOUSES,drawSmoke,drawBuildingLights,drawFountainWater } from './village-art.js';
 
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),w,h);};
 export class Renderer{
@@ -89,12 +90,14 @@ export class Renderer{
   c.strokeStyle='#f2e8b4';c.lineWidth=1;c.beginPath();const x=Math.round(g.player.px*sx),y=Math.round(g.player.py*sy);c.moveTo(x-3,y);c.lineTo(x+3,y);c.moveTo(x,y-3);c.lineTo(x,y+3);c.stroke();rect(c,x-1,y-1,3,3,'#fff6cb');
   if(large){c.fillStyle='#f1e2b8';c.font='10px Georgia';c.fillText(g.map.label,Math.max(4,WIDTH*.1)*32*sx,Math.max(5,HEIGHT*.12)*32*sy);}
  }
- environment(o){
+ environment(o,time=0){
   const c=this.c,s=this.game.assets.environment[o.sprite];if(!s)return;
   const placement=sceneryPlacement(o,s),alpha=this.sceneryOpacity(o,placement);
   c.save();
   if(o.tree){c.globalAlpha=.16*alpha;rect(c,o.px-30,o.py-10,63,12,'#1a3921');}
-  c.globalAlpha=alpha;c.drawImage(s,placement.x,placement.y);c.restore();
+  c.globalAlpha=alpha;c.drawImage(s,placement.x,placement.y);
+  if(o.sprite==='fountain')drawFountainWater(c,placement.x,placement.y,time);
+  c.restore();
  }
  bridge(){
   if(!this.game.map.hasBridge)return;
@@ -191,12 +194,20 @@ export class Renderer{
   this.water(time);this.bridge();
   if(g.path.length){c.globalAlpha=.26;for(const step of g.path){rect(c,step.x*TILE+14,step.y*TILE+14,4,4,'#ece5b1');}c.globalAlpha=1;const end=g.path.at(-1);c.strokeStyle='#e6d48d';c.strokeRect(end.x*TILE+7,end.y*TILE+7,18,18);}
   // Cull world decoration before depth-sorting to keep large biomes fast on phones.
-  const objects=g.map.objects.filter(o=>o.px>g.camera.x-110&&o.px<g.camera.x+w+110&&o.py>g.camera.y-110&&o.py<g.camera.y+h+140).map(o=>({y:o.py,draw:()=>this.environment(o)}));
+  const objects=g.map.objects.filter(o=>o.px>g.camera.x-110&&o.px<g.camera.x+w+110&&o.py>g.camera.y-110&&o.py<g.camera.y+h+140).map(o=>({y:o.py,draw:()=>this.environment(o,time)}));
   for(const b of g.map.buildings){
    const sprite=g.assets.environment[b.sprite],placement=buildingPlacement(b,sprite,TILE),py=(b.y+b.h)*TILE;
-   objects.push({y:placement.depth,draw:()=>{const alpha=this.sceneryOpacity(b,placement);c.save();c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);
-    if(b.sprite==='forge')drawForgeEffects(c,placement.x,placement.y,time);
-    c.restore();}});
+   objects.push({y:placement.depth,draw:()=>{
+    const alpha=this.sceneryOpacity(b,placement);c.save();
+    c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');
+    const model=HOUSES[b.sprite];
+    const newArt=!!model&&sprite.width===model.w*TILE&&sprite.height===model.h*TILE;
+    if(newArt)drawSmoke(c,model.chimneys,placement.x,placement.y,time,alpha);
+    c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);
+    if(newArt)drawBuildingLights(c,b.sprite,placement.x,placement.y,time);
+    else if(b.sprite==='forge')drawForgeEffects(c,placement.x,placement.y,time);
+    c.restore();
+   }});
   }
   for(const herb of g.herbs)if(!herb.collected)objects.push({y:herb.py,draw:()=>{
    c.drawImage(g.assets.images.icons,24,0,24,24,herb.px-12,herb.py-21,24,24);
@@ -238,12 +249,6 @@ export class Renderer{
    const x=o.px+9,y=o.py-49,alpha=this.occlusionAlpha.get(o)??1;
    for(let i=3;i>0;i--){c.globalAlpha=(.025+.012*Math.sin(time/350+o.x))*i*alpha;rect(c,x-7-i*4,y-7-i*4,14+i*8,14+i*8,'#ffd16e');}
    c.globalAlpha=alpha;rect(c,x-1,y-1,3,3,'#ffe9a1');c.globalAlpha=1;
-  }
-  // Forge smoke now rises from the chimney outlet inside drawForgeEffects.
-  for(const b of g.map.buildings)if(b.sprite==='inn'){
-   const X=(b.x+b.w*.68)*TILE,Y=b.y*TILE+8;
-   for(let i=0;i<4;i++){const age=(time/80+i*8)%38;c.globalAlpha=(1-age/38)*.2;rect(c,X+Math.sin(age/9)*4,Y-age*1.3,4+i,4+i,'#c6c6b0');}
-   c.globalAlpha=1;
   }
   if(g.editor?.active)g.editor.drawOverlay(c);
   c.restore();
