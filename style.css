@@ -54,3 +54,8 @@
  #editorPanel{width:min(300px,calc(100vw - 12px));top:6px;right:6px;bottom:6px;padding:9px}
  #editorPanel button{padding:6px!important}
 }
+
+#editorPanel.minimized{top:auto;bottom:8px;right:8px;width:225px;height:48px;padding:7px 10px;overflow:hidden}
+#editorPanel.minimized .editor-head{height:30px;margin:0}
+#editorPanel.minimized .editor-head strong{font-size:14px}
+#editorPanel.minimized .editor-head button{padding:0 6px!important;font-size:18px!important}
