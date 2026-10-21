@@ -51,7 +51,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const packed=document.createElement('canvas');
    packed.width=800;packed.height=320;
    const p=packed.getContext('2d');p.imageSmoothingEnabled=false;
-   const mapping=[0,1,1,2,3,4,5,6,7,5];
+   const mapping=[0,1,1,2,3,4,5,6,7,0];
    for(let row=0;row<4;row++)for(let frame=0;frame<10;frame++)
     p.drawImage(source,mapping[frame]*80,row*80,80,80,frame*80,row*80,80,80);
    const a=ctx.getImageData(0,0,800,320).data,b=p.getImageData(0,0,800,320).data;
