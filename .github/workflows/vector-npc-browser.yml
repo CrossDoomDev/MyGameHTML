@@ -9,6 +9,7 @@ on:
       - 'assets/vector-*.webp'
       - 'tests/vector-npcs-art.py'
       - 'src/assets.js'
+      - 'src/pixel-art-sharp.js'
       - 'src/world.js'
       - 'src/renderer.js'
       - 'src/ui.js'
