@@ -18,7 +18,7 @@ export function boltTrace(map,player,direction,enemies){
   const tx=player.x+dx*distance,ty=player.y+dy*distance;
   if(isBlocked(map,tx,ty))break;
   x=tx;y=ty;
-  target=enemies.find(e=>e.alive&&e.x===tx&&e.y===ty);
+  target=enemies.find(e=>e.alive&&e.x===tx&&e.y===ty)||null;
   if(target)break;
  }
  return {x:(x+.5)*TILE,y:(y+.8)*TILE,target};
