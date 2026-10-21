@@ -15,6 +15,8 @@ on:
       - 'src/map-editor-data.js'
       - 'tests/map-editor.mjs'
       - 'src/assets.js'
+      - 'src/pixel-art-sharp.js'
+      - 'tests/pixel-art-sharp.mjs'
       - 'tests/mechanics.mjs'
       - 'assets/hero-walk*'
       - 'tools/prepare_hero_walk.py'
@@ -37,6 +39,8 @@ jobs:
         run: python3 tools/audit_environment_art.py
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
+      - name: Verify crisp non-blurred buildings
+        run: node tests/pixel-art-sharp.mjs
       - name: Verify six houses, correct doors and animated fountain
         run: node tests/village-art.mjs
       - name: Verify forge chimney, flame and smoke alignment
