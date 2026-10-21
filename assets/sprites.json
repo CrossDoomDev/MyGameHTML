@@ -185,5 +185,63 @@
       ]
     },
     "build": "tools/prepare_npcs.py"
+  },
+  "reviewedPixelDruid": {
+    "atlas": "assets/hero-druid.png",
+    "size": [
+      640,
+      320
+    ],
+    "cell": [
+      80,
+      80
+    ],
+    "sourceFrames": 8,
+    "renderFrames": 10,
+    "anchor": [
+      40,
+      64
+    ],
+    "directions": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ],
+    "columns": {
+      "idle": [
+        0,
+        1
+      ],
+      "walk": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    "packingSourceColumns": [
+      0,
+      1,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      5
+    ],
+    "walkFrameMs": 180,
+    "walkCycleMs": 720,
+    "tileStepMs": 240,
+    "sideViews": "Independently illustrated, no horizontal mirroring",
+    "sha256": "dd42f14801a7f80ce5b0cbc431bd1fbf394742fb17562589104013cadd244f74"
   }
 }
