@@ -51,7 +51,7 @@ const map=createMap('village'),forest=createMap('forest'),tavern=createMap('tave
 assert.deepEqual([map.width,map.height],[64,48]);
 assert.deepEqual([forest.width,forest.height],[100,80]);
 assert.deepEqual([tavern.width,tavern.height],[24,18]);
-assert.equal(map.buildings.length,7);
+assert.equal(map.buildings.length,8);
 assert(map.buildings.some(b=>b.id==='inn'));
 assert(forest.objects.filter(o=>o.tree).length>600,'dense forest');
 assert(map.objects.filter(o=>o.tree).length<110,'open settlement');
