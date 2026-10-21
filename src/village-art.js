@@ -5,22 +5,22 @@ export const TILE_ART=32;
 // New compact art from the final six-row concept. All facades occupy an odd
 // five-column footprint; each doorway is precisely on the middle tile.
 export const ART_ATLAS='village-compact.webp';
-export const ATLAS_SOURCE=[288,192];
+export const ATLAS_SOURCE=[240,160];
 export const HOUSES={
- cabin: {name:'Домик',w:5,h:5,atlas:[96,0,96,96],chimneys:[[113,12]],
+ cabin: {name:'Домик',w:5,h:5,atlas:[80,0,80,80],chimneys:[[113,12]],
   lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
- cottage: {name:'Большой дом',w:5,h:5,atlas:[96,0,96,96],chimneys:[[113,12]],
+ cottage: {name:'Большой дом',w:5,h:5,atlas:[80,0,80,80],chimneys:[[113,12]],
   lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
- inn: {name:'Таверна',w:5,h:5,atlas:[0,0,96,96],chimneys:[[104,15]],
+ inn: {name:'Таверна',w:5,h:5,atlas:[0,0,80,80],chimneys:[[104,15]],
   lights:[[63,67],[48,111],[112,113]],lanterns:[[27,106],[111,111]]},
- forge: {name:'Кузница',w:5,h:5,atlas:[192,0,96,96],chimneys:[[111,19]],
+ forge: {name:'Кузница',w:5,h:5,atlas:[160,0,80,80],chimneys:[[111,19]],
   lights:[[81,69]],hearth:[114,119],lanterns:[]},
- market: {name:'Лавка',w:5,h:3,atlas:[0,134,96,58],chimneys:[],
+ market: {name:'Лавка',w:5,h:3,atlas:[0,112,80,48],chimneys:[],
   lights:[[70,52]],lanterns:[[129,33]]},
- chapel: {name:'Часовня',w:5,h:5,atlas:[96,96,96,96],chimneys:[],
+ chapel: {name:'Часовня',w:5,h:5,atlas:[80,80,80,80],chimneys:[],
   lights:[[80,74]],lanterns:[[36,116],[121,116]]}
 };
-export const FOUNTAIN={w:3,h:3,atlas:[192,96,96,96]};
+export const FOUNTAIN={w:3,h:3,atlas:[160,80,80,80]};
 
 // Separate footprint from display texture: the scene and editor both use
 // these dimensions, so an entrance always occupies the central grid cell.
