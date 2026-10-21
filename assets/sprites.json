@@ -267,5 +267,51 @@
       80,
       80
     ]
+  },
+  "activePixelDruid": {
+    "atlas": "assets/hero-druid-refined.png",
+    "sourceDescription": "Latest pixel-art concept sheet, separately drawn left/right chibi druid",
+    "frame": [
+      48,
+      48
+    ],
+    "atlasSize": [
+      480,
+      192
+    ],
+    "directions": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ],
+    "columns": {
+      "idle": [
+        0
+      ],
+      "walk": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "attack": [
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    "idleStatic": true,
+    "footAnchor": [
+      24,
+      43
+    ],
+    "minTransparentMargin": 2,
+    "independentlyDrawnProfiles": true,
+    "tileTravelMs": 300,
+    "walkFrameMs": 225,
+    "walkCycleMs": 900,
+    "sha256": "e2f7b24695818a80628e2f8d9a053f0d69cfbede901ab1b1fa24b8ef531ea5a4"
   }
 }

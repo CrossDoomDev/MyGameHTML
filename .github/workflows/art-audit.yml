@@ -23,6 +23,8 @@ on:
       - 'tests/mechanics.mjs'
       - 'assets/hero-walk*'
       - 'assets/hero-druid.png'
+      - 'assets/hero-druid-refined.png'
+      - 'tests/refined-druid-art.py'
       - 'tests/hero-druid-art.py'
       - 'src/animation.js'
       - 'tools/prepare_hero_walk.py'
@@ -62,6 +64,8 @@ jobs:
         run: node tests/map-editor.mjs
       - name: Verify redesigned pixel druid and right-side staff
         run: python3 tests/hero-druid-art.py
+      - name: Verify latest 48px druid frames and safe staff margins
+        run: python3 tests/refined-druid-art.py
       - name: Verify alternating hero boot artwork
         run: python3 tests/hero_walk_art.py
       - name: Commit normalized tavern sprite

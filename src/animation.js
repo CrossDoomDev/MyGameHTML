@@ -8,7 +8,7 @@ export function updateAnimation(entity, dt, time) {
   entity.animationTime=0;
  }else if(state!=='attack'){
   // A slower full four-pose stride for the redesigned player; NPC timing is unchanged.
-  const tileDuration=entity.sprite==='hero'?240:210;
+  const tileDuration=entity.sprite==='hero'?300:210;
   entity.animationTime+=dt*(state==='walk'?tileDuration/(entity.step?.duration||tileDuration):1);
  }
  entity.animationState=state;entity.animationDirection=direction;
@@ -22,6 +22,6 @@ export function characterFrame(entity,time) {
  // Keep a single neutral pose until movement or attack begins.
  if(entity.sprite==='hero'&&!entity.moving)return 0;
  const elapsed=entity.animationTime||0;
- const poseMs=entity.sprite==='hero'?180:105;
+ const poseMs=entity.sprite==='hero'?225:105;
  return entity.moving?2+Math.floor(elapsed/poseMs)%4:Math.floor(elapsed/650)%2;
 }

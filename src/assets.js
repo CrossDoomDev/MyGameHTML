@@ -184,6 +184,19 @@ export async function loadAssets() {
   compactCtx.drawImage(source,sourceColumns[col]*80,row*80,80,80,
    col*48+1,row*48+7,46,46);
  }
+ // Apply the latest hand-refined compact sprite sheet when available.
+ // Four independently drawn profiles, no horizontal mirroring, 48px frames.
+ // Keep the former hero atlas as fallback only if the new artwork fails.
+ const refined=await new Promise(resolve=>{
+  const image=new Image();
+  image.onload=()=>resolve(image);
+  image.onerror=()=>resolve(null);
+  image.src=assetURL('hero-druid-refined.png');
+ });
+ if(refined?.width===480&&refined?.height===192){
+  compactCtx.clearRect(0,0,480,192);
+  compactCtx.drawImage(refined,0,0);
+ }
  images.hero=compact;
  images.hero3d=images['hero-3d-atlas'];
  return {images,environment,environmentMasks};

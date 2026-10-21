@@ -10,6 +10,7 @@ on:
       - 'tests/vector-npcs-art.py'
       - 'src/assets.js'
       - 'assets/hero-druid.png'
+      - 'assets/hero-druid-refined.png'
       - 'src/animation.js'
       - 'src/pixel-art-sharp.js'
       - 'src/world.js'

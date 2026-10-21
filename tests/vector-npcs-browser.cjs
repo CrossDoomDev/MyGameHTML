@@ -45,15 +45,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const g=window.tiholesye,hero=g.assets.images.hero;
    const source=await new Promise((ok,fail)=>{
     const img=new Image();img.onload=()=>ok(img);img.onerror=()=>fail(Error('No druid PNG'));
-    img.src='/assets/hero-druid.png';
+    img.src='/assets/hero-druid-refined.png';
    });
    const ctx=hero.getContext('2d');
    const packed=document.createElement('canvas');
    packed.width=480;packed.height=192;
    const p=packed.getContext('2d');p.imageSmoothingEnabled=false;
-   const mapping=[0,0,1,2,3,4,5,6,7,0];
-   for(let row=0;row<4;row++)for(let frame=0;frame<10;frame++)
-    p.drawImage(source,mapping[frame]*80,row*80,80,80,frame*48+1,row*48+7,46,46);
+   // The new atlas is already baked as 48px cells; no runtime cropping.
+   p.drawImage(source,0,0);
    const a=ctx.getImageData(0,0,480,192).data,b=p.getImageData(0,0,480,192).data;
    let diff=0,opaque=0;
    for(let i=0;i<a.length;i+=4){
@@ -65,9 +64,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     png:hero.toDataURL('image/png').split(',')[1]};
   });
   assert.equal(heroReview.loaded,true,'40 compact 48px atlas cells available');
-  assert.equal(heroReview.src,640,'the real PNG is present');
+  assert.equal(heroReview.src,480,'the revised 48px sprite PNG is present');
   assert.equal(heroReview.defaultSprite,'hero','2D druid selected');
-  assert.equal(heroReview.difference,0,'PNG is actually loaded and used instead of fallback');
+  assert.equal(heroReview.difference,0,'new sprite sheet is loaded pixel-for-pixel');
   assert(heroReview.opaque>8000,'all 40 compact poses contain graphics');
   fs.writeFileSync('.qa/hero-druid-sprites.png',Buffer.from(heroReview.png,'base64'));
 

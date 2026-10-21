@@ -14,21 +14,21 @@ const slow={moving:true,direction:'up',attackUntil:0,step:{duration:420}};
 updateAnimation(slow,0,0);updateAnimation(slow,210,210);assert.equal(characterFrame(slow,210),3,'gait follows movement speed');
 const directions=['down','left','right','up'];
 for(const from of directions)for(const to of directions.filter(direction=>direction!==from)){
- const e={sprite:'hero',moving:true,direction:from,attackUntil:0,step:{duration:240},px:40,py:64};
- updateAnimation(e,0,0);updateAnimation(e,270,270);
- assert.equal(characterFrame(e,270),3,'turn starts between the two contact poses');
- e.direction=to;updateAnimation(e,90,360);
- assert.equal(e.animationTime,360,'turn preserves and advances the existing stride');
+ const e={sprite:'hero',moving:true,direction:from,attackUntil:0,step:{duration:300},px:40,py:64};
+ updateAnimation(e,0,0);updateAnimation(e,337.5,337.5);
+ assert.equal(characterFrame(e,337.5),3,'turn starts between the two contact poses');
+ e.direction=to;updateAnimation(e,112.5,450);
+ assert.equal(e.animationTime,450,'turn preserves and advances the existing stride');
  assert.equal(e.animationDirection,to,'animation records the new facing direction');
- assert.equal(characterFrame(e,360),4,'the opposite foot contact follows a turn');
+ assert.equal(characterFrame(e,450),4,'the opposite foot contact follows a turn');
  const ops=[],c={drawImage(...args){ops.push(args);}};
  drawCharacter(c,{images:{hero:{}}},e,360);
  assert.equal(ops[0][1],4*48,'turned character renders the continuing 48px walk pose');
  assert.equal(ops[0][2],directions.indexOf(to)*48,'turned character renders its new facing row');
- e.direction=from;updateAnimation(e,180,540);
- assert.equal(characterFrame(e,540),5,'a second turn continues the second passing pose');
- updateAnimation(e,180,720);
- assert.equal(characterFrame(e,720),2,'stride wraps smoothly after turning');
+ e.direction=from;updateAnimation(e,225,675);
+ assert.equal(characterFrame(e,675),5,'a second turn continues the second passing pose');
+ updateAnimation(e,225,900);
+ assert.equal(characterFrame(e,900),2,'stride wraps smoothly after turning');
 }
 const zigzag={moving:true,direction:'down',attackUntil:0,step:{duration:210}};
 updateAnimation(zigzag,0,0);
@@ -51,19 +51,19 @@ for(const sprite of NPC_SPRITES){
  const c={drawImage(image,sx,sy,sw,sh){assert.equal(sx,0);assert.equal(sy,144);assert.equal(sw,48);assert.equal(sh,48);}};
  drawCharacter(c,{images:{[sprite]:{}}},{sprite,direction:'up',attackUntil:0,px:0,py:0},987654);
 }
-// New 2D druid: a foot-contact pose lasts a visible 180ms, without flicker.
-const druid={sprite:'hero',direction:'down',moving:true,attackUntil:0,step:{duration:240}};
+// Latest green druid: a four-pose 900ms gait follows 300ms tile travel.
+const druid={sprite:'hero',direction:'down',moving:true,attackUntil:0,step:{duration:300}};
 updateAnimation(druid,0,0);
 assert.equal(characterFrame(druid,0),2);
-for(const [elapsed,expected] of [[179,2],[180,3],[359,3],[360,4],[539,4],[540,5],[719,5],[720,2]]){
+for(const [elapsed,expected] of [[224,2],[225,3],[449,3],[450,4],[674,4],[675,5],[899,5],[900,2]]){
  const dt=elapsed-(druid.checkTime||0);
  updateAnimation(druid,dt,elapsed);druid.checkTime=elapsed;
  assert.equal(characterFrame(druid,elapsed),expected,'druid walk phase '+elapsed);
 }
-const slowHero={sprite:'hero',direction:'up',moving:true,attackUntil:0,step:{duration:480}};
+const slowHero={sprite:'hero',direction:'up',moving:true,attackUntil:0,step:{duration:600}};
 updateAnimation(slowHero,0,0);
-updateAnimation(slowHero,360,360);
-assert.equal(characterFrame(slowHero,360),3,'step duration scales gait with movement speed');
+updateAnimation(slowHero,450,450);
+assert.equal(characterFrame(slowHero,450),3,'step duration scales gait with movement speed');
 // The hero is completely motionless while waiting, independent of clock time.
 const resting={sprite:'hero',direction:'right',moving:false,attackUntil:0,px:64,py:75};
 for(const moment of [0,180,650,1300,6500,30123]){
@@ -78,4 +78,4 @@ resting.attackDirection='right';resting.attackStarted=32000;resting.attackUntil=
 assert.equal(characterFrame(resting,32180),8,'still character can attack');
 resting.attackUntil=0;
 assert.equal(characterFrame(resting,32400),0,'after attack player returns to neutral pose');
-console.log('PASS: stable 720ms druid gait, four directions, slow steps, turns, attack phases and NPC frames.');
+console.log('PASS: stable 900ms druid gait, four directions, slow steps, turns, attack phases and NPC frames.');

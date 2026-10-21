@@ -224,7 +224,7 @@ export class Game{
   options.sort((a,b)=>a.length-b.length);this.path=options[0]||[];
   if(!this.path.length){this.target=null;this.toast('Не удаётся подойти.');}
  }
- beginStep(entity,x,y,duration=240){
+ beginStep(entity,x,y,duration=300){
   if(this.blocked(x,y,entity))return false;
   const dx=(x+.5)*TILE-entity.px,dy=(y+.8)*TILE-entity.py;
   if(dx||dy)entity.direction=directionTo(dx,dy);
