@@ -4,6 +4,8 @@ import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScene
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
+import { MapEditor } from './map-editor.js';
+import { readEditedMaps, hydratedMap, normalizeSnapshot, sceneSnapshot } from './map-editor-data.js';
 
 const STORAGE='tiholesye-v01';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -21,7 +23,8 @@ export class Game{
   }
   p.level=clamp(Math.floor(p.level),1,99);p.maxHp=clamp(p.maxHp,100,2080);p.hp=clamp(p.hp||p.maxHp,1,p.maxHp);p.maxMana=60;p.mana=clamp(p.mana,0,60);
   this.location=data.version===3&&['village','forest','tavern'].includes(data.location)?data.location:'village';
-  this.map=createMap(this.location);
+  this.worldMaps=readEditedMaps();
+  this.map=hydratedMap(this.location,this.worldMaps[this.location]);
   if(data.version!==3){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
   // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
@@ -32,9 +35,18 @@ export class Game{
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;
   this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
-  this.ui=new UI(this);this.bindInput();this.resize();
+  this.ui=new UI(this);this.editor=new MapEditor(this);this.bindInput();this.resize();
  }
  populateLocation(){
+  const saved=normalizeSnapshot(this.location,this.worldMaps?.[this.location]);
+  if(saved){
+   this.map=hydratedMap(this.location,saved);
+   this.npcs=saved.npcs.map(n=>anchored({...n,kind:'npc'}));
+   this.mobs=saved.mobs.map(e=>this.makeMob(e.x,e.y,e.sprite));
+   for(const m of this.mobs)if(m.boss&&this.player.boss)m.alive=false;
+   this.herbs=saved.herbs.map(h=>anchored({...h,kind:'herb',collected:false}));
+   return;
+  }
   this.npcs=(this.location==='village'?[
    ['elder','Староста Ольгерд','elder',20,20],['smith','Кузнец Бран','smith',36,17],
    ['merchant','Торговка Мира','merchant',49,23],['villager','Травница Лина','villager',39,36],
@@ -54,8 +66,26 @@ export class Game{
    .map(([x,y])=>anchored({x,y,kind:'herb',collected:false}));
   for(const h of this.herbs)this.clearSpawn(h.x,h.y);
  }
+ restoreEditedScene(snapshot){
+  if(snapshot){
+   const valid=normalizeSnapshot(this.location,snapshot);
+   if(!valid)throw Error('Повреждённый снимок карты');
+   this.worldMaps[this.location]=valid;
+  }else delete this.worldMaps[this.location];
+  this.map=createMap(this.location);this.populateLocation();
+  const p=this.player;
+  if(this.blocked(p.x,p.y)){
+   const fallback=this.location==='village'?[30,24]:this.location==='forest'?[3,40]:[12,14];
+   let cell=[fallback,...[[p.x+1,p.y],[p.x-1,p.y],[p.x,p.y+1],[p.x,p.y-1]]].find(([x,y])=>!this.blocked(x,y));
+   if(!cell)outer:for(let y=1;y<this.map.height-1;y++)for(let x=1;x<this.map.width-1;x++)if(!this.blocked(x,y)){cell=[x,y];break outer;}
+   if(cell){p.x=cell[0];p.y=cell[1];}
+  }
+  p.px=(p.x+.5)*TILE;p.py=(p.y+.8)*TILE;p.step=null;p.moving=false;
+  this.path=[];this.target=null;this.effects=[];
+  if(this.ready)this.renderer=new Renderer(this);
+ }
  enterLocation(location,x,y){
-  this.location=location;this.map=createMap(location);this.populateLocation();
+  this.location=location;this.map=hydratedMap(location,this.worldMaps[location]);this.populateLocation();
   let sx=x,sy=y;
   if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
   Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
@@ -92,11 +122,25 @@ export class Game{
   this.toast(this.npcStyle==='vector'?'Жители: векторный стиль':'Жители: пиксельный стиль');
  }
  bindInput(){
-  this.canvas.addEventListener('pointerdown',e=>this.click(e));
+  this.canvas.addEventListener('pointerdown',e=>{
+   if(this.editor?.active){
+    this.editor.pointerDown(e);
+    if(this.canvas.setPointerCapture&&e.button===0)this.canvas.setPointerCapture(e.pointerId);
+   }else this.click(e);
+  });
+  this.canvas.addEventListener('pointermove',e=>{if(this.editor?.active)this.editor.pointerMove(e);});
+  this.canvas.addEventListener('pointerup',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
+  this.canvas.addEventListener('pointercancel',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
+  this.canvas.addEventListener('contextmenu',e=>{if(this.editor?.active)e.preventDefault();});
+  this.canvas.addEventListener('wheel',e=>{
+   if(this.editor?.active){e.preventDefault();this.setZoom(this.zoom+(e.deltaY<0?.25:-.25));}
+  },{passive:false});
   window.addEventListener('resize',()=>this.resize());
   window.addEventListener('blur',()=>{this.keys.clear();this.stick={x:0,y:0};this.save();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){this.keys.clear();this.save();}});
   window.addEventListener('keydown',e=>{
+   if(e.code==='F2'){e.preventDefault();if(this.editor?.active)this.editor.close();else this.ui.builder();return;}
+   if(this.editor?.active){this.editor.onKey(e);return;}
    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
    if(e.code==='Escape'){if(this.ui.open)this.ui.close();else this.ui.settings();return;}
    if(this.ui.open){if(e.code==='Tab')this.ui.trapFocus(e);return;}
@@ -107,7 +151,6 @@ export class Game{
    if(e.code==='KeyB')this.ui.inventory();
    if(e.code==='KeyM')this.ui.map();
    if(e.code==='KeyJ')this.ui.journal();
-   if(e.code==='F2'){e.preventDefault();this.ui.builder();}
    if(e.code.startsWith('Digit'))this.ui.slot(Number(e.code.slice(5))-1);
   });
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
@@ -123,10 +166,10 @@ export class Game{
   // Keep residents, pickups and doorways readable. Later placed scenery uses
   // the runtime transparency rule rather than being silently removed.
   const important=[...this.npcs,...this.herbs,...this.map.buildings.map(b=>({px:(b.doorX+.5)*TILE,py:(b.doorY+.8)*TILE}))];
-  removeScenery(this.map,o=>{const sprite=this.assets.environment[o.sprite];return sprite&&important.some(actor=>coversActor(sceneryPlacement(o,sprite),actor,this.assets.environmentMasks?.[o.sprite]));});
+  if(!this.worldMaps[this.location])removeScenery(this.map,o=>{const sprite=this.assets.environment[o.sprite];return sprite&&important.some(actor=>coversActor(sceneryPlacement(o,sprite),actor,this.assets.environmentMasks?.[o.sprite]));});
   this.renderer=new Renderer(this);this.ui.portrait(this.assets);this.ready=true;
   document.getElementById('loading').hidden=true;this.prev=performance.now();
-  const frame=now=>{const dt=Math.min(60,now-this.prev);this.prev=now;if(!document.hidden&&!this.ui.open){this.time+=dt;this.update(dt);}this.renderer.draw(this.time);this.ui.update();requestAnimationFrame(frame);};
+  const frame=now=>{const dt=Math.min(60,now-this.prev);this.prev=now;if(!document.hidden&&!this.ui.open){this.time+=dt;if(!this.editor?.active)this.update(dt);}this.renderer.draw(this.time);this.ui.update();requestAnimationFrame(frame);};
   requestAnimationFrame(frame);
  }
  click(e){
@@ -134,7 +177,7 @@ export class Game{
   this.canvas.focus({preventScroll:true});
   const r=this.canvas.getBoundingClientRect(),wx=(e.clientX-r.left)/r.width*this.canvas.width+this.camera.x,wy=(e.clientY-r.top)/r.height*this.canvas.height+this.camera.y;
   const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);
-  if(this.buildMode){if(x>=0&&y>=0&&x<this.map.width&&y<this.map.height)this.place(this.buildMode,x,y);return;}
+  if(this.editor?.active)return;
   this.stopMovement();
   if(x<0||y<0||x>=this.map.width||y>=this.map.height)return;
   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
@@ -264,24 +307,17 @@ export class Game{
  bip(hz,seconds){
   if(!this.sound)return;try{this.audio??=new(window.AudioContext||window.webkitAudioContext)();if(this.audio.state==='suspended')this.audio.resume();const osc=this.audio.createOscillator(),gain=this.audio.createGain();osc.type='triangle';osc.frequency.value=hz;gain.gain.setValueAtTime(.035,this.audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,this.audio.currentTime+seconds);osc.connect(gain).connect(this.audio.destination);osc.start();osc.stop(this.audio.currentTime+seconds);}catch{}
  }
- // Prototype construction tools: grid-aligned placement, explicit collision checks, JSON export.
+ // Legacy entry points remain usable from the console, but the full editor
+ // now owns modifications, collision rebuilding and persistent scene data.
  place(sprite,x,y){
-  if(['mossling','goblin','guardian'].includes(sprite)&&this.location!=='forest')
-   return this.toast('Враги размещаются только в Великом лесу.');
-  if(this.blocked(x,y))return this.toast('Клетка занята.');
-  if(['mossling','goblin','guardian'].includes(sprite)){this.mobs.push(this.makeMob(x,y,sprite));}
-  else if(sprite==='cabin'){
-   const w=4,h=4;
-   for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)if(this.blocked(xx,yy))return this.toast('Для дома нужно свободное место 4×4.');
-   const b={id:'custom-'+this.time,name:'Новый дом',sprite:'cabin',x,y,w,h,doorX:x+2,doorY:y+h-1};this.map.buildings.push(b);
-   for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)this.map.blocked[yy][xx]=true;
-  }else{
-   this.map.objects.push({sprite,x,y,px:(x+.5)*TILE,py:(y+1)*TILE,block:true,tree:['oak','pine'].includes(sprite)});this.map.blocked[y][x]=true;
-  }
-  this.renderer.bakeMinimap();this.toast('Объект установлен · F2 — инструменты.');
+  if(!this.editor)return false;
+  const type=['mossling','goblin','guardian'].includes(sprite)?'mob':
+   ['inn','cottage','forge','cabin','market'].includes(sprite)?'building':'object';
+  this.editor.kind=type;this.editor.brush=sprite;this.editor.tool='place';
+  this.editor.stroke={before:sceneSnapshot(this),changed:false};
+  const ok=this.editor.applyAt(x,y);
+  this.editor.finishStroke();return ok;
  }
- exportMap(){
-  const data={tileSize:TILE,location:this.location,width:this.map.width,height:this.map.height,terrain:this.map.terrain,buildings:this.map.buildings,objects:this.map.objects,enemies:this.mobs.map(m=>({sprite:m.sprite,x:m.homeX,y:m.homeY}))};
-  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='tiholesye-map.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
- }
+ exportMap(){return this.editor?.export();}
+
 }
