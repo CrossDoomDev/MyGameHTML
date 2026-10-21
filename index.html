@@ -22,14 +22,19 @@
 <button class="slot" data-slot="4" title="Рюкзак (5 / B)"><kbd>5</kbd></button>
 <button class="slot" data-slot="5" title="Журнал (6 / J)"><kbd>6</kbd></button>
 </div>
+<div id="skillbar" class="wood-frame" aria-label="Способности друида">
+<button id="skill-bolt" class="skill" data-skill="bolt" type="button" title="Q · Изумрудный луч · 10 маны" aria-label="Изумрудный луч, Q"><span class="skill-rune">✦</span><kbd>Q</kbd><small class="skill-timer"></small></button>
+<button id="skill-roots" class="skill" data-skill="roots" type="button" title="R · Цепкие корни · 18 маны" aria-label="Цепкие корни, R"><span class="skill-rune">♣</span><kbd>R</kbd><small class="skill-timer"></small></button>
+<button id="skill-heal" class="skill" data-skill="heal" type="button" title="F · Живительный рост · 16 маны" aria-label="Живительный рост, F"><span class="skill-rune">✚</span><kbd>F</kbd><small class="skill-timer"></small></button>
+</div>
 <div id="actions">
 <button id="bag" class="wood-frame" title="Рюкзак (B)" aria-label="Рюкзак"><span class="item item-bag"></span><kbd>B</kbd></button>
 <button id="map" class="wood-frame" title="Карта (M)" aria-label="Карта"><span class="item item-map"></span><kbd>M</kbd></button>
 <button id="journalAction" class="wood-frame" title="Журнал (J)" aria-label="Журнал"><span class="item item-journal"></span><kbd>J</kbd></button>
 <button id="settings" class="wood-frame" title="Настройки (Esc)" aria-label="Настройки"><span class="item item-settings"></span><kbd>Esc</kbd></button>
 </div>
-<div id="hint">WASD · движение <span>Пробел · атака</span> E · общение</div>
+<div id="hint">WASD · движение <span>Пробел · атака</span> Q · луч · R · корни · F · лечение</div>
 <div id="mobileActions"><button id="mobileInteract" aria-label="Взаимодействовать">E</button><button id="mobileAttack" aria-label="Атаковать">⚔</button></div><div id="joystick" aria-label="Джойстик движения"><i></i></div>
 <div id="panelBackdrop" hidden><section id="panel" class="wood-frame" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></section></div>
-<aside id="editorPanel" hidden aria-label="Редактор игрового мира"></aside><div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.5</span>
+<aside id="editorPanel" hidden aria-label="Редактор игрового мира"></aside><div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.6</span>
 </main><script type="module" src="src/main.js"></script></body></html>
