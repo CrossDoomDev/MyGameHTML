@@ -14,6 +14,8 @@ on:
       - 'src/map-editor.js'
       - 'src/map-editor-data.js'
       - 'tests/map-editor.mjs'
+      - 'assets/tavern-redrawn.webp'
+      - 'tests/tavern-image.py'
       - 'src/assets.js'
       - 'src/pixel-art-sharp.js'
       - 'tests/pixel-art-sharp.mjs'
@@ -37,6 +39,8 @@ jobs:
       - run: pip install pillow
       - name: Inspect environmental tiles and isolate possible stray pixels
         run: python3 tools/audit_environment_art.py
+      - name: Decode replacement tavern image
+        run: python3 tests/tavern-image.py
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
       - name: Verify crisp non-blurred buildings
