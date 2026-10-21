@@ -60,7 +60,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     assert.notEqual(samples[0],samples[1],layer+' palette displays distinct real sprites');
   }
   // The middle button pans without changing active brush or editing anything.
-  for(const tool of ['select','move','erase']){
+  for(const tool of ['select','move','erase','pan']){
    await page.locator('[data-tool="'+tool+'"]').click();
    const before=await page.evaluate(()=>({
     x:window.tiholesye.camera.x,
