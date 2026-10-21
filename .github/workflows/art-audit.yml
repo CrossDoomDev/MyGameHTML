@@ -16,6 +16,7 @@ on:
       - 'tests/map-editor.mjs'
       - 'assets/tavern-redrawn.webp'
       - 'tests/tavern-image.py'
+      - 'tools/normalize-tavern-image.py'
       - 'src/assets.js'
       - 'src/pixel-art-sharp.js'
       - 'tests/pixel-art-sharp.mjs'
@@ -24,6 +25,9 @@ on:
       - 'tools/prepare_hero_walk.py'
       - 'tests/hero_walk_art.py'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   audit:
@@ -37,6 +41,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pillow
+      - name: Normalize tavern source image
+        run: python3 tools/normalize-tavern-image.py
       - name: Inspect environmental tiles and isolate possible stray pixels
         run: python3 tools/audit_environment_art.py
       - name: Decode replacement tavern image
@@ -53,3 +59,12 @@ jobs:
         run: node tests/map-editor.mjs
       - name: Verify alternating hero boot artwork
         run: python3 tests/hero_walk_art.py
+      - name: Commit normalized tavern sprite
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/tavern-redrawn.webp
+          if ! git diff --cached --quiet; then
+            git commit -m "Normalize new pixel tavern artwork WebP"
+            git push origin HEAD:main
+          fi
