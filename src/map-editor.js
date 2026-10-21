@@ -20,14 +20,14 @@ export class MapEditor{
   if(this.active)return;
   if(this.g.ui.open)this.g.ui.close();
   this.g.buildMode=null;this.g.stopMovement();
-  this.active=true;this.camera={...this.g.camera};this.hover=null;this.selected=null;
+  this.active=true;this.collapsed=false;this.camera={...this.g.camera};this.hover=null;this.selected=null;
   this.drag=null;this.stroke=null;this.undoStack=[];this.redoStack=[];this.panel.hidden=false;
   this.renderPanel();
  }
  close(){
   if(!this.active)return;
   if(this.stroke)this.finishStroke();
-  this.active=false;this.drag=null;this.selected=null;this.panel.hidden=true;
+  this.active=false;this.drag=null;this.selected=null;this.panel.hidden=true;this.panel.classList.remove('minimized');
   this.g.save();this.g.canvas.focus({preventScroll:true});
  }
  message(text){this.status=text;const el=this.panel.querySelector('#editorStatus');if(el)el.textContent=text;}
@@ -51,8 +51,9 @@ export class MapEditor{
    '<button type="button" class="editor-choice'+(this.brush===id?' active':'')+'" data-palette="'+htmlEscape(id)+'">'+htmlEscape(name)+'</button>').join('');
   const tools=[['select','Выбрать'],['move','Переместить'],['erase','Удалить'],['pan','Камера']].map(([id,label])=>
    '<button type="button" class="editor-tool'+(this.tool===id?' active':'')+'" data-tool="'+id+'">'+label+'</button>').join('');
+  this.panel.classList.toggle('minimized',!!this.collapsed);
   this.panel.innerHTML=
-   '<header class="editor-head"><strong>🛠️ Редактор Тихолесья</strong><button type="button" data-editor="close" aria-label="Закрыть редактор">×</button></header>'+
+   '<header class="editor-head"><strong>🛠️ Редактор мира</strong><span><button type="button" data-editor="collapse" aria-label="Свернуть или развернуть редактор">'+(this.collapsed?'▣':'▁')+'</button> <button type="button" data-editor="close" aria-label="Закрыть редактор">×</button></span></header>'+
    '<label class="editor-label">Локация<select id="editorLocation">'+LOCATIONS.map(id=>
     '<option value="'+id+'"'+(g.location===id?' selected':'')+'>'+names[id]+'</option>').join('')+'</select></label>'+
    '<div class="editor-tools">'+tools+'</div>'+
@@ -106,10 +107,11 @@ export class MapEditor{
   const button=e.target.closest('button');if(!button)return;
   if(button.dataset.layer){
    this.kind=button.dataset.layer;this.brush=this.palette()[0]?.[0]||null;
-   this.tool='place';this.selected=null;this.renderPanel();return;
+   this.tool=this.kind==='terrain'?'paint':'place';this.selected=null;this.renderPanel();return;
   }
   if(button.dataset.palette){
    this.brush=button.dataset.palette;this.tool=this.kind==='terrain'?'paint':'place';
+   if(window.innerWidth<700)this.collapsed=true;
    this.renderPanel();return;
   }
   if(button.dataset.tool){
@@ -117,6 +119,7 @@ export class MapEditor{
   }
   const action=button.dataset.editor;
   if(action==='close')this.close();
+  if(action==='collapse'){this.collapsed=!this.collapsed;this.renderPanel();}
   if(action==='undo')this.undo();
   if(action==='redo')this.redo();
   if(action==='move'){this.tool='move';this.renderPanel();}
@@ -136,7 +139,7 @@ export class MapEditor{
     const merged={...this.g.worldMaps,...maps};
     writeEditedMaps(merged);
     this.g.worldMaps=merged;this.undoStack=[];this.redoStack=[];
-    this.g.loadEditedScene();this.selected=null;this.refreshMap();
+    this.g.restoreEditedScene(merged[this.g.location]||null);this.selected=null;this.refreshMap();
     this.renderPanel();this.message('Мир импортирован: '+Object.keys(maps).map(id=>names[id]).join(', '));
    }catch(error){this.message('Импорт отменён: '+error.message);}
   }
