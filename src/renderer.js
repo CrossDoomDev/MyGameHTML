@@ -174,9 +174,10 @@ export class Renderer{
   const g=this.game,c=this.c,w=g.canvas.width,h=g.canvas.height,p=g.player,WIDTH=g.map.width,HEIGHT=g.map.height;
   this.fadeDelta=this.lastDrawTime===undefined?16:Math.max(0,time-this.lastDrawTime);this.lastDrawTime=time;
   this.protectedActors=[p,...g.npcs,...g.herbs.filter(herb=>!herb.collected)];
-  g.camera.x=Math.round(Math.max(0,Math.min(WIDTH*TILE-w,p.px-w/2)));
-  g.camera.y=Math.round(Math.max(0,Math.min(HEIGHT*TILE-h,p.py-h/2)));
-  c.fillStyle='#3c5c38';c.fillRect(0,0,w,h);c.save();c.translate(-g.camera.x,-g.camera.y);
+  // Small interiors stay centered even on ultra-wide desktop screens.
+  g.camera.x=WIDTH*TILE<=w?-Math.round((w-WIDTH*TILE)/2):Math.round(Math.max(0,Math.min(WIDTH*TILE-w,p.px-w/2)));
+  g.camera.y=HEIGHT*TILE<=h?-Math.round((h-HEIGHT*TILE)/2):Math.round(Math.max(0,Math.min(HEIGHT*TILE-h,p.py-h/2)));
+  c.fillStyle=g.location==='tavern'?'#201a14':'#3c5c38';c.fillRect(0,0,w,h);c.save();c.translate(-g.camera.x,-g.camera.y);
   const sx=Math.max(0,Math.floor(g.camera.x)),sy=Math.max(0,Math.floor(g.camera.y));
   const sw=Math.min(w,this.ground.width-sx),sh=Math.min(h,this.ground.height-sy);
   if(sw>0&&sh>0)c.drawImage(this.ground,sx,sy,sw,sh,sx,sy,sw,sh);
