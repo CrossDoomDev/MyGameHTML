@@ -80,8 +80,19 @@ for(const [scene,start] of [[map,SPAWN],[forest,{x:3,y:40}],[tavern,{x:12,y:14}]
 assert.equal(TILE,32);
 
 // Headless DOM/game initialization still checks art, inventories and interactions.
+// A pre-update browser that saved the old 80px 3D hero must migrate to the
+// new 48px pixel hero exactly once, without deleting save data.
+store.set('tiholesye-model','3d');
 const defaultStyle=new Game(new Canvas('default-npc-style'));
 assert.equal(defaultStyle.npcStyle,'vector','vector NPC style is the default');
+assert.equal(defaultStyle.modelMode,'2d','old oversized hero preference is migrated');
+assert.equal(defaultStyle.player.sprite,'hero','new compact hero is selected');
+assert.equal(store.get('tiholesye-model'),'2d','migration persists new pixel default');
+assert.equal(store.get('tiholesye-compact-hero-48'),'1','migration runs once');
+defaultStyle.setModelMode('3d');
+const restoredChoice=new Game(new Canvas('restored-3d-choice'));
+assert.equal(restoredChoice.modelMode,'3d','explicit new choice persists after migration');
+restoredChoice.setModelMode('2d');
 store.set('tiholesye-npc-style','pixel');
 const game=new Game(document.getElementById('game'));
 await game.start();
