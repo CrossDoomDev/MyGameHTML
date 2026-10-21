@@ -178,7 +178,7 @@ export async function loadAssets() {
   const atlas=document.createElement('canvas');
   atlas.width=800;atlas.height=320;
   const druidCtx=atlas.getContext('2d');druidCtx.imageSmoothingEnabled=false;
-  const sourceColumns=[0,1,1,2,3,4,5,6,7,5];
+  const sourceColumns=[0,1,1,2,3,4,5,6,7,0];
   for(let row=0;row<4;row++)for(let col=0;col<sourceColumns.length;col++)
    druidCtx.drawImage(redesigned,sourceColumns[col]*80,row*80,80,80,col*80,row*80,80,80);
   images.hero=atlas;
