@@ -132,6 +132,7 @@ for(const row of heroFrames)for(const frame of row){
  const [,,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);
  assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero frame fits');
 }
+assert.equal(game.modelMode,'2d','pixel druid is the default for new players');
 game.setModelMode('2d');
 assert.equal(game.player.sprite,'hero');
 game.setModelMode('3d');
