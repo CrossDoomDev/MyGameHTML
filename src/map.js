@@ -62,7 +62,7 @@ function village(){
  for(const b of m.buildings){
   for(let y=b.y-2;y<b.y+b.h+3;y++)for(let x=b.x-2;x<b.x+b.w+3;x++)if(m.terrain[y]?.[x]!==undefined)setTerrain(m.terrain,x,y,'path');
  }
- for(const [x,y] of [[21,16],[39,16],[22,29],[40,29],[7,26],[56,27],[20,40],[43,41]])m.add('lamp',x,y,{block:true,glow:true});
+ for(const [x,y] of [[21,16],[39,16],[22,29],[40,29],[7,26],[54,26],[20,40],[43,41]])m.add('lamp',x,y,{block:true,glow:true});
  for(const [x,y] of [[9,17],[23,15],[41,23],[54,34],[18,37]])m.add('barrel',x,y,{block:true});
  for(const [x,y] of [[10,18],[40,35],[54,35]])m.add('crates',x,y,{block:true});
  m.add('anvil',34,14,{block:true});m.add('logs',7,31,{block:true});
