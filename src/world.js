@@ -27,8 +27,15 @@ export class Game{
   this.map=hydratedMap(this.location,this.worldMaps[this.location]);
   if(data.version!==3){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
-  // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
-  this.modelMode=localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
+  // One-time migration: old users may have explicitly saved the oversized
+  // 3D model. Show them the new compact pixel druid on their first updated load.
+  // After migration, changing the model in Settings remains persistent.
+  const compactActivated=localStorage.getItem('tiholesye-compact-hero-48');
+  this.modelMode=compactActivated&&localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
+  if(!compactActivated)try{
+   localStorage.setItem('tiholesye-compact-hero-48','1');
+   localStorage.setItem('tiholesye-model','2d');
+  }catch{}
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
