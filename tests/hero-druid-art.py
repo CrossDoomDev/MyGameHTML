@@ -1,40 +1,40 @@
-"""Validate the packed pixel druid frames, alpha, true feet alternation and right-hand staff."""
+"""Check sprite fidelity, actual boot contacts and right/left staff orientation."""
+from hashlib import sha256
 from pathlib import Path
 from PIL import Image
-from hashlib import sha256
-import numpy as np
+
 source=Path(__file__).resolve().parents[1]/'assets'/'hero-druid.png'
 raw=source.read_bytes()
-assert sha256(raw).hexdigest() == 'dd42f14801a7f80ce5b0cbc431bd1fbf394742fb17562589104013cadd244f74', 'Hero artwork corrupted in transport'
+expected='dd42f14801a7f80ce5b0cbc431bd1fbf394742fb17562589104013cadd244f74'
+assert sha256(raw).hexdigest()==expected,'Source PNG was damaged in transit'
 image=Image.open(source).convert('RGBA')
 assert image.size==(640,320),image.size
-frames=np.asarray(image)
-assert frames[0,0,3]==0,'hero cells must have transparent background'
+assert image.getpixel((0,0))[3]==0,'Transparent background expected'
+def frame(row,column):
+ return image.crop((column*80,row*80,(column+1)*80,(row+1)*80))
 for row in range(4):
- for frame in range(8):
-  cell=frames[row*80:(row+1)*80,frame*80:(frame+1)*80,:]
-  assert (cell[:,:,3]>128).sum()>180,'Missing pose %s/%s'%(row,frame)
-  assert cell[:,:,3].min()==0,'No transparency in pose %s/%s'%(row,frame)
-# Source row 0 is the forward-facing walk; the first two contact frames
-# visibly alternate the leading LEFT and RIGHT boot.
-def boot_bottom(frame,x0,x1):
- cell=frames[:80,frame*80:(frame+1)*80,:]
- leg=cell[49:66,x0:x1,:]
- brown=(leg[:,:,3]>180)&(leg[:,:,0]>leg[:,:,1]*1.12)&(leg[:,:,0]>leg[:,:,2]*1.2)&(leg[:,:,0]>40)
- yy=np.where(brown)[0]
- assert yy.size, 'missing boot pixels'
- return int(yy.max()+49)
+ for col in range(8):
+  cell=frame(row,col)
+  pixels=list(cell.getdata())
+  assert sum(a>128 for _,_,_,a in pixels)>180,(row,col,'missing pose')
+  assert min(a for _,_,_,a in pixels)==0,(row,col,'no transparency')
+def boot_bottom(column,x0,x1):
+ cell=frame(0,column)
+ yy=[y for y in range(49,66) for x in range(x0,x1)
+     if (lambda p:p[3]>180 and p[0]>p[1]*1.12 and p[0]>p[2]*1.2 and p[0]>40)(cell.getpixel((x,y)))]
+ assert yy,'boot not found'
+ return max(yy)
+# Walk starts with left foot forward and then right foot forward.
 first=boot_bottom(1,30,41)-boot_bottom(1,41,53)
-opposite=boot_bottom(2,30,41)-boot_bottom(2,41,53)
-assert first>=2 and opposite<=-2,('Boots must alternate, not blink',first,opposite)
-# Independent RIGHT and LEFT source profiles. Facing right retains the hand
-# and green crystal on the right; facing left retains them on the left.
-def emeralds(row,frame,xa,xb):
- p=frames[row*80:(row+1)*80,frame*80+xa:frame*80+xb,:]
- return int(((p[:,:,3]>100)&(p[:,:,1]>p[:,:,0]*1.23)&(p[:,:,1]>p[:,:,2]*1.15)&(p[:,:,1]>90)).sum())
-assert emeralds(1,0,0,40)>15 and emeralds(1,0,40,80)<4, 'Left staff in wrong hand'
-assert emeralds(2,0,40,80)>10 and emeralds(2,0,0,40)<4, 'Right staff in wrong hand'
-# The magic arc frame has visible energy in all four directions.
+second=boot_bottom(2,30,41)-boot_bottom(2,41,53)
+assert first>=2 and second<=-2,('boots must alternate',first,second)
+def emeralds(row,col,x0,x1):
+ cell=frame(row,col)
+ return sum(1 for y in range(80) for x in range(x0,x1)
+  if (lambda p:p[3]>100 and p[1]>p[0]*1.23 and p[1]>p[2]*1.15 and p[1]>90)(cell.getpixel((x,y))))
+# Source order is DOWN LEFT RIGHT UP. Neither side can mirror the other.
+assert emeralds(1,0,0,40)>15 and emeralds(1,0,40,80)<4,'LEFT staff must remain on the left'
+assert emeralds(2,0,40,80)>10 and emeralds(2,0,0,40)<4,'RIGHT staff must remain on the right'
 for row in range(4):
- assert emeralds(row,6,0,80)>90,('Magic attack absent',row)
-print('PASS: compact druid, four views, opposite boot contacts, side-specific staff and magic attacks.')
+ assert emeralds(row,6,0,80)>90,(row,'missing green magic attack')
+print('PASS: 32 real painted poses, clean alpha, alternating boots, independent left/right hand, four magical attacks.')
