@@ -30,6 +30,9 @@ for(const b of scene.buildings){
  const route=findPath(scene,SPAWN.x,SPAWN.y,b.doorX,b.doorY+1);
  assert(route.length>0,'door reachable from the square '+b.id);
 }
+assert.deepEqual(HOUSES.inn.chimneys,[[113,34]],'tavern smoke starts at the chimney mouth');
+assert.deepEqual(HOUSES.inn.lanterns,[[28,116],[47,116]],'tavern lamp glow follows the art');
+assert.equal(scene.buildings.find(b=>b.sprite==='inn').w,5,'tavern remains five tiles wide');
 assert.equal(Object.keys(HOUSES).length,6,'six themed building sprites');
 assert.equal(FOUNTAIN.w,3);
 assert.deepEqual(fountainFootprint('fountain'),{w:3,h:3});

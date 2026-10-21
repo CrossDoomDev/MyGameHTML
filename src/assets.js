@@ -121,6 +121,26 @@ export async function loadAssets() {
    importSprite(name,house.atlas,[house.w*32,house.h*32]);
   importSprite('fountain',FOUNTAIN.atlas,[FOUNTAIN.w*32,FOUNTAIN.h*32]);
  }
+ // The illustrated red-roof tavern is a separate hand-authored 160px sprite.
+ // It replaces only the inn, leaving all other compact five-cell houses intact.
+ // Retain the original atlas as a fallback if an asset download fails.
+ const tavern=await new Promise(resolve=>{
+  const image=new Image();
+  image.onload=()=>resolve(image);
+  image.onerror=()=>resolve(null);
+  image.src=assetURL('tavern-redrawn.webp');
+ });
+ if(tavern&&tavern.width===160&&tavern.height===160){
+  const canvas=document.createElement('canvas');
+  canvas.width=160;canvas.height=160;
+  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(tavern,0,0);
+  environment.inn=canvas;
+  if(ctx.getImageData){
+   const pixels=ctx.getImageData(0,0,160,160).data;
+   environmentMasks.inn=Uint8Array.from({length:160*160},(_,i)=>pixels[i*4+3]>=32?1:0);
+  }
+ }
  // Normalize generated poses into 10 equal 80px cells per direction. Foot
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
  const hero=document.createElement('canvas');hero.width=800;hero.height=320;

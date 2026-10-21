@@ -11,8 +11,10 @@ export const HOUSES={
   lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
  cottage: {name:'Большой дом',w:5,h:5,atlas:[80,0,80,80],chimneys:[[113,12]],
   lights:[[80,66],[49,112],[113,113]],lanterns:[[40,113]]},
- inn: {name:'Таверна',w:5,h:5,atlas:[0,0,80,80],chimneys:[[104,15]],
-  lights:[[63,67],[48,111],[112,113]],lanterns:[[27,106],[111,111]]},
+ // The new transparent tavern (assets/tavern-redrawn.webp) has no baked-in
+ // smoke: chimney and window offsets refer to its exact 160 x 160 canvas.
+ inn: {name:'Таверна',w:5,h:5,atlas:[0,0,80,80],chimneys:[[113,34]],
+  lights:[[82,77],[80,123],[112,112]],lanterns:[[28,116],[47,116]]},
  forge: {name:'Кузница',w:5,h:5,atlas:[160,0,80,80],chimneys:[[111,19]],
   lights:[[81,69]],hearth:[114,119],lanterns:[]},
  market: {name:'Лавка',w:5,h:3,atlas:[0,112,80,48],chimneys:[],

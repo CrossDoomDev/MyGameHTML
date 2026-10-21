@@ -15,5 +15,6 @@ assert declared==len(data), f"Invalid RIFF size: declared {declared}, actual {le
 with Image.open(p) as image:
  image.load()
  assert image.size==(160,160),image.size
+ assert image.getchannel('A').getextrema()[0]==0,'transparent background expected'
  assert image.mode in {"RGBA","RGB"},image.mode
  print("Tavern art valid:",image.size,len(data),"bytes")
