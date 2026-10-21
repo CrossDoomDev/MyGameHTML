@@ -47,7 +47,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     return {name:n.sprite,width:im.naturalWidth,height:im.naturalHeight,complete:im.complete};
    });
   });
-  assert.equal(assets.length,5);
+  assert.equal(assets.length,7,'all seven village residents have vector art');
   for(const a of assets){
    assert(a.complete && a.width===384 && a.height===1536,
     'Wrong SVG source dimensions: '+JSON.stringify(a));
@@ -103,7 +103,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.reload();
   await page.waitForFunction(()=>window.tiholesye?.ready);
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'vector','style should survive a refresh');
-  assert.equal(await page.evaluate(()=>window.tiholesye.npcs.length),5);
+  assert.equal(await page.evaluate(()=>window.tiholesye.npcs.length),7);
   await page.evaluate(()=>window.tiholesye.ui.settings());
   await page.locator('#npcStyle').click();
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
@@ -112,7 +112,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.screenshot({path:'.qa/npc-pixel-in-game.png'});
 
   assert.deepEqual(errors,[]);
-  console.log('PASS: five SVG NPC sprites decode in Chromium; pixel and vector contact sheets differ; settings click, instant switch, storage persistence, reload and reversibility all work.');
+  console.log('PASS: seven SVG NPC instances decode in Chromium; pixel and vector contact sheets differ; settings click, instant switch, storage persistence, reload and reversibility all work.');
  }finally{
   await browser?.close();
   await new Promise(ok=>server.close(ok));
