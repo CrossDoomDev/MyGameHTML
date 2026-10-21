@@ -16,7 +16,7 @@ export const HOUSES={
  forge: {name:'Кузница',w:5,h:5,atlas:[160,0,80,80],chimneys:[[111,19]],
   lights:[[81,69]],hearth:[114,119],lanterns:[]},
  market: {name:'Лавка',w:5,h:3,atlas:[0,112,80,48],chimneys:[],
-  lights:[[70,52]],lanterns:[[129,33]]},
+  lights:[[70,52]],lanterns:[[134,43]]},
  chapel: {name:'Часовня',w:5,h:5,atlas:[80,80,80,80],chimneys:[],
   lights:[[80,74]],lanterns:[[36,116],[121,116]]}
 };
