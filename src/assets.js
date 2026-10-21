@@ -162,7 +162,16 @@ export async function loadAssets() {
   hc.drawImage(images['hero-source'],sx,sy,sw,sh,flip?-anchor:dx,dy,w,h);
   hc.restore();
  }
- images.hero=hero;
+ // The redesigned 2D hero includes individually drawn LEFT and RIGHT profiles,
+ // four natural walk poses, and emerald staff attacks in every direction.
+ // Keep the previous hero canvas only if the new file cannot be fetched.
+ const redesigned=await new Promise(resolve=>{
+  const image=new Image();
+  image.onload=()=>resolve(image);
+  image.onerror=()=>resolve(null);
+  image.src=assetURL('hero-druid.png');
+ });
+ images.hero=redesigned?.width===800&&redesigned?.height===320?redesigned:hero;
  images.hero3d=images['hero-3d-atlas'];
  return {images,environment,environmentMasks};
 }
