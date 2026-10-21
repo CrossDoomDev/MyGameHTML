@@ -66,7 +66,7 @@ const building=g.map.buildings[0];
 editor.selected={kind:'building',index:0};
 assert(editor.resolveSelection()?.value===building,'select house');
 editor.deleteSelection();assert.equal(g.map.buildings.length,7);
-editor.undo();assert.equal(g.map.buildings.length,7);
+editor.undo();assert.equal(g.map.buildings.length,8);
 editor.tool='erase';editor.stroke={before:sceneSnapshot(g),changed:false};
 assert(editor.applyAt(g.npcs[0].x,g.npcs[0].y),'eraser removes resident');
 editor.finishStroke();assert.equal(g.npcs.length,0);
