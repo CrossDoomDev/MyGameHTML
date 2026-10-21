@@ -17,6 +17,7 @@ on:
       - 'tests/map-editor-browser.cjs'
       - 'src/map-editor.js'
       - 'src/map-editor-data.js'
+      - 'src/editor-palette.js'
   workflow_dispatch:
 
 permissions:
