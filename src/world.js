@@ -124,9 +124,17 @@ export class Game{
  bindInput(){
   this.canvas.addEventListener('pointerdown',e=>{
    if(this.editor?.active){
+    // Suppress browser autoscroll/context menus for middle/right-button panning.
+    if(e.button===1||e.button===2)e.preventDefault();
     this.editor.pointerDown(e);
-    if(this.canvas.setPointerCapture&&e.button===0)this.canvas.setPointerCapture(e.pointerId);
+    if(this.canvas.setPointerCapture&&e.pointerId!==undefined)this.canvas.setPointerCapture(e.pointerId);
    }else this.click(e);
+  });
+  this.canvas.addEventListener('mousedown',e=>{
+   if(this.editor?.active&&e.button===1)e.preventDefault();
+  });
+  this.canvas.addEventListener('auxclick',e=>{
+   if(this.editor?.active&&e.button===1)e.preventDefault();
   });
   this.canvas.addEventListener('pointermove',e=>{if(this.editor?.active)this.editor.pointerMove(e);});
   this.canvas.addEventListener('pointerup',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
