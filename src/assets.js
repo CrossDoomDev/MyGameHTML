@@ -5,6 +5,7 @@ import { characterFrame } from './animation.js';
 import { assetURL } from './asset-url.js';
 import { repairForgeRoof } from './forge-animation.js';
 import {ART_ATLAS,ATLAS_SOURCE,HOUSES,FOUNTAIN} from './village-art.js';
+import {sharpenCanvas} from './pixel-art-sharp.js';
 export const NPC_SPRITES=['elder','smith','merchant','villager','fisher'];
 export const ENVIRONMENT = {
  inn: {source:[0,0,402,355],size:[192,160]},
@@ -97,10 +98,19 @@ export async function loadAssets() {
    const sx=buildingAtlas.width/ATLAS_SOURCE[0],sy=buildingAtlas.height/ATLAS_SOURCE[1];
    const ox=Math.round(x*sx),oy=Math.round(y*sy);
    const ex=Math.round((x+w)*sx),ey=Math.round((y+h)*sy);
+   // Sharpen at native atlas resolution first, then scale with nearest pixels.
+   // Directly stretching an 80px picture to 160px retained the soft edges
+   // baked into the original compressed atlas.
+   const sourceWidth=Math.max(1,ex-ox),sourceHeight=Math.max(1,ey-oy);
+   const native=document.createElement('canvas');
+   native.width=sourceWidth;native.height=sourceHeight;
+   const nativeCtx=native.getContext('2d');nativeCtx.imageSmoothingEnabled=false;
+   nativeCtx.drawImage(buildingAtlas,ox,oy,sourceWidth,sourceHeight,0,0,sourceWidth,sourceHeight);
+   if(name!=='fountain')sharpenCanvas(native,{strength:1.45,threshold:6});
    const canvas=document.createElement('canvas');
    [canvas.width,canvas.height]=size;
    const context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
-   context.drawImage(buildingAtlas,ox,oy,Math.max(1,ex-ox),Math.max(1,ey-oy),0,0,...size);
+   context.drawImage(native,0,0,sourceWidth,sourceHeight,0,0,...size);
    environment[name]=canvas;
    if(context.getImageData){
     const pixels=context.getImageData(0,0,...size).data;
