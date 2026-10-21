@@ -1,4 +1,5 @@
 import { assetURL } from './asset-url.js';
+import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
 export class UI{
  constructor(game){
   this.g=game;this.open=false;this.panel=document.getElementById('panel');this.backdrop=document.getElementById('panelBackdrop');this.toastEl=document.getElementById('toast');this.lastUpdate=-999;
@@ -7,6 +8,7 @@ export class UI{
   for(const id of ['journal','journalAction'])document.getElementById(id).onclick=()=>this.journal();
   document.getElementById('settings').onclick=()=>this.settings();
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>this.slot(Number(b.dataset.slot)));
+  document.querySelectorAll('[data-skill]').forEach(b=>b.onclick=()=>this.g.castSkill(b.dataset.skill));
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
  }
  portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
@@ -26,6 +28,17 @@ export class UI{
   document.getElementById('hpFill').style.width=p.hp/p.maxHp*100+'%';document.getElementById('manaFill').style.width=p.mana/p.maxMana*100+'%';document.getElementById('xpFill').style.width=p.xp/(p.level*50)*100+'%';
   text('potionCount',p.potions);text('woodCount',p.wood);text('herbCount',p.herbs);
   text('region',g.map.label);
+  for(const [id,skill] of Object.entries(DRUID_SKILLS)){
+   const button=document.getElementById('skill-'+id);
+   if(!button)continue;
+   const remaining=skillRemaining(g.skillCooldowns,id,g.time);
+   const reason=remaining?'Перезарядка':p.mana<skill.mana?'Недостаточно маны':id==='heal'&&p.hp>=p.maxHp?'Здоровье полное':'';
+   button.disabled=!!reason||this.open||!!g.editor?.active;
+   button.classList.toggle('recharging',remaining>0);
+   const label=button.querySelector('.skill-timer');
+   if(label)label.textContent=remaining?String(Math.ceil(remaining/1000)):reason?'—':'';
+   button.setAttribute?.('aria-label',skill.name+(remaining?', перезарядка '+Math.ceil(remaining/1000)+' секунд':'')+(reason&&!remaining?', '+reason:''));
+  }
   text('questTitle',p.boss?'Тихолесье в безопасности':p.questReward?'Страж древней рощи':'Просьба старосты');
   text('questText',p.boss?'Страж побеждён. Исследуй мир.':p.questReward?'Найди стража в Великом лесу':!p.questAccepted?'Поговори со старостой у таверны':p.kills>=3?'Вернись к старосте за наградой':'Лесные существа: '+Math.min(3,p.kills)+' / 3');
   const near=g.editor?.active?null:g.nearestInteractable(),prompt=document.getElementById('interaction');prompt.hidden=!near;
@@ -87,7 +100,7 @@ export class UI{
   return '<div class="setting-row npc-style-setting"><span><strong>Графика NPC</strong><small>Чиби-староста с фонарём и четыре рисованных жителя. Мир и герой не меняются.</small></span><button id="npcStyle" class="button" type="button" aria-label="Переключить стиль NPC" aria-pressed="'+vector+'">'+(vector?'Векторный':'Пиксельный')+'</button></div>';
  }
  settings(){
-  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="'+assetURL('hero-3d-preview.png')+'" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="'+assetURL('hero-3d.glb')+'" download>Скачать GLB</a></div></div>'+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>Нажми на NPC, врага или дверь — герой сам подойдёт и взаимодействует<br>Пробел — атака · E — общение и сбор<br>1–6 — быстрые предметы · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.4 · деревня, лес и таверна</p>');
+  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="'+assetURL('hero-3d-preview.png')+'" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="'+assetURL('hero-3d.glb')+'" download>Скачать GLB</a></div></div>'+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>Нажми на NPC, врага или дверь — герой сам подойдёт и взаимодействует<br>Пробел — атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор<br>1–6 — быстрые предметы · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.4 · деревня, лес и таверна</p>');
   this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
