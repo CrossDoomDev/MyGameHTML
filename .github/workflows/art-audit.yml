@@ -6,6 +6,8 @@ on:
       - '.github/workflows/art-audit.yml'
       - 'tools/audit_environment_art.py'
       - 'src/renderer.js'
+      - 'src/forge-animation.js'
+      - 'tests/forge-animation.mjs'
       - 'src/assets.js'
       - 'tests/mechanics.mjs'
       - 'assets/hero-walk*'
@@ -29,5 +31,7 @@ jobs:
         run: python3 tools/audit_environment_art.py
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
+      - name: Verify forge chimney, flame and smoke alignment
+        run: node tests/forge-animation.mjs
       - name: Verify alternating hero boot artwork
         run: python3 tests/hero_walk_art.py
