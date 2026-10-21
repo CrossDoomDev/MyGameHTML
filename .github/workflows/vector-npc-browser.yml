@@ -14,6 +14,9 @@ on:
       - 'src/ui.js'
       - 'style.css'
       - 'tests/vector-npcs-browser.cjs'
+      - 'tests/map-editor-browser.cjs'
+      - 'src/map-editor.js'
+      - 'src/map-editor-data.js'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +41,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run real browser tests, capture both styles
         run: node tests/vector-npcs-browser.cjs
+      - name: Test F2 world editor with Chromium
+        run: node tests/map-editor-browser.cjs
       - name: Upload screenshot comparison
         if: always()
         uses: actions/upload-artifact@v4
@@ -48,5 +53,6 @@ jobs:
             .qa/npc-vector.png
             .qa/npc-pixel-in-game.png
             .qa/npc-vector-in-game.png
+            .qa/map-editor.png
           if-no-files-found: warn
           retention-days: 30
