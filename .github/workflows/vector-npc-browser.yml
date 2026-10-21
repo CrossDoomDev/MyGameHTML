@@ -9,6 +9,8 @@ on:
       - 'assets/vector-*.webp'
       - 'tests/vector-npcs-art.py'
       - 'src/assets.js'
+      - 'assets/hero-druid.png'
+      - 'src/animation.js'
       - 'src/pixel-art-sharp.js'
       - 'src/world.js'
       - 'src/renderer.js'
