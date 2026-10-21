@@ -33,6 +33,7 @@ jobs:
       - run: node tests/forge-animation.mjs
       - run: node tests/map-editor.mjs
       - run: node tests/animation.mjs
+      - run: python3 tests/hero-druid-art.py
       - run: node tests/visibility.mjs
       - run: node tools/build-pages.mjs
       - uses: actions/configure-pages@v5
