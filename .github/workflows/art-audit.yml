@@ -8,6 +8,9 @@ on:
       - 'src/renderer.js'
       - 'src/forge-animation.js'
       - 'tests/forge-animation.mjs'
+      - 'src/map-editor.js'
+      - 'src/map-editor-data.js'
+      - 'tests/map-editor.mjs'
       - 'src/assets.js'
       - 'tests/mechanics.mjs'
       - 'assets/hero-walk*'
@@ -33,5 +36,7 @@ jobs:
         run: node tests/mechanics.mjs
       - name: Verify forge chimney, flame and smoke alignment
         run: node tests/forge-animation.mjs
+      - name: Verify interactive map editor and autosave
+        run: node tests/map-editor.mjs
       - name: Verify alternating hero boot artwork
         run: python3 tests/hero_walk_art.py
