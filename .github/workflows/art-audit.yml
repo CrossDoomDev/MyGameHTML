@@ -18,6 +18,11 @@ on:
       - 'tests/tavern-image.py'
       - 'tools/normalize-tavern-image.py'
       - 'src/assets.js'
+      - 'src/druid-skills.js'
+      - 'tests/druid-skills.mjs'
+      - 'src/ui.js'
+      - 'style.css'
+      - 'index.html'
       - 'src/pixel-art-sharp.js'
       - 'tests/pixel-art-sharp.mjs'
       - 'tests/mechanics.mjs'
@@ -52,6 +57,8 @@ jobs:
         run: python3 tools/audit_environment_art.py
       - name: Decode replacement tavern image
         run: python3 tests/tavern-image.py
+      - name: Test druid skills
+        run: node tests/druid-skills.mjs
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
       - name: Verify crisp non-blurred buildings
