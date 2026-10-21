@@ -4,6 +4,7 @@ import { heroFrames } from './hero-frames.js';
 import { characterFrame } from './animation.js';
 import { assetURL } from './asset-url.js';
 import { repairForgeRoof } from './forge-animation.js';
+import {ART_ATLAS,ATLAS_SOURCE,HOUSES,FOUNTAIN} from './village-art.js';
 export const NPC_SPRITES=['elder','smith','merchant','villager','fisher'];
 export const ENVIRONMENT = {
  inn: {source:[0,0,402,355],size:[192,160]},
@@ -50,6 +51,36 @@ export async function loadAssets() {
    const pixels=c.getImageData(0,0,...size).data;
    environmentMasks[name]=Uint8Array.from({length:size[0]*size[1]},(_,i)=>pixels[i*4+3]>=32?1:0);
   }
+ }
+ // Replace the previous facade illustrations with the six custom tile-aligned
+ // transparent pixel-art sprites. Keep fallback art if the new WebP is blocked,
+ // so the whole game can still start and the player can report an asset error.
+ let buildingAtlas=null;
+ try{
+  buildingAtlas=await new Promise(resolve=>{
+   const image=new Image();image.onload=()=>resolve(image);
+   image.onerror=()=>resolve(null);image.src=assetURL(ART_ATLAS);
+  });
+ }catch{}
+ if(buildingAtlas){
+  const importSprite=(name,rect,size)=>{
+   const [x,y,w,h]=rect;
+   const sx=buildingAtlas.width/ATLAS_SOURCE[0],sy=buildingAtlas.height/ATLAS_SOURCE[1];
+   const ox=Math.round(x*sx),oy=Math.round(y*sy);
+   const ex=Math.round((x+w)*sx),ey=Math.round((y+h)*sy);
+   const canvas=document.createElement('canvas');
+   [canvas.width,canvas.height]=size;
+   const context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
+   context.drawImage(buildingAtlas,ox,oy,Math.max(1,ex-ox),Math.max(1,ey-oy),0,0,...size);
+   environment[name]=canvas;
+   if(context.getImageData){
+    const pixels=context.getImageData(0,0,...size).data;
+    environmentMasks[name]=Uint8Array.from({length:size[0]*size[1]},(_,i)=>pixels[i*4+3]>=32?1:0);
+   }
+  };
+  for(const [name,house] of Object.entries(HOUSES))
+   importSprite(name,house.atlas,[house.w*32,house.h*32]);
+  importSprite('fountain',FOUNTAIN.atlas,[FOUNTAIN.w*32,FOUNTAIN.h*32]);
  }
  // Normalize generated poses into 10 equal 80px cells per direction. Foot
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
