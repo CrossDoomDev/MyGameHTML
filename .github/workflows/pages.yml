@@ -27,9 +27,9 @@ jobs:
       - run: python3 -m pip install --quiet Pillow
       - run: python3 tests/vector-npcs-art.py
       - run: node tests/mechanics.mjs
+      - run: node tests/pixel-art-sharp.mjs
       - run: node tests/village-art.mjs
       - run: node tests/forge-animation.mjs
-      - run: node tests/village-art.mjs
       - run: node tests/map-editor.mjs
       - run: node tests/animation.mjs
       - run: node tests/visibility.mjs
