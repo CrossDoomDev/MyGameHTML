@@ -7,7 +7,7 @@ import {sceneSnapshot,normalizeSnapshot,hydratedMap,readEditedMaps,importEditedM
 const saved=new Map();
 globalThis.localStorage={getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v)};
 globalThis.window={confirm:()=>true};
-const panel={hidden:true,innerHTML:'',addEventListener(){},querySelector(){return {textContent:'',value:'Новое имя'};}};
+const panel={hidden:true,innerHTML:'',classList:{toggle(){},remove(){}},addEventListener(){},querySelector(){return {textContent:'',value:'Новое имя'};}};
 globalThis.document={getElementById:()=>panel,activeElement:null};
 const g={
  location:'village',map:createMap('village'),worldMaps:{},
