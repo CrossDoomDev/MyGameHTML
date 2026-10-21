@@ -1,10 +1,11 @@
 // Validated browser-local map editing and JSON world interchange.
 import {createMap,TILE} from './map.js';
+import {HOUSES,facadeFootprint,fountainFootprint} from './village-art.js';
 export const EDITOR_STORAGE='tiholesye-editor-maps-v1';
 export const LOCATIONS=['village','forest','tavern'];
 export const TERRAINS=[['grass','Трава'],['path','Дорога'],['water','Вода'],['wood','Доски'],['rug','Ковёр'],['bridge','Мост']];
-export const SCENERY=[['oak','Дуб'],['pine','Ель'],['birch','Берёза'],['bush','Куст'],['lamp','Фонарь'],['barrel','Бочка'],['crates','Ящики'],['anvil','Наковальня'],['logs','Брёвна'],['fence','Забор'],['crops','Грядка']];
-export const BUILDINGS=[['cabin','Домик',4,4,2],['cottage','Большой дом',5,4,2],['forge','Кузница',4,5,2],['inn','Таверна',6,5,3],['market','Лавка',4,3,2]];
+export const SCENERY=[['oak','Дуб'],['pine','Ель'],['birch','Берёза'],['bush','Куст'],['lamp','Фонарь'],['barrel','Бочка'],['crates','Ящики'],['anvil','Наковальня'],['logs','Брёвна'],['fence','Забор'],['crops','Грядка'],['fountain','Фонтан']];
+export const BUILDINGS=Object.entries(HOUSES).map(([id,d])=>[id,d.name,d.w,d.h,(d.w-1)/2]);
 export const PEOPLE=[['elder','Староста'],['smith','Кузнец'],['merchant','Торговец'],['villager','Житель'],['fisher','Рыбак']];
 export const ENEMIES=[['mossling','Лесное существо'],['goblin','Гоблин'],['guardian','Страж']];
 const keys=list=>new Set(list.map(t=>t[0]));
@@ -18,12 +19,16 @@ export function buildingTemplate(sprite,x,y,id){
 }
 export function objectTemplate(sprite,x,y){
  if(!objectKeys.has(sprite))return null;
- return {sprite,x,y,px:(x+.5)*TILE,py:(y+1)*TILE,block:!['bush','crops'].includes(sprite),tree:['oak','pine','birch'].includes(sprite),glow:sprite==='lamp'};
+ const {w,h}=fountainFootprint(sprite);
+ return {sprite,x,y,w,h,px:(x+w/2)*TILE,py:(y+h)*TILE,block:!['bush','crops'].includes(sprite),tree:['oak','pine','birch'].includes(sprite),glow:sprite==='lamp'};
 }
 export function rebuildBlocked(map){
  const solid=new Set(),key=(x,y)=>y*map.width+x;
  for(const b of map.buildings)for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)solid.add(key(x,y));
- for(const o of map.objects)if(o.block)solid.add(key(o.x,o.y));
+ for(const o of map.objects)if(o.block){
+  const {w,h}=fountainFootprint(o.sprite);
+  for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)solid.add(key(o.x+dx,o.y+dy));
+ }
  map.blocked=Array.from({length:map.height},(_,y)=>Array.from({length:map.width},(_,x)=>
   x===0||y===0||x===map.width-1||y===map.height-1||map.terrain[y][x]==='water'||solid.has(key(x,y))));
  for(const p of map.portals||[])if(within(map,p.x,p.y))map.blocked[p.y][p.x]=false;
@@ -53,12 +58,18 @@ export function normalizeSnapshot(id,raw){
  const ids=new Set();
  for(const b of raw.buildings){
   if(!b||!buildingKeys.has(b.sprite)||!within(m,b.x,b.y))return null;
-  const d=BUILDINGS.find(t=>t[0]===b.sprite);if(b.x+d[2]>=m.width||b.y+d[3]>=m.height)return null;
+  const d=BUILDINGS.find(t=>t[0]===b.sprite);
+  // Old editor snapshots used even-width houses. Keep the original door
+  // column while migrating each facade to an odd-width footprint.
+  const x=Number.isInteger(b.doorX)&&b.w!==d[2] ? b.doorX-d[4] : b.x;
+  if(!within(m,x,b.y)||x+d[2]>=m.width||b.y+d[3]>=m.height)return null;
   const key=clean(b.id);if(!key||ids.has(key))return null;ids.add(key);
-  out.buildings.push({...buildingTemplate(b.sprite,b.x,b.y,key),name:clean(b.name)||d[1]});
+  out.buildings.push({...buildingTemplate(b.sprite,x,b.y,key),name:clean(b.name)||d[1]});
  }
  for(const o of raw.objects){
   if(!o||!objectKeys.has(o.sprite)||!within(m,o.x,o.y))return null;
+  const {w,h}=fountainFootprint(o.sprite);
+  if(o.x+w>=m.width||o.y+h>=m.height)return null;
   out.objects.push(objectTemplate(o.sprite,o.x,o.y));
  }
  for(const p of raw.portals){
@@ -83,7 +94,10 @@ export function normalizeSnapshot(id,raw){
   const k=cell(x,y);if(blocked.has(k)||out.terrain[y][x]==='water')return null;blocked.add(k);
  }
  for(const o of out.objects)if(o.block){
-  const k=cell(o.x,o.y);if(blocked.has(k)||out.terrain[o.y][o.x]==='water')return null;blocked.add(k);
+  const {w,h}=fountainFootprint(o.sprite);
+  for(let y=o.y;y<o.y+h;y++)for(let x=o.x;x<o.x+w;x++){
+   const k=cell(x,y);if(blocked.has(k)||out.terrain[y][x]==='water')return null;blocked.add(k);
+  }
  }
  for(const p of out.portals){
   const k=cell(p.x,p.y);if(blocked.has(k)||out.terrain[p.y][p.x]==='water')return null;blocked.add(k);
