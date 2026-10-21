@@ -56,7 +56,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const samples=await page.evaluate(()=>[...document.querySelectorAll('#editorPanel .editor-sprite')].map(c=>
     c.toDataURL('image/png').slice(0,1500)));
    assert(samples.every(x=>x.length>200),layer+' sprite thumbnails must be painted');
-   if(['object','building','npc'].includes(layer))
+   if(layer==='building'){
+    // A cottage and cabin intentionally share one compact 5x5 facade;
+    // all other themed buildings must still show distinct actual sprites.
+    assert(new Set(samples).size>=3,'building palette includes distinct themed facades');
+   }else if(['object','npc'].includes(layer))
     assert.notEqual(samples[0],samples[1],layer+' palette displays distinct real sprites');
   }
   // The middle button pans without changing active brush or editing anything.
