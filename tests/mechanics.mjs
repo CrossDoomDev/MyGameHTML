@@ -115,7 +115,7 @@ game.ui.close();
 
 // All new houses are sourced from the concept-art atlas (legacy repair used
 // clearRect, but replacing that canvas with authored artwork should not).
-for(const [sprite,width] of [['cottage',7*TILE],['forge',7*TILE],['inn',9*TILE],['chapel',7*TILE]]){
+for(const [sprite,width] of [['cabin',5*TILE],['cottage',5*TILE],['forge',5*TILE],['inn',5*TILE],['market',5*TILE],['chapel',5*TILE]]){
  const image=game.assets.environment[sprite];
  assert.equal(image.width,width,'new art grid width: '+sprite);
  const operations=image.getContext('2d').ops;
