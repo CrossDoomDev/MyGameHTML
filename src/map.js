@@ -5,14 +5,14 @@ export const SPAWN={x:30,y:24};
 export const rand=(x,y,seed=0)=>{let n=Math.imul(x+13+seed,374761393)+Math.imul(y+29,668265263);n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967295};
 // Existing door cells remain fixed while all facade footprints become odd-width.
 const villageBuildingPlacements=[
- ['inn','Таверна «Зелёный лист»','inn',11,10],
- ['forge','Кузница Брана','forge',28,9],
- ['market','Лавка Миры','market',43,16],
- ['cottage','Дом старосты','cottage',11,29],
+ ['inn','Таверна «Зелёный лист»','inn',13,10],
+ ['forge','Кузница Брана','forge',29,9],
+ ['market','Лавка Миры','market',44,16],
+ ['cottage','Дом старосты','cottage',12,29],
  ['cabin','Дом травницы','cabin',35,30],
  ['cabin-west','Дом лесника','cabin',7,34],
- ['cottage-east','Дом ремесленника','cottage',47,31],
- ['chapel','Часовня Тихолесья','chapel',39,6]
+ ['cottage-east','Дом ремесленника','cottage',48,31],
+ ['chapel','Часовня Тихолесья','chapel',40,6]
 ];
 export const buildings=villageBuildingPlacements.map(([id,name,sprite,x,y])=>{
  const {w,h,doorOffset}=facadeFootprint(sprite);
