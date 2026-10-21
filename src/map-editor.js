@@ -172,6 +172,7 @@ export class MapEditor{
    ['object',g.map.objects],['building',g.map.buildings]];
   for(const [kind,items]of groups){
    const index=items.findIndex(v=>kind==='building'?insideBuilding(v,x,y):
+    kind==='object'?x>=v.x&&x<v.x+(v.w||1)&&y>=v.y&&y<v.y+(v.h||1):
     (kind==='mob'?v.homeX:v.x)===x&&(kind==='mob'?v.homeY:v.y)===y);
    if(index!==-1)return {kind,index,value:items[index]};
   }
@@ -200,13 +201,18 @@ export class MapEditor{
  solidAt(x,y,exclude){
   const m=this.g.map;
   return m.buildings.some(b=>b!==exclude&&insideBuilding(b,x,y))||
-   m.objects.some(o=>o!==exclude&&o.x===x&&o.y===y)||
+   m.objects.some(o=>o!==exclude&&x>=o.x&&x<o.x+(o.w||1)&&y>=o.y&&y<o.y+(o.h||1))||
    m.portals.some(p=>p!==exclude&&p.x===x&&p.y===y);
  }
  canOccupy(x,y,exclude){
   const m=this.g.map;
   return this.validCell(x,y)&&m.terrain[y][x]!=='water'&&
    !this.solidAt(x,y,exclude)&&!this.actorAt(x,y,exclude);
+ }
+ canPlaceScenery(object,exclude){
+  for(let y=object.y;y<object.y+(object.h||1);y++)for(let x=object.x;x<object.x+(object.w||1);x++)
+   if(!this.canOccupy(x,y,exclude))return false;
+  return true;
  }
  canPlaceBuilding(b,exclude){
   for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)if(!this.canOccupy(x,y,exclude))return false;
@@ -238,8 +244,7 @@ export class MapEditor{
    this.beginChange();map.buildings.push(b);
    this.selected={kind:'building',index:map.buildings.length-1};
   }else if(this.kind==='object'){
-   if(!this.canOccupy(x,y))return false;
-   const object=objectTemplate(this.brush,x,y);if(!object)return false;
+   const object=objectTemplate(this.brush,x,y);if(!object||!this.canPlaceScenery(object))return false;
    this.beginChange();map.objects.push(object);
    this.selected={kind:'object',index:map.objects.length-1};
   }else if(this.kind==='npc'){
@@ -276,6 +281,10 @@ export class MapEditor{
    const next=buildingTemplate(v.sprite,x,y,v.id);
    if(!next||!this.canPlaceBuilding(next,v))return false;
    this.beginChange();Object.assign(v,{x,y,doorX:next.doorX,doorY:next.doorY});
+  }else if(s.kind==='object'){
+   const next=objectTemplate(v.sprite,x,y);
+   if(!next||!this.canPlaceScenery(next,v))return false;
+   this.beginChange();Object.assign(v,next);
   }else if(!this.canOccupy(x,y,v))return false;
   else{
    this.beginChange();v.x=x;v.y=y;
@@ -283,7 +292,6 @@ export class MapEditor{
    if(s.kind==='npc'||s.kind==='herb'||s.kind==='mob'){
     v.px=(x+.5)*TILE;v.py=(y+.8)*TILE;v.step=null;
    }
-   if(s.kind==='object'){v.px=(x+.5)*TILE;v.py=(y+1)*TILE;}
   }
   this.stroke.changed=true;return true;
  }
@@ -455,13 +463,14 @@ export class MapEditor{
   if(s){
    const v=s.value,x=(s.kind==='mob'?v.homeX:v.x)*TILE,y=(s.kind==='mob'?v.homeY:v.y)*TILE;
    c.strokeStyle='#f7db6e';c.lineWidth=3;
-   c.strokeRect(x,y,(s.kind==='building'?v.w:1)*TILE,(s.kind==='building'?v.h:1)*TILE);
+   c.strokeRect(x,y,(s.kind==='building'||s.kind==='object'?v.w||1:1)*TILE,(s.kind==='building'||s.kind==='object'?v.h||1:1)*TILE);
   }
   if(this.hover&&this.validCell(this.hover.x,this.hover.y)){
    const {x,y}=this.hover;
    if((this.tool==='paint'||this.tool==='place')&&this.brush){
     const valid=this.kind==='terrain'?this.brush!=='water'||(!this.solidAt(x,y)&&!this.actorAt(x,y)):
      this.kind==='building'?this.canPlaceBuilding(buildingTemplate(this.brush,x,y)??{x,y,w:0,h:0,doorX:x,doorY:y}):
+     this.kind==='object'?this.canPlaceScenery(objectTemplate(this.brush,x,y)??{x,y,w:0,h:0}):
      this.kind==='mob'?this.g.location==='forest'&&this.canOccupy(x,y):this.canOccupy(x,y);
     drawPlacementGhost(c,g,this.kind,this.brush,x,y,valid);
     c.strokeStyle=valid?'#a8f3b8':'#ed7774';
