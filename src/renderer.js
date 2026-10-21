@@ -222,6 +222,13 @@ export class Renderer{
   for(const entity of [...g.npcs,...g.mobs.filter(m=>m.alive),p]){
    objects.push({y:entity.py,draw:()=>{
     c.globalAlpha=.25;rect(c,entity.px-10,entity.py-4,21,5,'#233426');c.globalAlpha=1;
+    if(entity.alive&&entity.rootedUntil>time){
+     const pulse=Math.floor(time/240)%2;
+     for(let k=-2;k<=2;k++){
+      rect(c,entity.px+k*6-1,entity.py-8-(k%2?5:0)-pulse,2,9,'#648b43');
+      rect(c,entity.px+k*6-3,entity.py-10-(k%2?5:0)-pulse,6,2,'#a3cd6a');
+     }
+    }
     if(entity.hitUntil>time&&Math.floor(time/60)%2===0)c.globalAlpha=.45;
     if(entity.sprite==='guardian'||entity.sprite==='mossling'){
      const cell=entity.boss?64:48,frame=Math.floor(time/(entity.moving?130:250))%8,anchor=entity.boss?56:42;
@@ -247,7 +254,27 @@ export class Renderer{
   for(const e of g.effects){
    const age=time-e.time;
    if(e.type==='text'){c.globalAlpha=Math.max(0,1-age/900);c.font='bold 9px Georgia';c.textAlign='center';c.fillStyle='#273526';c.fillText(e.text,e.x+1,e.y-27-age/45+1);c.fillStyle=e.color||'#f1d59b';c.fillText(e.text,e.x,e.y-27-age/45);c.textAlign='left';}
-   else{c.globalAlpha=Math.max(0,1-age/450);for(let i=0;i<6;i++){const a=i*Math.PI/3;rect(c,e.x+Math.cos(a)*age/25,e.y-19+Math.sin(a)*age/25,2,2,e.color||'#dbba74');}}
+   else if(e.type==='bolt'){
+    const t=Math.min(1,age/e.duration),dx=e.tx-e.x,dy=e.ty-e.y;
+    c.globalAlpha=Math.max(0,1-t*.7);
+    for(let i=0;i<9;i++){
+     const u=Math.max(0,t-i*.045),x=e.x+dx*u,y=e.y+dy*u;
+     rect(c,Math.round(x)-2,Math.round(y)-2,4,4,i%2?'#c6ffb0':'#39cc6c');
+    }
+   }else if(e.type==='roots'){
+    const t=Math.min(1,age/e.duration),radius=Math.round(e.radius*t);
+    c.globalAlpha=Math.max(0,1-t);
+    for(let k=0;k<24;k++){
+     const a=Math.PI*2*k/24,x=e.x+Math.cos(a)*radius,y=e.y+Math.sin(a)*radius*.7;
+     rect(c,Math.round(x),Math.round(y)-1,3,4,k%2?'#88c46b':'#c7df86');
+    }
+   }else if(e.type==='heal'){
+    const t=Math.min(1,age/e.duration);c.globalAlpha=Math.max(0,1-t);
+    for(let k=0;k<12;k++){
+     const a=k*Math.PI/6+time/430,x=e.x+Math.cos(a)*(10+15*t),y=e.y+Math.sin(a)*(9+17*t)-12*t;
+     rect(c,Math.round(x),Math.round(y),2+(k%3===0?1:0),3,e.color||'#8effba');
+    }
+   }else{c.globalAlpha=Math.max(0,1-age/450);for(let i=0;i<6;i++){const a=i*Math.PI/3;rect(c,e.x+Math.cos(a)*age/25,e.y-19+Math.sin(a)*age/25,2,2,e.color||'#dbba74');}}
    c.globalAlpha=1;
   }
   // Lantern light, fireplace sparks and smoke: understated and never blurred.
