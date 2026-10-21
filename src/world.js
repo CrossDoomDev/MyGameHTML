@@ -28,7 +28,7 @@ export class Game{
   if(data.version!==3){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
   // Prefer the Blender-rendered hero for new players; keep an explicit 2D choice.
-  this.modelMode=localStorage.getItem('tiholesye-model')==='2d'?'2d':'3d';
+  this.modelMode=localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
@@ -217,7 +217,7 @@ export class Game{
   options.sort((a,b)=>a.length-b.length);this.path=options[0]||[];
   if(!this.path.length){this.target=null;this.toast('Не удаётся подойти.');}
  }
- beginStep(entity,x,y,duration=210){
+ beginStep(entity,x,y,duration=240){
   if(this.blocked(x,y,entity))return false;
   const dx=(x+.5)*TILE-entity.px,dy=(y+.8)*TILE-entity.py;
   if(dx||dy)entity.direction=directionTo(dx,dy);
