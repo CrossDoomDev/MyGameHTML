@@ -3,6 +3,7 @@
 import { heroFrames } from './hero-frames.js';
 import { characterFrame } from './animation.js';
 import { assetURL } from './asset-url.js';
+import { repairForgeRoof } from './forge-animation.js';
 export const NPC_SPRITES=['elder','smith','merchant','villager','fisher'];
 export const ENVIRONMENT = {
  inn: {source:[0,0,402,355],size:[192,160]},
@@ -40,7 +41,10 @@ export async function loadAssets() {
   // Their actual connected artwork starts at x=9 and x=5 respectively.
   // Clear only that stray edge area; do not modify the buildings themselves.
   if(name==='cottage')c.clearRect(0,0,3,canvas.height);
-  if(name==='forge')c.clearRect(0,0,2,canvas.height);
+  if(name==='forge'){
+   c.clearRect(0,0,2,canvas.height);
+   repairForgeRoof(c);
+  }
   environment[name]=canvas;
   if(c.getImageData){
    const pixels=c.getImageData(0,0,...size).data;
