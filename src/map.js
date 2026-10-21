@@ -51,6 +51,12 @@ function village(){
  m.road(15,15,15,39,1);m.road(15,19,49,19,1);
  m.road(14,34,50,34,1);m.road(46,19,46,35,1);
  m.road(9,37,9,42,1);m.road(9,42,30,42,1);
+ // Village pond, away from the central square and eastern exit road.
+ for(let y=26;y<=35;y++)for(let x=55;x<=60;x++){
+  const dx=(x-57.5)/3.3,dy=(y-30.5)/5.3;
+  if(dx*dx+dy*dy<1)setTerrain(m.terrain,x,y,'water');
+ }
+
  for(let y=18;y<=30;y++)for(let x=24;x<=37;x++)setTerrain(m.terrain,x,y,'path');
  // Clear walkable ground around homes and doorways; street furniture in dedicated pockets.
  for(const b of m.buildings){
