@@ -1,6 +1,7 @@
 import { TILE, WIDTH, HEIGHT, rand } from './map.js';
 import { drawCharacter } from './assets.js';
 import { sceneryPlacement, buildingPlacement, coversActor } from './visibility.js';
+import { drawForgeEffects } from './forge-animation.js';
 
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),w,h);};
 export class Renderer{
@@ -187,7 +188,9 @@ export class Renderer{
   const objects=g.map.objects.filter(o=>o.px>g.camera.x-110&&o.px<g.camera.x+w+110&&o.py>g.camera.y-110&&o.py<g.camera.y+h+140).map(o=>({y:o.py,draw:()=>this.environment(o)}));
   for(const b of g.map.buildings){
    const sprite=g.assets.environment[b.sprite],placement=buildingPlacement(b,sprite,TILE),py=(b.y+b.h)*TILE;
-   objects.push({y:placement.depth,draw:()=>{const alpha=this.sceneryOpacity(b,placement);c.save();c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);c.restore();}});
+   objects.push({y:placement.depth,draw:()=>{const alpha=this.sceneryOpacity(b,placement);c.save();c.globalAlpha=.17*alpha;rect(c,b.x*TILE-2,py-12,b.w*TILE+4,17,'#182b1a');c.globalAlpha=alpha;c.drawImage(sprite,placement.x,placement.y);
+    if(b.sprite==='forge')drawForgeEffects(c,placement.x,placement.y,time);
+    c.restore();}});
   }
   for(const herb of g.herbs)if(!herb.collected)objects.push({y:herb.py,draw:()=>{
    c.drawImage(g.assets.images.icons,24,0,24,24,herb.px-12,herb.py-21,24,24);
@@ -230,7 +233,8 @@ export class Renderer{
    for(let i=3;i>0;i--){c.globalAlpha=(.025+.012*Math.sin(time/350+o.x))*i*alpha;rect(c,x-7-i*4,y-7-i*4,14+i*8,14+i*8,'#ffd16e');}
    c.globalAlpha=alpha;rect(c,x-1,y-1,3,3,'#ffe9a1');c.globalAlpha=1;
   }
-  for(const b of g.map.buildings)if(b.sprite==='forge'||b.sprite==='inn'){
+  // Forge smoke now rises from the chimney outlet inside drawForgeEffects.
+  for(const b of g.map.buildings)if(b.sprite==='inn'){
    const X=(b.x+b.w*.68)*TILE,Y=b.y*TILE+8;
    for(let i=0;i<4;i++){const age=(time/80+i*8)%38;c.globalAlpha=(1-age/38)*.2;rect(c,X+Math.sin(age/9)*4,Y-age*1.3,4+i,4+i,'#c6c6b0');}
    c.globalAlpha=1;
