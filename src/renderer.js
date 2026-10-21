@@ -176,6 +176,9 @@ export class Renderer{
  }
  draw(time){
   const g=this.game,c=this.c,w=g.canvas.width,h=g.canvas.height,p=g.player,WIDTH=g.map.width,HEIGHT=g.map.height;
+  // Never let a browser's default bilinear interpolation soften pixel-art facades.
+  // SVG NPCs remain smooth on their separate overlay canvas.
+  c.imageSmoothingEnabled=false;
   this.fadeDelta=this.lastDrawTime===undefined?16:Math.max(0,time-this.lastDrawTime);this.lastDrawTime=time;
   this.protectedActors=[p,...g.npcs,...g.herbs.filter(herb=>!herb.collected)];
   // Small interiors stay centered even on ultra-wide desktop screens.
