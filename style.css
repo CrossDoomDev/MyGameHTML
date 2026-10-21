@@ -59,3 +59,62 @@
 #editorPanel.minimized .editor-head{height:30px;margin:0}
 #editorPanel.minimized .editor-head strong{font-size:14px}
 #editorPanel.minimized .editor-head button{padding:0 6px!important;font-size:18px!important}
+
+/* A genuine sprite/tile atlas in the editor; names are small secondary labels. */
+#editorPanel .editor-palette{
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:4px;
+ max-height:290px;
+ overflow-y:auto;
+ padding:4px 2px 10px;
+ border-bottom:1px solid #665c3e;
+}
+#editorPanel .editor-choice{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:start;
+ gap:4px;
+ width:100%;
+ min-width:0;
+ padding:3px 2px 5px;
+ border:2px solid #52614c;
+ border-radius:5px;
+ background:#1a2b22;
+ box-shadow:inset 0 0 0 1px #344736;
+}
+#editorPanel .editor-choice.active{
+ border-color:#f1cc77;
+ background:#3d492e;
+ box-shadow:0 0 0 1px #a28a53,inset 0 0 0 1px #7f7649;
+}
+#editorPanel .editor-sprite{
+ display:block;
+ width:100%;
+ max-width:72px;
+ height:auto;
+ aspect-ratio:1;
+ image-rendering:pixelated;
+ border-radius:2px;
+ background:#223729;
+ pointer-events:none;
+}
+#editorPanel .editor-sprite-label{
+ display:block;
+ max-width:100%;
+ min-height:20px;
+ font-size:10px;
+ font-weight:500;
+ line-height:1.15;
+ color:#d8d5b8;
+ text-align:center;
+ overflow-wrap:anywhere;
+ pointer-events:none;
+}
+#editorPanel .editor-choice.active .editor-sprite-label{color:#ffe4a1}
+@media(max-width:700px){
+ #editorPanel .editor-palette{grid-template-columns:repeat(3,minmax(0,1fr));max-height:44vh}
+ #editorPanel .editor-choice{padding:2px 2px 5px!important}
+ #editorPanel .editor-sprite-label{font-size:10px}
+}
