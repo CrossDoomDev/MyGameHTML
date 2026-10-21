@@ -31,6 +31,72 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert.equal(await page.locator('#editorPanel').isVisible(),true,'F2 opens editor');
   assert.equal(await page.evaluate(()=>window.tiholesye.editor.active),true);
 
+  // Tileset preview is made of real canvases, with labels secondary to art.
+  const terrainCells=page.locator('#editorPanel .editor-sprite');
+  assert.equal(await terrainCells.count(),6,'six graphical terrain tiles');
+  assert.equal(await page.locator('[data-palette="path"] .editor-sprite').count(),1);
+  const tileSamples=await page.evaluate(()=>{
+   const pixel=selector=>{
+    const c=document.querySelector(selector);
+    return Array.from(c.getContext('2d').getImageData(36,36,1,1).data);
+   };
+   return {
+    grass:pixel('[data-palette="grass"] .editor-sprite'),
+    path:pixel('[data-palette="path"] .editor-sprite'),
+    water:pixel('[data-palette="water"] .editor-sprite')
+   };
+  });
+  assert.notDeepEqual(tileSamples.grass,tileSamples.path,'ground tile preview has real terrain textures');
+  assert.notDeepEqual(tileSamples.path,tileSamples.water,'water preview differs from paths');
+
+  for(const layer of ['object','building','npc','mob','herb','portal']){
+   await page.locator('[data-layer="'+layer+'"]').click();
+   const canvases=page.locator('#editorPanel .editor-sprite');
+   assert(await canvases.count()>0,layer+' tileset must have pictures');
+   const samples=await page.evaluate(()=>[...document.querySelectorAll('#editorPanel .editor-sprite')].map(c=>
+    c.toDataURL('image/png').slice(0,1500)));
+   assert(samples.every(x=>x.length>200),layer+' sprite thumbnails must be painted');
+   if(['object','building','npc'].includes(layer))
+    assert.notEqual(samples[0],samples[1],layer+' palette displays distinct real sprites');
+  }
+  // The middle button pans without changing active brush or editing anything.
+  for(const tool of ['select','move','erase']){
+   await page.locator('[data-tool="'+tool+'"]').click();
+   const before=await page.evaluate(()=>({
+    x:window.tiholesye.camera.x,
+    y:window.tiholesye.camera.y,
+    count:window.tiholesye.map.objects.length,
+    kind:window.tiholesye.editor.kind,
+    tool:window.tiholesye.editor.tool
+   }));
+   await page.mouse.move(510,410);
+   await page.mouse.down({button:'middle'});
+   await page.mouse.move(430,440,{steps:5});
+   await page.mouse.up({button:'middle'});
+   await page.waitForTimeout(60);
+   const after=await page.evaluate(()=>({
+    x:window.tiholesye.camera.x,
+    y:window.tiholesye.camera.y,
+    count:window.tiholesye.map.objects.length,
+    kind:window.tiholesye.editor.kind,
+    tool:window.tiholesye.editor.tool
+   }));
+   assert(after.x>before.x,tool+' middle-button drag pans world');
+   assert.equal(after.count,before.count,tool+' middle-drag does not erase or place objects');
+   assert.equal(after.tool,before.tool,tool+' middle-drag preserves selected tool');
+   assert.equal(after.kind,before.kind,tool+' middle-drag preserves layer');
+  }
+  await page.locator('[data-layer="terrain"]').click();
+  await page.locator('[data-palette="grass"]').click();
+  const beforePaintPan=await page.evaluate(()=>({x:window.tiholesye.camera.x,brush:window.tiholesye.editor.brush}));
+  await page.mouse.move(510,410);
+  await page.mouse.down({button:'middle'});
+  await page.mouse.move(450,410,{steps:5});
+  await page.mouse.up({button:'middle'});
+  await page.waitForTimeout(60);
+  assert(await page.evaluate(x=>window.tiholesye.camera.x>x,beforePaintPan.x),'paint brush middle-drag pans');
+  assert.equal(await page.evaluate(()=>window.tiholesye.editor.brush),beforePaintPan.brush);
+
   async function freeCell(){
    return page.evaluate(()=>{
     const g=window.tiholesye,e=g.editor,p=g.player;
