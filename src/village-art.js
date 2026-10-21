@@ -31,20 +31,22 @@ export function fountainFootprint(id){
  return id==='fountain'?{w:3,h:3}: {w:1,h:1};
 }
 // Coordinates measured on the individual sprite, not on the game map.
-export function drawSmoke(c,chimneys,x,y,time=0){
+export function drawSmoke(c,chimneys,x,y,time=0,opacity=1){
+ c.save();const baseAlpha=c.globalAlpha*opacity;
  const phase=time/2250;
  for(const [index,[cx,cy]] of chimneys.entries())for(let n=0;n<3;n++){
   const t=((phase+n/3+index*.19)%1+1)%1;
   const radius=2+Math.floor(t*4);
   const offset=Math.round(t*t*11+Math.sin(6*t+index)*2);
   const px=Math.round(x+cx+offset-2),py=Math.round(y+cy-5-t*39);
-  c.globalAlpha=.12*(1-t);
+  c.globalAlpha=baseAlpha*.12*(1-t);
   c.fillStyle=n===0?'#cfcbbd':'#9c9990';
   c.fillRect(px-radius,py-2,radius*2+1,radius+1);
-  c.globalAlpha=.08*(1-t);
+  c.globalAlpha=baseAlpha*.08*(1-t);
   c.fillStyle='#e6dfce';
   c.fillRect(px-radius+2,py-4,radius*2,2);
  }
+ c.restore();
 }
 export function drawBuildingLights(c,id,x,y,time=0){
  const model=HOUSES[id];if(!model)return;
