@@ -118,3 +118,26 @@
  #editorPanel .editor-choice{padding:2px 2px 5px!important}
  #editorPanel .editor-sprite-label{font-size:10px}
 }
+
+/* Druid abilities: pixels and cooldowns stay legible on both mouse and touch. */
+#skillbar{position:absolute;bottom:88px;left:50%;transform:translateX(-50%);
+ display:flex;gap:5px;padding:5px;z-index:2}
+#skillbar .skill{position:relative;width:52px;height:48px;overflow:hidden;
+ background:linear-gradient(145deg,#435a38,#202e28);border:2px solid #96804a;
+ border-radius:6px;font:700 20px/1 system-ui;color:#c5eea9;text-shadow:0 1px 2px #0d2514;
+ touch-action:manipulation}
+#skillbar .skill:nth-child(2){color:#d5e89a}
+#skillbar .skill:nth-child(3){color:#aeffda}
+#skillbar .skill kbd{position:absolute;left:4px;top:3px;font:10px system-ui;color:#f9e6b5}
+#skillbar .skill-timer{position:absolute;inset:0;display:grid;place-content:center;
+ font:700 15px system-ui;color:#fff6dc;background:#14261acc}
+#skillbar .skill-timer:empty{display:none}
+#skillbar .skill:disabled{opacity:.65;cursor:default}
+#skillbar .skill.recharging{border-color:#617258}
+#interaction{bottom:156px}
+@media(max-width:680px){#skillbar{bottom:78px;left:50%;gap:3px;padding:3px}
+ #skillbar .skill{width:40px;height:38px;font-size:17px}
+ #skillbar .skill-timer{font-size:12px}
+ #interaction{bottom:192px}}
+@media(pointer:coarse){#skillbar{left:auto;right:12px;bottom:226px;transform:none}
+ #skillbar .skill{width:43px;height:43px}}
