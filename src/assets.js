@@ -171,7 +171,18 @@ export async function loadAssets() {
   image.onerror=()=>resolve(null);
   image.src=assetURL('hero-druid.png');
  });
- images.hero=redesigned?.width===800&&redesigned?.height===320?redesigned:hero;
+ if(redesigned?.width===640&&redesigned?.height===320){
+  // 8 authentic painted frames per direction are packed without duplication.
+  // Expand them to the engine's 10-frame idle/walk/attack contract exactly
+  // once at startup (never during a draw call).
+  const atlas=document.createElement('canvas');
+  atlas.width=800;atlas.height=320;
+  const druidCtx=atlas.getContext('2d');druidCtx.imageSmoothingEnabled=false;
+  const sourceColumns=[0,1,1,2,3,4,5,6,7,5];
+  for(let row=0;row<4;row++)for(let col=0;col<sourceColumns.length;col++)
+   druidCtx.drawImage(redesigned,sourceColumns[col]*80,row*80,80,80,col*80,row*80,80,80);
+  images.hero=atlas;
+ }else images.hero=hero;
  images.hero3d=images['hero-3d-atlas'];
  return {images,environment,environmentMasks};
 }
