@@ -39,8 +39,10 @@ export class Game{
    localStorage.setItem('tiholesye-compact-hero-48','1');
    localStorage.setItem('tiholesye-model','2d');
   }catch{}
-  // NPC graphics can be changed independently from the player and gameplay.
-  this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
+  // Village NPCs use the same native 48px pixel-art style as the hero.
+  // Override the retired vector setting from existing local saves.
+  this.npcStyle='pixel';
+  try{localStorage.setItem('tiholesye-npc-style','pixel');}catch{}
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});
   this.character=loadCharacter();
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
@@ -145,10 +147,9 @@ export class Game{
   try{localStorage.setItem('tiholesye-model',this.modelMode);}catch{}
   this.ui.portrait(this.assets);this.toast(this.modelMode==='3d'?'Включена 3D-модель героя':'Включён пиксельный 2D-герой');
  }
- setNPCStyle(style){
-  this.npcStyle=style==='vector'?'vector':'pixel';
-  try{localStorage.setItem('tiholesye-npc-style',this.npcStyle);}catch{}
-  this.toast(this.npcStyle==='vector'?'Жители: векторный стиль':'Жители: пиксельный стиль');
+ setNPCStyle(){
+  // Retained for compatibility with legacy callers; all NPCs are pixel-art.
+  this.npcStyle='pixel';
  }
  bindInput(){
   this.canvas.addEventListener('pointerdown',e=>{
@@ -179,6 +180,16 @@ export class Game{
     this.setPrimaryAttack('staff');
   };
   const gameSurface=document.getElementById('app');
+  // No accidental highlighted paragraphs when clicking/dragging game UI.
+  // Keep true text controls usable in the built-in world editor.
+  const isEditingText=target=>!!target?.closest?.(
+   'input,textarea,select,[contenteditable="true"]');
+  gameSurface.addEventListener('selectstart',e=>{
+   if(!isEditingText(e.target))e.preventDefault();
+  });
+  gameSurface.addEventListener('dragstart',e=>{
+   if(!isEditingText(e.target))e.preventDefault();
+  });
   gameSurface.addEventListener('pointerdown',e=>{
    if(e.button!==2)return;
    e.preventDefault();
