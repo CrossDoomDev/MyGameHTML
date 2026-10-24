@@ -122,76 +122,56 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(skillState.fx.includes('bolt')&&skillState.fx.includes('roots')&&skillState.fx.includes('heal'),
     'effects rendered by the game state');
 
-  const assets=await page.evaluate(()=>{
+  const residents=await page.evaluate(()=>{
    const g=window.tiholesye;
    return g.npcs.map(n=>{
-    const im=g.assets.images['vector-'+n.sprite];
-    return {name:n.sprite,width:im.naturalWidth,height:im.naturalHeight,complete:im.complete};
+    const atlas=g.assets.images[n.sprite];
+    return {sprite:n.sprite,width:atlas?.width,height:atlas?.height};
    });
   });
-  assert.equal(assets.length,7,'all seven village residents have vector art');
-  for(const a of assets){
-   assert(a.complete && a.width===384 && a.height===1536,
-    'Wrong SVG source dimensions: '+JSON.stringify(a));
-  }
-
-  async function contactSheet(style,name){
-   const data=await page.evaluate(async mode=>{
-    const {drawCharacter}=await import('/src/assets.js');
-    const g=window.tiholesye,canvas=document.createElement('canvas');
-    canvas.width=5*96;canvas.height=4*96;
-    const ctx=canvas.getContext('2d');ctx.fillStyle='#71875c';ctx.fillRect(0,0,canvas.width,canvas.height);
-    for(let row=0;row<4;row++)for(let col=0;col<5;col++){
-     const npc={...g.npcs[col],direction:['down','left','right','up'][row],
-      px:col*96+48,py:row*96+75};
-     ctx.fillStyle='#597146';ctx.fillRect(col*96+5,row*96+78,86,3);
-     drawCharacter(ctx,g.assets,npc,0,mode);
-    }
-    return canvas.toDataURL('image/png').split(',')[1];
-   },style);
-   const bytes=Buffer.from(data,'base64');
-   fs.writeFileSync('.qa/'+name,bytes);
-   assert(bytes.length>4000,'Contact sheet unexpectedly empty');
-   return createHash('sha256').update(bytes).digest('hex');
-  }
-
-  const pixelHash=await contactSheet('pixel','npc-pixel.png');
-  const vectorHash=await contactSheet('vector','npc-vector.png');
-  assert.notEqual(pixelHash,vectorHash,'Vector and pixel representations must visibly differ');
-
-  await page.evaluate(()=>window.tiholesye.ui.settings());
-  const btn=page.locator('#npcStyle');
-  await btn.waitFor({state:'visible'});
-  assert.equal(await btn.getAttribute('aria-pressed'),'false');
-  await btn.click();
-  assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'vector');
-  assert.equal(await page.locator('#npcStyle').getAttribute('aria-pressed'),'true');
-  assert.equal(await page.evaluate(()=>localStorage.getItem('tiholesye-npc-style')),'vector');
-  await page.evaluate(()=>window.tiholesye.ui.close());
-  await page.waitForTimeout(220);
-  const hiRes=await page.evaluate(()=>{
-   const overlay=document.getElementById('npcOverlay');
-   const c=overlay.getContext('2d'),data=c.getImageData(0,0,overlay.width,overlay.height).data;
-   let nonTransparent=0;
-   for(let i=3;i<data.length;i+=4)if(data[i]>16)nonTransparent++;
-   return {width:overlay.width,height:overlay.height,cssWidth:overlay.clientWidth,
-           nonTransparent,imageRendering:getComputedStyle(overlay).imageRendering};
+  assert.equal(residents.length,7,'seven residents retain their original roles');
+  for(const resident of residents)
+   assert.deepEqual([resident.width,resident.height],[144,192],
+    '48px x three poses, four cardinal directions: '+resident.sprite);
+  const npcPreview=await page.evaluate(async()=>{
+   const {drawCharacter}=await import('/src/assets.js');
+   const g=window.tiholesye,canvas=document.createElement('canvas');
+   canvas.width=5*96;canvas.height=4*96;
+   const context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
+   context.fillStyle='#71875c';context.fillRect(0,0,canvas.width,canvas.height);
+   const names=['elder','smith','merchant','villager','fisher'];
+   for(let row=0;row<4;row++)for(let col=0;col<5;col++){
+    const npc={...g.npcs.find(n=>n.sprite===names[col]),
+     sprite:names[col],direction:['down','left','right','up'][row],
+     px:col*96+48,py:row*96+72,moving:false};
+    drawCharacter(context,g.assets,npc,0,'pixel');
+   }
+   return canvas.toDataURL('image/png').split(',')[1];
   });
-  assert(hiRes.nonTransparent>200,'Vector NPC overlay should contain visible artwork');
-  assert(hiRes.width>=hiRes.cssWidth,'Vector art must be drawn at device resolution');
-  assert.notEqual(hiRes.imageRendering,'pixelated','Vector art layer must not use nearest-neighbor scaling');
-  await page.screenshot({path:'.qa/npc-vector-in-game.png'});
-
-  await page.reload();
-  await page.waitForFunction(()=>window.tiholesye?.ready);
-  assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'vector','style should survive a refresh');
-  assert.equal(await page.evaluate(()=>window.tiholesye.npcs.length),7);
-  await page.evaluate(()=>window.tiholesye.ui.settings());
-  await page.locator('#npcStyle').click();
-  assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
-  await page.evaluate(()=>window.tiholesye.ui.close());
-  await page.waitForTimeout(220);
+  fs.writeFileSync('.qa/npc-pixel.png',Buffer.from(npcPreview,'base64'));
+  assert(Buffer.from(npcPreview,'base64').length>4000,'five-row pixel preview is nonempty');
   await page.screenshot({path:'.qa/npc-pixel-in-game.png'});
+  const initialPixel=await page.evaluate(()=>window.tiholesye.npcStyle);
+  assert.equal(initialPixel,'pixel','all NPCs use pixel art');
+  await page.evaluate(()=>window.tiholesye.ui.settings());
+  assert.equal(await page.locator('#npcStyle').count(),0,'obsolete vector toggle removed');
+  // Multiple ways of selecting game text are blocked, but form editors
+  // remain usable when the player opens the world-building tools.
+  const title=page.locator('#panelTitle');
+  await title.dblclick();
+  assert.equal(await page.evaluate(()=>getSelection()?.toString()||''),'',
+   'double-click on a menu title never highlights its text');
+  const selectionStyle=await title.evaluate(el=>getComputedStyle(el).userSelect);
+  assert.equal(selectionStyle,'none','menus block native selection');
+  await page.evaluate(()=>window.tiholesye.ui.close());
+  await page.keyboard.press('Control+a');
+  assert.equal(await page.evaluate(()=>getSelection()?.toString()||''),'',
+   'Ctrl+A cannot select the game UI');
+  await page.reload();await page.waitForFunction(()=>window.tiholesye?.ready);
+  assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel',
+   'pixel NPC setting survives reload');
+  assert.equal(await page.evaluate(()=>window.tiholesye.npcs.length),7);
+  console.log('PASS: Chromium displays five 48px pixel NPC sprite sheets; text cannot be selected.');
 
   // Real browser regression: dozens of rapid pointer retargets must never
   // snap the druid, change facing during an unfinished step, or rewind gait.
