@@ -126,6 +126,20 @@ assert(game.ui.panel.html.includes('disabled'),'skill spending not yet enabled')
 game.ui.characterMenu.open('inventory');
 assert(game.ui.panel.html.includes('data-item="potion"'),'consumables included');
 assert(game.ui.panel.html.includes('data-item="shirt"'),'changeable clothes included');
+assert(!game.ui.panel.html.includes('data-item="staff"'),'equipped weapon not duplicated in inventory');
+assert(!game.ui.panel.html.includes('data-item="hood"'),'equipped hood not duplicated in inventory');
+assert(!game.ui.panel.html.includes('data-item="robe"'),'equipped robe not duplicated in inventory');
+assert(!game.ui.panel.html.includes('data-item="cloak"'),'equipped cloak not duplicated in inventory');
+assert(!game.ui.panel.html.includes('data-item="boots"'),'equipped boots not duplicated in inventory');
+assert(game.ui.panel.html.includes('data-icon="staff_crystal"'),'item art uses generated atlas');
+assert(game.ui.panel.html.includes('data-icon="potion_red"'),'consumable art uses generated atlas');
+assert(!game.ui.panel.html.includes('🧪'),'old emoji is absent from the inventory');
+game.ui.characterMenu.open('skills');
+for(const icon of ['skill_bolt','skill_roots','skill_heal'])
+ assert(game.ui.panel.html.includes('data-icon="'+icon+'"'),'illustrated spell icon '+icon);
+game.ui.characterMenu.open('equipment');
+assert(game.ui.panel.html.includes('data-icon="staff_basic"'),'equipped items visible in gear slots');
+game.ui.characterMenu.open('inventory');
 window.emit('keydown',{code:'KeyI',key:'ш',repeat:false,ctrlKey:false,metaKey:false,altKey:false,
  preventDefault(){}});
 assert.equal(game.ui.open,false,'second I closes the window');
@@ -488,6 +502,17 @@ assert.equal(migrated.player.kills,2);
 assert.equal(migrated.player.x,SPAWN.x,'old save returns to village');
 assert.equal(migrated.location,'village');
 
+// Generated art is a real committed AVIF atlas, not emoji text.
+const atlasBytes=fs.readFileSync('assets/character-atlas.avif');
+assert(atlasBytes.length>7000,'illustration atlas is a nonempty image file');
+assert.equal(atlasBytes.toString('ascii',4,12),'ftypavif','atlas is correctly encoded AVIF');
+const atlasStyles=fs.readFileSync('style.css','utf8');
+assert(atlasStyles.includes("url('assets/character-atlas.avif')"),'styles load committed art');
+for(const icon of ['staff_basic','potion_red','herb_bundle','slot_plus','skill_bolt','skill_roots','skill_heal'])
+ assert(atlasStyles.includes('data-icon="'+icon+'"'),'atlas includes icon '+icon);
+const skillMarkup=fs.readFileSync('index.html','utf8');
+for(const icon of ['skill_bolt','skill_roots','skill_heal'])
+ assert(skillMarkup.includes('data-icon="'+icon+'"'),'QRF button has '+icon);
 // One shared row contains Q/R/F first, followed by ten numeric key slots.
 const layout=fs.readFileSync('index.html','utf8');
 const startBar=layout.indexOf('<div id="hotbar"'),endBar=layout.indexOf('<div id="actions">',startBar);
