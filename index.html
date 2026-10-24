@@ -16,7 +16,7 @@
 <div id="quest"><span class="quest-mark">!</span><div><strong id="questTitle">Просьба старосты</strong><span id="questText">Поговори со старостой у таверны</span></div><button id="journal" aria-label="Журнал (J)">›</button></div>
 <div id="interaction" hidden>E <span>Поговорить</span></div>
 <div id="hotbar" class="wood-frame" aria-label="Быстрые предметы">
-<button class="slot selected" data-slot="0" title="Посох · атака (1 / пробел)"><kbd>1</kbd><span class="item item-staff"></span></button>
+<button id="primaryStaff" class="slot selected primary-attack" data-slot="0" type="button" aria-pressed="true" title="Посох · ЛКМ: ударить, ПКМ: назначить основной атакой"><kbd>1</kbd><span class="item item-staff"></span></button>
 <button class="slot" data-slot="1" title="Лесные травы (2)"><kbd>2</kbd><span class="item item-herb"></span><small id="herbCount">0</small></button>
 <button class="slot" data-slot="2" title="Зелье (3)"><kbd>3</kbd><span class="item item-potion"></span><small id="potionCount">2</small></button>
 <button class="slot" data-slot="3" title="Древесина (4)"><kbd>4</kbd><span class="item item-wood"></span><small id="woodCount">0</small></button>
@@ -24,7 +24,7 @@
 <button class="slot" data-slot="5" title="Журнал (6 / J)"><kbd>6</kbd></button>
 </div>
 <div id="skillbar" class="wood-frame" aria-label="Способности друида">
-<button id="skill-bolt" class="skill" data-skill="bolt" type="button" title="Q · Изумрудный луч · 10 маны" aria-label="Изумрудный луч, Q"><span class="skill-rune">✦</span><kbd>Q</kbd><small class="skill-timer"></small></button>
+<button id="skill-bolt" class="skill" data-skill="bolt" type="button" title="Изумрудный луч · ЛКМ или Q: применить, ПКМ: назначить основной атакой · 10 маны" aria-label="Изумрудный луч, Q" aria-pressed="false"><span class="skill-rune">✦</span><kbd>Q</kbd><small class="skill-timer"></small></button>
 <button id="skill-roots" class="skill" data-skill="roots" type="button" title="R · Цепкие корни · 18 маны" aria-label="Цепкие корни, R"><span class="skill-rune">♣</span><kbd>R</kbd><small class="skill-timer"></small></button>
 <button id="skill-heal" class="skill" data-skill="heal" type="button" title="F · Живительный рост · 16 маны" aria-label="Живительный рост, F"><span class="skill-rune">✚</span><kbd>F</kbd><small class="skill-timer"></small></button>
 </div>
@@ -34,7 +34,7 @@
 <button id="journalAction" class="wood-frame" title="Журнал (J)" aria-label="Журнал"><span class="item item-journal"></span><kbd>J</kbd></button>
 <button id="settings" class="wood-frame" title="Настройки (Esc)" aria-label="Настройки"><span class="item item-settings"></span><kbd>Esc</kbd></button>
 </div>
-<div id="hint">WASD · движение <span>Пробел · атака</span> Q · луч · R · корни · F · лечение</div>
+<div id="hint">WASD · движение <span>Пробел · основная атака</span> ПКМ по посоху или лучу — выбор атаки<br>Q · луч · R · корни · F · лечение</div>
 <div id="mobileActions"><button id="mobileInteract" aria-label="Взаимодействовать">E</button><button id="mobileAttack" aria-label="Атаковать">⚔</button></div><div id="joystick" aria-label="Джойстик движения"><i></i></div>
 <div id="panelBackdrop" hidden><section id="panel" class="wood-frame" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></section></div>
 <aside id="editorPanel" hidden aria-label="Редактор игрового мира"></aside><div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.6</span>
