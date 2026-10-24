@@ -273,8 +273,8 @@ assert.equal(game.npcs.length,0,'no village NPCs in forest');
 assert.equal(game.mobs.length,7);
 assert(game.mobs.some(m=>m.boss),'forest boss exists');
 assert(game.herbs.length>0,'forest resources exist');
-// Combat focus stays on one enemy while keyboard movement controls the player.
-// No auto navigation into melee, and one left click on the ground cancels it.
+// Combat focus persists and initiates movement to a suitable attack position;
+// manual keyboard movement can still take priority without dropping the focus.
 const focusedBoss=game.mobs.find(m=>m.boss);
 const focusHero=game.player;
 for(const dy of [1,2,3,4])game.clearSpawn(focusedBoss.x,focusedBoss.y+dy);
@@ -295,15 +295,17 @@ const focusClick=(wx,wy,button=0)=>{
 focusClick(focusedBoss.px,focusedBoss.py-17);
 assert.strictEqual(game.combatTarget,focusedBoss,'click on hostile sets combat focus');
 assert.equal(game.target,null,'combat focus does not become NPC interaction target');
-assert.equal(game.path.length,0,'selecting a hostile does not make character run at it');
+assert(game.path.length>0,'selecting a distant hostile queues approach to melee range');
 game.ui.update();
 assert.equal(document.getElementById('combatFocus').hidden,false,'target status visible');
 assert.equal(document.getElementById('combatFocusName').textContent,'Лесной страж');
 const firstHp=focusedBoss.hp;
 // Staff is the default attack and does not automatically fire from a distance.
 assert.equal(game.primaryAttackMode,'staff','melee staff is selected by default');
+game.keys.add('KeyD');
 game.update(16);
 assert.equal(focusedBoss.hp,firstHp,'default staff never attacks from three tiles away');
+assert.equal(focusHero.direction,'right','WASD overrides automatic pursuit immediately');
 const manaBeforeSelection=focusHero.mana;
 const app=document.getElementById('app');
 const rightClickIcon=id=>{
@@ -317,7 +319,6 @@ const rightClickIcon=id=>{
 rightClickIcon('skill-bolt');
 assert.equal(game.primaryAttackMode,'bolt','RMB on emerald bolt equips it as primary');
 assert.equal(store.get('tiholesye-primary-attack'),'bolt','primary attack persisted');
-game.keys.add('KeyD');
 game.update(60);
 assert.strictEqual(game.combatTarget,focusedBoss,'WASD keeps focused enemy selected');
 assert.equal(focusHero.direction,'right','walking sprite faces movement, not enemy aim');
@@ -365,6 +366,9 @@ game.time+=700;game.update(16);
 assert(focusedBoss.hp<nearHp,'focused staff automatically damages at melee distance');
 assert(Math.abs(focusHero.mana-nearMana-16*.004)<.001,
  'staff strike costs no mana apart from normal regeneration');
+const secondHp=focusedBoss.hp;
+game.time+=700;game.update(16);
+assert(focusedBoss.hp<secondHp,'a locked melee target receives repeated blows without another click');
 game.combatTarget=focusedBoss;
 game.enterLocation('village',15,16);
 assert.equal(game.combatTarget,null,'combat focus is released when leaving location');
@@ -396,14 +400,23 @@ assert.equal(game.castSkill('heal'),true,'F restores health');
 assert(game.player.hp>35,'healing improves HP');
 assert(game.effects.some(e=>e.type==='heal'),'healing particles spawned');
 assert(game.player.mana>15&&game.player.mana<17,'three spells spend 44 mana');
-game.ready=false;
+// A single focus runs the entire fight through repeated staff strikes,
+ // awarding a kill and clearing the selection after the opponent dies.
+game.ready=true;
 const mob=game.mobs[0];
-Object.assign(game.player,{x:mob.x,y:mob.y+1,px:(mob.x+.5)*TILE,py:(mob.y+1.8)*TILE,mana:60});
-game.time+=1000;game.attack(mob);
-assert(mob.hp<mob.max,'attack damages forest enemy');
-game.time+=700;game.attack(mob);
-game.time+=700;game.attack(mob);
-assert(!mob.alive,'forest foe defeated');
+Object.assign(game.player,{x:mob.x,y:mob.y+1,px:(mob.x+.5)*TILE,py:(mob.y+1.8)*TILE,mana:60,step:null,moving:false});
+game.combatTarget=mob;game.path=[];game.keys.clear();game.lastAttack=-1000;
+let meleeStrikes=0;
+for(let i=0;i<8&&mob.alive;i++){
+ const oldHp=mob.hp;
+ game.time+=700;game.update(16);
+ if(mob.hp<oldHp)meleeStrikes++;
+}
+assert(meleeStrikes>=3,'locked target receives multiple automatic staff attacks');
+assert(!mob.alive,'one target selection continues until the foe is defeated');
+assert.equal(game.combatTarget,null,'combat focus clears on victory');
+assert.equal(game.path.length,0,'pursuit route clears on victory');
+game.ready=false;
 assert.equal(game.player.kills,1);
 assert.equal(game.player.coins,10);
 assert.equal(game.player.wood,1);
@@ -431,6 +444,20 @@ assert.equal(migrated.player.hp,70);
 assert.equal(migrated.player.kills,2);
 assert.equal(migrated.player.x,SPAWN.x,'old save returns to village');
 assert.equal(migrated.location,'village');
+
+// One shared row contains Q/R/F first, followed by ten numeric key slots.
+const layout=fs.readFileSync('index.html','utf8');
+const startBar=layout.indexOf('<div id="hotbar"'),endBar=layout.indexOf('<div id="actions">',startBar);
+const barMarkup=layout.slice(startBar,endBar);
+assert(startBar>=0&&endBar>startBar,'the unified hotbar wraps both ability and numeric slots');
+assert(barMarkup.indexOf('id="skillbar"')<barMarkup.indexOf('id="quickbar"'),
+ 'letter abilities precede numeric slots');
+assert.equal((barMarkup.match(/data-skill=/g)||[]).length,3,'three letter-bound druid abilities');
+assert.equal((barMarkup.match(/data-slot=/g)||[]).length,10,'all 10 numeric slots are present');
+for(let i=0;i<10;i++)assert(barMarkup.includes('data-slot="'+i+'"'),'missing numeric slot '+i);
+assert(barMarkup.includes('<kbd>0</kbd>'),'tenth slot visibly uses key zero');
+game.ui.slot(9);
+assert.equal(game.ui.toastEl.textContent,'Ячейка 0 пока свободна.','zero selects the tenth placeholder');
 
 // A lightweight render snapshot remains available for asset audit tooling.
 store.clear();
