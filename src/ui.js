@@ -28,6 +28,16 @@ export class UI{
   document.getElementById('hpFill').style.width=p.hp/p.maxHp*100+'%';document.getElementById('manaFill').style.width=p.mana/p.maxMana*100+'%';document.getElementById('xpFill').style.width=p.xp/(p.level*50)*100+'%';
   text('potionCount',p.potions);text('woodCount',p.wood);text('herbCount',p.herbs);
   text('region',g.map.label);
+  const focus=g.combatTarget?.alive&&g.mobs.includes(g.combatTarget)?g.combatTarget:null;
+  const focusBox=document.getElementById('combatFocus');
+  if(focusBox){
+   focusBox.hidden=!focus;
+   if(focus){
+    const enemyName=focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
+    text('combatFocusName',enemyName);
+    text('combatFocusHealth',Math.max(0,Math.ceil(focus.hp))+' / '+focus.max);
+   }
+  }
   for(const [id,skill] of Object.entries(DRUID_SKILLS)){
    const button=document.getElementById('skill-'+id);
    if(!button)continue;
