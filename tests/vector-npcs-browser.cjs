@@ -161,6 +161,62 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.waitForTimeout(220);
   await page.screenshot({path:'.qa/npc-pixel-in-game.png'});
 
+  // Real browser regression: dozens of rapid pointer retargets must never
+  // snap the druid, change facing during an unfinished step, or rewind gait.
+  const rapidClickResult=await page.evaluate(()=>{
+   const g=window.tiholesye,p=g.player,T=32;
+   const saved={x:p.x,y:p.y,px:p.px,py:p.py,step:p.step,moving:p.moving,
+    direction:p.direction,animationTime:p.animationTime,animationState:p.animationState,
+    camera:{...g.camera},path:g.path,target:g.target};
+   let area;
+   for(let y=5;y<g.map.height-5&&!area;y++)for(let x=5;x<g.map.width-5;x++){
+    const cells=[[x,y],[x+1,y],[x+2,y],[x+1,y-1],[x+1,y+1]];
+    if(cells.every(([cx,cy])=>!g.blocked(cx,cy))&&
+       g.npcs.every(n=>Math.abs(n.x-x)>5||Math.abs(n.y-y)>5)){
+     area={x,y};break;
+    }
+   }
+   if(!area)throw Error('No free test corridor');
+   const {x,y}=area;
+   Object.assign(p,{x,y,px:(x+.5)*T,py:(y+.8)*T,step:null,moving:false,
+    animationTime:0,animationState:'idle',direction:'down'});
+   g.camera={x:(x-3)*T,y:(y-3)*T};g.path=[];g.target=null;
+   const tap=(cx,cy)=>{
+    const rect=g.canvas.getBoundingClientRect();
+    g.click({button:0,clientX:((cx+.5)*T-g.camera.x)/g.canvas.width*rect.width+rect.left,
+     clientY:((cy+.5)*T-g.camera.y)/g.canvas.height*rect.height+rect.top});
+   };
+   const check=(condition,message)=>{if(!condition)throw Error('Rapid-click regression: '+message);};
+   try{
+    tap(x+1,y);g.update(0);g.update(85);
+    const step=p.step,atX=p.px,atY=p.py,gait=p.animationTime;
+    check(!!step&&p.direction==='right','expected an active rightward step');
+    for(let n=0;n<45;n++)tap(x+1,y);
+    check(p.step===step&&p.px===atX&&p.py===atY,'same-point clicks interrupted motion');
+    tap(x+2,y);const pending=g.path;
+    for(let n=0;n<20;n++)tap(x+2,y);
+    check(p.step===step&&g.path===pending,'repeated target restarted the queue');
+    tap(x+1,y-1);
+    check(p.step===step&&p.direction==='right','new target flipped facing mid-tile');
+    check(g.path.length===1&&g.path[0].x===x+1&&g.path[0].y===y-1,
+     'new route should start at the committed tile');
+    check(p.animationTime===gait,'clicks reset stride');
+    g.update(215);
+    check(p.x===x+1&&p.px===(x+1.5)*T&&p.py===(y+.8)*T,'step did not land smoothly');
+    check(p.direction==='up'&&p.step?.y===y-1,'hero did not turn at cell boundary');
+    return {clicks:67,zeroPixelJump:true,turnedAfterLanding:true};
+   }finally{
+    Object.assign(p,{x:saved.x,y:saved.y,px:saved.px,py:saved.py,
+     step:saved.step,moving:saved.moving,direction:saved.direction,
+     animationTime:saved.animationTime,animationState:saved.animationState});
+    g.camera=saved.camera;g.path=saved.path;g.target=saved.target;
+   }
+  });
+  assert(rapidClickResult.zeroPixelJump&&rapidClickResult.turnedAfterLanding,
+   'fast browser clicking preserves motion and direction');
+  console.log('PASS: Chromium completed '+rapidClickResult.clicks+
+    ' rapid mouse retargets without coordinate snap, flipped facing or gait reset.');
+
   assert.deepEqual(errors,[]);
   console.log('PASS: seven SVG NPC instances decode in Chromium; pixel and vector contact sheets differ; settings click, instant switch, storage persistence, reload and reversibility all work.');
  }finally{
