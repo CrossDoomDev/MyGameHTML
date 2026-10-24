@@ -298,6 +298,14 @@ game.ui.update();
 assert.equal(document.getElementById('combatFocus').hidden,false,'target status visible');
 assert.equal(document.getElementById('combatFocusName').textContent,'Лесной страж');
 const firstHp=focusedBoss.hp;
+// Staff is the default attack and does not automatically fire from a distance.
+assert.equal(game.primaryAttackMode,'staff','melee staff is selected by default');
+game.update(16);
+assert.equal(focusedBoss.hp,firstHp,'default staff never attacks from three tiles away');
+const manaBeforeSelection=focusHero.mana;
+assert.equal(game.setPrimaryAttack('bolt'),true,'right-click assignment can enable emerald bolt');
+assert.equal(game.primaryAttackMode,'bolt');
+assert.equal(store.get('tiholesye-primary-attack'),'bolt','primary attack persisted');
 game.keys.add('KeyD');
 game.update(60);
 assert.strictEqual(game.combatTarget,focusedBoss,'WASD keeps focused enemy selected');
@@ -322,6 +330,21 @@ assert.equal(document.getElementById('combatFocus').hidden,true,'HUD clears imme
 game.time+=2500;game.update(60);game.ui.update();
 assert.equal(focusedBoss.hp,focusedHp,'no more auto damage after ground click');
 assert.equal(document.getElementById('combatFocus').hidden,true,'HUD hides without a target');
+// Switching back to staff disables ranged autofire and performs a mana-free
+// automatic melee strike only when a focused enemy is within touching range.
+assert.equal(game.setPrimaryAttack('staff'),true);
+assert.equal(game.primaryAttackMode,'staff');
+assert.equal(store.get('tiholesye-primary-attack'),'staff','staff selection persists');
+game.combatTarget=focusedBoss;
+Object.assign(focusHero,{x:focusedBoss.x,y:focusedBoss.y+1,
+ px:(focusedBoss.x+.5)*TILE,py:(focusedBoss.y+1.8)*TILE,
+ step:null,moving:false});
+game.path=[];game.target=null;game.keys.clear();game.lastAttack=-1000;
+const nearHp=focusedBoss.hp,nearMana=focusHero.mana;
+game.time+=700;game.update(16);
+assert(focusedBoss.hp<nearHp,'focused staff automatically damages at melee distance');
+assert(Math.abs(focusHero.mana-nearMana-16*.004)<.001,
+ 'staff strike costs no mana apart from normal regeneration');
 game.combatTarget=focusedBoss;
 game.enterLocation('village',15,16);
 assert.equal(game.combatTarget,null,'combat focus is released when leaving location');
