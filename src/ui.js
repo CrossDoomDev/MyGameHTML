@@ -21,6 +21,17 @@ export class UI{
  close(){this.backdrop.hidden=true;this.open=false;this.g.canvas.focus({preventScroll:true});this.g.save();}
  trapFocus(e){const elements=[...this.panel.querySelectorAll('button,a,input')].filter(el=>!el.disabled);const first=elements[0],last=elements.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
  toast(text){this.toastEl.textContent=text;this.toastEl.classList.add('show');clearTimeout(this.timer);this.timer=setTimeout(()=>this.toastEl.classList.remove('show'),2300);}
+ updateCombatFocus(){
+  const g=this.g,focus=g.combatTarget?.alive&&g.mobs.includes(g.combatTarget)?g.combatTarget:null;
+  const panel=document.getElementById('combatFocus');
+  if(!panel)return;
+  panel.hidden=!focus;
+  if(!focus)return;
+  const name=focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
+  document.getElementById('combatFocusName').textContent=name;
+  document.getElementById('combatFocusHealth').textContent=
+   Math.max(0,Math.ceil(focus.hp))+' / '+focus.max;
+ }
  update(){
   const g=this.g,p=g.player;if(g.time-this.lastUpdate<100)return;this.lastUpdate=g.time;
   const text=(id,value)=>document.getElementById(id).textContent=value;
@@ -28,16 +39,7 @@ export class UI{
   document.getElementById('hpFill').style.width=p.hp/p.maxHp*100+'%';document.getElementById('manaFill').style.width=p.mana/p.maxMana*100+'%';document.getElementById('xpFill').style.width=p.xp/(p.level*50)*100+'%';
   text('potionCount',p.potions);text('woodCount',p.wood);text('herbCount',p.herbs);
   text('region',g.map.label);
-  const focus=g.combatTarget?.alive&&g.mobs.includes(g.combatTarget)?g.combatTarget:null;
-  const focusBox=document.getElementById('combatFocus');
-  if(focusBox){
-   focusBox.hidden=!focus;
-   if(focus){
-    const enemyName=focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
-    text('combatFocusName',enemyName);
-    text('combatFocusHealth',Math.max(0,Math.ceil(focus.hp))+' / '+focus.max);
-   }
-  }
+  this.updateCombatFocus();
   for(const [id,skill] of Object.entries(DRUID_SKILLS)){
    const button=document.getElementById('skill-'+id);
    if(!button)continue;
