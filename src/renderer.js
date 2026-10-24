@@ -224,16 +224,15 @@ export class Renderer{
     c.globalAlpha=.25;rect(c,entity.px-10,entity.py-4,21,5,'#233426');c.globalAlpha=1;
     const focused=entity===g.combatTarget&&entity.alive;
     if(focused){
-     // Pixel-art target reticle tracks the mob as it moves.
-     const cx=Math.round(entity.px),cy=Math.round(entity.py)-8;
-     const radius=entity.boss?27:20;
-     c.globalAlpha=.82+.13*Math.sin(time/230);
-     for(const dx of [-1,1])for(const dy of [-1,1]){
-      const x=cx+dx*radius,y=cy+dy*radius*.62;
-      rect(c,x-(dx>0?7:0),y,7,2,'#f1d078');
-      rect(c,x,y-(dy>0?7:0),2,7,'#f1d078');
-     }
-     c.globalAlpha=1;
+     // Only a ground-level pixel square, underneath the monster sprite.
+     // No overhead arrow or torso reticle: targeting stays unobtrusive.
+     const side=entity.boss?46:32;
+     const left=Math.round(entity.px)-Math.round(side/2);
+     const top=Math.round(entity.py)-Math.round(side/2);
+     c.save();c.globalAlpha=.7+.17*Math.sin(time/230);
+     c.strokeStyle='#f1d078';c.lineWidth=2;
+     c.strokeRect(left,top,side,side);
+     c.restore();
     }
     if(entity.alive&&entity.rootedUntil>time){
      const pulse=Math.floor(time/240)%2;
@@ -254,12 +253,6 @@ export class Renderer{
      const y=entity.py-(entity.boss?64:44);
      rect(c,entity.px-15,y,30,4,'#283427');
      rect(c,entity.px-14,y+1,Math.round(28*Math.max(0,entity.hp)/entity.max),2,focused?'#e8d36e':entity.boss?'#cd9651':'#ba5741');
-    }
-    if(focused){
-     const top=entity.py-(entity.boss?77:57),cx=Math.round(entity.px);
-     rect(c,cx-4,top,9,3,'#fae8ab');
-     rect(c,cx-2,top+3,5,3,'#e3c35c');
-     rect(c,cx,top+6,2,3,'#bca14b');
     }
     if(entity.kind==='npc'&&entity.id==='elder'&&!p.questReward){const y=entity.py-49+Math.round(Math.sin(time/450)*2);rect(c,entity.px-3,y-2,8,13,'#3d482c');c.fillStyle='#e4c85e';c.font='bold 12px Georgia';c.fillText('!',entity.px-1,y+8);}
    }});
