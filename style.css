@@ -141,3 +141,19 @@
  #interaction{bottom:192px}}
 @media(pointer:coarse){#skillbar{left:auto;right:12px;bottom:226px;transform:none}
  #skillbar .skill{width:43px;height:43px}}
+
+/* Selected hostile target. Compact top-right status, separate from the minimap. */
+#combatFocus{position:absolute;top:160px;right:20px;display:flex;align-items:center;
+ gap:9px;min-width:170px;max-width:235px;padding:7px 10px;pointer-events:none;
+ border-color:#b89b59;background:linear-gradient(135deg,#302a1fef,#1d2922ed);z-index:3}
+#combatFocus .combat-focus-icon{font:28px/1 system-ui;color:#e8cb76;text-shadow:0 0 8px #ebc26570}
+#combatFocus span:last-child{display:flex;flex-direction:column;gap:2px}
+#combatFocus strong{font:14px Georgia,serif;color:#f1d998}
+#combatFocus small{font:10px/1.35 system-ui;color:#c6d4b6}
+#combatFocus small:last-child{color:#a1b297;font-size:9px}
+@media(max-width:680px){#combatFocus{top:109px;right:10px;min-width:146px;
+ max-width:165px;padding:6px 7px;gap:5px}
+ #combatFocus .combat-focus-icon{font-size:22px}
+ #combatFocus strong{font-size:12px}
+ #combatFocus small{font-size:9px}
+ #combatFocus small:last-child{font-size:8px}}
