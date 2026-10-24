@@ -4,21 +4,21 @@ export const GEAR_SLOTS=Object.freeze({
  weapon:'Оружие',head:'Голова',body:'Одежда',cloak:'Плащ',boots:'Обувь'
 });
 export const ITEMS=Object.freeze({
- staff:{name:'Посох лесника',icon:'🪄',slot:'weapon',weaponType:'staff',attack:0,magic:0,detail:'Ближняя атака посохом и заклинания друида.'},
- oakstaff:{name:'Дубовый посох',icon:'🌿',slot:'weapon',weaponType:'staff',attack:2,magic:2,detail:'Крепкий посох с усилением магии.'},
- sword:{name:'Учебный меч',icon:'🗡️',slot:'weapon',weaponType:'sword',attack:3,magic:0,detail:'Ближний бой; Изумрудный луч требует посох.'},
- hood:{name:'Капюшон друида',icon:'🟢',slot:'head',armor:1,detail:'Лёгкий капюшон для лесных странствий.'},
- cap:{name:'Походная шапка',icon:'🧢',slot:'head',armor:0,detail:'Обычный головной убор.'},
- robe:{name:'Одеяние лесника',icon:'🥋',slot:'body',armor:1,magic:1,detail:'Стандартная одежда друида.'},
- shirt:{name:'Льняная рубаха',icon:'👕',slot:'body',armor:0,detail:'Простая сменная одежда.'},
- cloak:{name:'Плащ путника',icon:'🧥',slot:'cloak',armor:1,detail:'Плащ для долгих лесных прогулок.'},
- boots:{name:'Кожаные сапоги',icon:'🥾',slot:'boots',armor:1,detail:'Удобная обувь путешественника.'},
- herb:{name:'Лесная трава',icon:'🌿',consumable:true,detail:'Восстанавливает 15 здоровья. Количество — из собранных трав.'},
- potion:{name:'Лечебное зелье',icon:'🧪',consumable:true,detail:'Восстанавливает 45 здоровья. Количество — из сумки.'},
- wood:{name:'Древесина',icon:'🪵',detail:'Материал, добываемый в лесу.'},
- bag:{name:'Рюкзак',icon:'🎒',action:true,detail:'Открывает сумку персонажа.'},
- journal:{name:'Журнал',icon:'📜',action:true,detail:'Открывает журнал заданий.'},
- weapon:{name:'Основная атака оружием',icon:'⚔️',action:true,detail:'Наносит удар экипированным оружием.'}
+ staff:{name:'Посох лесника',icon:'staff_basic',slot:'weapon',weaponType:'staff',attack:0,magic:0,detail:'Ближняя атака посохом и заклинания друида.'},
+ oakstaff:{name:'Дубовый посох',icon:'staff_crystal',slot:'weapon',weaponType:'staff',attack:2,magic:2,detail:'Крепкий посох с усилением магии.'},
+ sword:{name:'Учебный меч',icon:'sword_training',slot:'weapon',weaponType:'sword',attack:3,magic:0,detail:'Ближний бой; Изумрудный луч требует посох.'},
+ hood:{name:'Капюшон друида',icon:'hood_green',slot:'head',armor:1,detail:'Лёгкий капюшон для лесных странствий.'},
+ cap:{name:'Походная шапка',icon:'hat_traveler',slot:'head',armor:0,detail:'Обычный головной убор.'},
+ robe:{name:'Одеяние лесника',icon:'robe_druid',slot:'body',armor:1,magic:1,detail:'Стандартная одежда друида.'},
+ shirt:{name:'Льняная рубаха',icon:'shirt_linen',slot:'body',armor:0,detail:'Простая сменная одежда.'},
+ cloak:{name:'Плащ путника',icon:'cloak_traveler',slot:'cloak',armor:1,detail:'Плащ для долгих лесных прогулок.'},
+ boots:{name:'Кожаные сапоги',icon:'boots_leather',slot:'boots',armor:1,detail:'Удобная обувь путешественника.'},
+ herb:{name:'Лесная трава',icon:'herb_bundle',consumable:true,detail:'Восстанавливает 15 здоровья. Количество — из собранных трав.'},
+ potion:{name:'Лечебное зелье',icon:'potion_red',consumable:true,detail:'Восстанавливает 45 здоровья. Количество — из сумки.'},
+ wood:{name:'Древесина',icon:'wood_logs',detail:'Материал, добываемый в лесу.'},
+ bag:{name:'Рюкзак',icon:'bag_backpack',action:true,detail:'Открывает сумку персонажа.'},
+ journal:{name:'Журнал',icon:'journal_leaf',action:true,detail:'Открывает журнал заданий.'},
+ weapon:{name:'Основная атака оружием',icon:'staff_basic',action:true,detail:'Наносит удар экипированным оружием.'}
 });
 const OWNED=['staff','oakstaff','sword','hood','cap','robe','shirt','cloak','boots'];
 const START_QUICK=['weapon','herb','potion','wood','bag','journal',null,null,null,null];
@@ -78,4 +78,14 @@ export function itemQuantity(game,id){
  if(id==='herb')return game.player.herbs;
  if(id==='wood')return game.player.wood;
  return game.character.owned.includes(id)?1:0;
+}
+
+// All inventory/quickbar art shares a compact generated sprite atlas.
+// Icon names are fixed constants, never user-generated markup.
+export function gameIcon(id,additionalClass=''){
+ const valid=new Set([...Object.values(ITEMS).map(item=>item.icon),
+  'skill_bolt','skill_roots','skill_heal','map_parchment','slot_plus']);
+ const icon=valid.has(id)?id:'slot_plus';
+ return '<span class="game-icon'+(additionalClass?' '+additionalClass:'')+
+  '" data-icon="'+icon+'" aria-hidden="true"></span>';
 }
