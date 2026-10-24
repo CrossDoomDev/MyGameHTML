@@ -1,7 +1,7 @@
 import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
 import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
-import {autoRangedSkill,canFocusShoot} from './combat-focus.js';
+import {autoRangedSkill,canFocusShoot,findFocusApproach} from './combat-focus.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
@@ -40,7 +40,7 @@ export class Game{
   }catch{}
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
-  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.combatTarget=null;this.keys=new Set();this.stick={x:0,y:0};
+  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
   this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'?'bolt':'staff';
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
@@ -228,16 +228,17 @@ export class Game{
   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
    Math.abs(wx-t.px)<22&&wy>=t.py-49&&wy<=t.py+9);
   if(actor?.kind==='mob'){
-   // Combat focus is separate from the queued movement route. Clicking an
-   // enemy selects it instead of walking into melee distance.
+   // One click locks the opponent and starts a persistent fight. The hero
+   // finds an attack position according to the currently equipped mode.
    this.combatTarget=actor;
-   this.path=[];this.target=null;
+   this.path=[];this.target=null;this.combatRepathAt=0;
    this.aimAtCombatTarget();
    this.ui.updateCombatFocus();
+   this.updateCombatFocus();
    return;
   }
-  // Any other left-click (terrain, NPC, doorway) cancels combat focus.
-  this.combatTarget=null;
+  // Any other left-click (terrain, NPC, doorway) cancels combat and pursuit.
+  this.combatTarget=null;this.combatRepathAt=0;this.path=[];
   this.ui.updateCombatFocus();
   if(actor){
    if(this.target===actor)return; // Repeated NPC clicks preserve the approach.
@@ -270,6 +271,8 @@ export class Game{
   }
   if(this.primaryAttackMode===mode)return true;
   this.primaryAttackMode=mode;
+  // Recalculate the pursuit range immediately when switching weapons.
+  if(this.combatTarget){this.path=[];this.combatRepathAt=0;}
   try{localStorage.setItem('tiholesye-primary-attack',mode);}catch{}
   this.ui.updatePrimaryAttack();
   this.toast(mode==='bolt'?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
@@ -294,22 +297,44 @@ export class Game{
   const enemy=this.combatTarget;
   if(!enemy)return;
   if(!enemy.alive||!this.mobs.includes(enemy)){
-   this.combatTarget=null;return;
+   this.combatTarget=null;this.path=[];this.combatRepathAt=0;
+   this.ui?.updateCombatFocus();return;
   }
   this.aimAtCombatTarget();
   if(!this.ready||this.ui.open||this.editor?.active)return;
-  if(this.primaryAttackMode==='staff'){
-   // Staff is melee and free of mana cost. No automatic chase: the
-   // controlled character may run around the locked monster with WASD.
-   if(distance(this.player,enemy)<49&&this.time-this.lastAttack>=600)
-    this.attack(enemy,{automatic:true});
+  const melee=this.primaryAttackMode==='staff';
+  const inRange=melee
+   ?distance(this.player,enemy)<49
+   :canFocusShoot(this.map,this.player,enemy,'bolt');
+  if(!inRange){
+   this.followCombatTarget(enemy);
    return;
   }
+  // The selected enemy is now reachable. End the queued pursuit but allow
+  // the current interpolated step to finish naturally.
+  this.path=[];this.combatRepathAt=0;
+  if(this.time-this.lastAttack<600)return;
+  if(melee){this.attack(enemy,{automatic:true});return;}
   const skillId=autoRangedSkill(this.player);
-  if(!skillId||!canFocusShoot(this.map,this.player,enemy,skillId))return;
-  if(skillRemaining(this.skillCooldowns,skillId,this.time))return;
-  if(this.player.mana<DRUID_SKILLS[skillId].mana||this.time-this.lastAttack<600)return;
+  if(!skillId||skillRemaining(this.skillCooldowns,skillId,this.time))return;
+  if(this.player.mana<DRUID_SKILLS[skillId].mana)return;
   this.castSkill(skillId,{target:enemy,automatic:true});
+ }
+ followCombatTarget(enemy){
+  // Manual WASD/joystick movement temporarily overrides automatic pursuit,
+  // without losing the selected enemy or interrupting attacks within range.
+  if(this.keys.size||this.stick.x||this.stick.y){
+   this.path=[];this.combatRepathAt=0;return;
+  }
+  if(this.time<this.combatRepathAt)return;
+  const route=findFocusApproach(
+   this.map,this.movementOrigin(),enemy,this.primaryAttackMode,
+   (x,y)=>this.occupied(x,y),this.player
+  );
+  this.path=route;
+  // Recheck as monsters move or another actor blocks a queued tile.
+  // Unreachable enemies remain selected but do not cause frame-by-frame BFS.
+  this.combatRepathAt=this.time+(route.length?450:950);
  }
  stopMovement(){
   // Cancel future commands, not the step already being interpolated.
@@ -404,7 +429,7 @@ export class Game{
   this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
   if(m.hp>0)return true;
   if(this.combatTarget===m){
-   this.combatTarget=null;
+   this.combatTarget=null;this.path=[];this.combatRepathAt=0;
    this.ui.updateCombatFocus();
   }
   m.alive=false;m.step=null;m.rootedUntil=0;m.respawnAt=this.time+20000;
