@@ -141,6 +141,8 @@ export class Game{
  }
  bindInput(){
   this.canvas.addEventListener('pointerdown',e=>{
+   // The secondary mouse button belongs to the game, not the browser.
+   if(e.button===2)e.preventDefault();
    if(this.editor?.active){
     // Suppress browser autoscroll/context menus for middle/right-button panning.
     if(e.button===1||e.button===2)e.preventDefault();
@@ -157,15 +159,22 @@ export class Game{
   this.canvas.addEventListener('pointermove',e=>{if(this.editor?.active)this.editor.pointerMove(e);});
   this.canvas.addEventListener('pointerup',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
   this.canvas.addEventListener('pointercancel',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
-  // Game reserves RMB: never show the browser menu anywhere inside its UI.
-  // Contextmenu is delegated to #app, so right-click still works on a spell
-  // during cooldown, when its regular action button is disabled.
-  document.getElementById('app').addEventListener('contextmenu',e=>{
+  // Select the primary attack immediately on RMB press, including while the
+  // bolt is recharging. Contextmenu remains as a keyboard/browser fallback.
+  const choosePrimaryFromTarget=target=>{
+   const button=target?.closest?.('#primaryStaff, #skill-bolt');
+   if(button?.id==='skill-bolt')this.setPrimaryAttack('bolt');
+   else if(button?.id==='primaryStaff')this.setPrimaryAttack('staff');
+  };
+  const gameSurface=document.getElementById('app');
+  gameSurface.addEventListener('pointerdown',e=>{
+   if(e.button!==2)return;
    e.preventDefault();
-   if(this.editor?.active)return;
-   const button=e.target?.closest?.('[data-skill="bolt"],[data-slot="0"]');
-   if(button?.dataset.skill==='bolt')this.setPrimaryAttack('bolt');
-   else if(button?.dataset.slot==='0')this.setPrimaryAttack('staff');
+   if(!this.editor?.active)choosePrimaryFromTarget(e.target);
+  });
+  gameSurface.addEventListener('contextmenu',e=>{
+   e.preventDefault();
+   if(!this.editor?.active)choosePrimaryFromTarget(e.target);
   });
   this.canvas.addEventListener('wheel',e=>{
    if(this.editor?.active){e.preventDefault();this.setZoom(this.zoom+(e.deltaY<0?.25:-.25));}
@@ -259,6 +268,7 @@ export class Game{
   if(mode==='bolt'&&!autoRangedSkill(this.player)){
    this.toast('Для Изумрудного луча нужен посох друида.');return false;
   }
+  if(this.primaryAttackMode===mode)return true;
   this.primaryAttackMode=mode;
   try{localStorage.setItem('tiholesye-primary-attack',mode);}catch{}
   this.ui.updatePrimaryAttack();
