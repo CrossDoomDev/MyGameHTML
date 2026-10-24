@@ -117,7 +117,13 @@ export class Game{
   return [...this.npcs,...this.mobs.filter(m=>m.alive),this.player].some(e=>e!==exclude&&((e.x===x&&e.y===y)||(e.step&&e.step.x===x&&e.step.y===y)));
  }
  blocked(x,y,exclude=this.player){return isBlocked(this.map,x,y)||this.occupied(x,y,exclude);}
- findPath(tx,ty){return findPath(this.map,this.player.x,this.player.y,tx,ty,(x,y)=>this.occupied(x,y));}
+ // Plan from the tile the current step is already committed to reach.
+ // Replanning must never turn an interpolated position into a new grid cell.
+ movementOrigin(){const p=this.player;return {x:p.step?.x??p.x,y:p.step?.y??p.y};}
+ findPath(tx,ty){
+  const {x,y}=this.movementOrigin();
+  return findPath(this.map,x,y,tx,ty,(a,b)=>this.occupied(a,b));
+ }
  resize(){this.canvas.width=Math.max(1,Math.floor(innerWidth/this.zoom));this.canvas.height=Math.max(1,Math.floor(innerHeight/this.zoom));this.ctx.imageSmoothingEnabled=false;}
  setZoom(value){this.zoom=clamp(value,1,3);this.resize();this.toast('Масштаб '+this.zoom.toFixed(1)+'×');}
  setModelMode(mode){
@@ -192,38 +198,54 @@ export class Game{
  }
  click(e){
   if(!this.ready||this.ui.open)return;
+  // Canvas primary button and touch only: secondary clicks must not retarget.
+  if(e.button!==undefined&&e.button!==0)return;
   this.canvas.focus({preventScroll:true});
   const r=this.canvas.getBoundingClientRect(),wx=(e.clientX-r.left)/r.width*this.canvas.width+this.camera.x,wy=(e.clientY-r.top)/r.height*this.canvas.height+this.camera.y;
   const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);
-  if(this.editor?.active)return;
-  this.stopMovement();
-  if(x<0||y<0||x>=this.map.width||y>=this.map.height)return;
+  if(this.editor?.active||x<0||y<0||x>=this.map.width||y>=this.map.height)return;
   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
    Math.abs(wx-t.px)<22&&wy>=t.py-49&&wy<=t.py+9);
-  if(actor){this.target=actor;this.approach(actor.x,actor.y);return;}
+  if(actor){
+   if(this.target===actor)return; // Repeated clicks do not rebuild an active approach.
+   this.stopMovement();this.target=actor;this.approach(actor.x,actor.y);return;
+  }
   const building=this.map.buildings.find(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
   if(building){
+   if(this.target?.kind==='building'&&this.target.id===building.id)return;
+   this.stopMovement();
    this.target=anchored({...building,kind:'building',x:building.doorX,y:building.doorY});
    this.approach(building.doorX,building.doorY);return;
   }
   if(this.blocked(x,y)){this.toast('Здесь не пройти. Выбери дорожку.');return;}
-  const route=this.findPath(x,y);
-  if(!route.length&&(x!==this.player.x||y!==this.player.y)){this.toast('Здесь не пройти. Выбери дорожку.');return;}
-  const p=this.player;
-  if(Math.hypot(p.px-(p.x+.5)*TILE,p.py-(p.y+.8)*TILE)>.01)route.unshift({x:p.x,y:p.y});
+  const herb=this.herbs.find(h=>!h.collected&&h.x===x&&h.y===y)||null;
+  const lastQueued=this.path.at(-1)||this.player.step;
+  if(!herb&&!this.target&&lastQueued?.x===x&&lastQueued?.y===y)return;
+  const origin=this.movementOrigin(),route=this.findPath(x,y);
+  if(!route.length&&(x!==origin.x||y!==origin.y)){
+   this.toast('Здесь не пройти. Выбери дорожку.');return;
+  }
+  // Change only the queued route. Never cancel or rewind the in-flight step.
+  this.stopMovement();
   this.path=route;
-  this.target=this.herbs.find(herb=>!herb.collected&&herb.x===x&&herb.y===y)||null;
+  this.target=herb;
  }
  stopMovement(){
-  const p=this.player;
+  // Cancel future commands, not the step already being interpolated.
+  // Logical tile and animation phase must stay untouched until advance() lands.
   this.path=[];this.target=null;this.keys.clear();this.stick={x:0,y:0};
-  // Stop at the exact current position, without completing an old tile step.
-  p.x=Math.round(p.px/TILE-.5);p.y=Math.round(p.py/TILE-.8);p.step=null;p.moving=false;
-  p.animationState='idle';p.animationTime=0;
  }
  approach(x,y){
-  if(Math.abs(this.player.x-x)+Math.abs(this.player.y-y)<=1){this.path=[];this.interactTarget();return;}
-  const options=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>!this.blocked(a,b)).map(([a,b])=>this.findPath(a,b)).filter(p=>p.length);
+  const from=this.movementOrigin();
+  if(Math.abs(from.x-x)+Math.abs(from.y-y)<=1){
+   this.path=[];
+   // If walking into range, perform contact only after the current step ends.
+   if(!this.player.step)this.interactTarget();
+   return;
+  }
+  const options=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]]
+   .filter(([a,b])=>!this.blocked(a,b))
+   .map(([a,b])=>this.findPath(a,b)).filter(path=>path.length);
   options.sort((a,b)=>a.length-b.length);this.path=options[0]||[];
   if(!this.path.length){this.target=null;this.toast('Не удаётся подойти.');}
  }
