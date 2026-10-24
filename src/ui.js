@@ -1,6 +1,6 @@
 import { assetURL } from './asset-url.js';
 import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
-import {ITEMS,equipCharacterItem,itemQuantity} from './character-data.js';
+import {ITEMS,equipCharacterItem,itemQuantity,gameIcon} from './character-data.js';
 import {CharacterMenu} from './character-menu.js';
 export class UI{
  constructor(game){
@@ -37,7 +37,7 @@ export class UI{
    const button=document.querySelector?.('#quickbar [data-slot="'+i+'"]');
    if(!button)return;
    const item=ITEMS[id],equipped=ITEMS[this.g.character.equipment.weapon];
-   const icon=id==='weapon'?(equipped?.icon||'👊'):item?.icon||'＋';
+   const icon=id==='weapon'?(equipped?.icon||'slot_plus'):item?.icon||'slot_plus';
    const count=id==='herb'||id==='potion'||id==='wood'?itemQuantity(this.g,id):null;
    button.dataset.quickId=id||'';
    button.classList.toggle('empty-slot',!id);
@@ -45,7 +45,7 @@ export class UI{
    button.title=(item?.name||'Свободная ячейка')+' · '+(i===9?'0':i+1);
    button.setAttribute?.('aria-label',button.title);
    button.innerHTML='<kbd>'+(i===9?'0':i+1)+'</kbd>'+
-    '<span class="'+(!id?'empty-mark':'quick-icon')+'">'+icon+'</span>'+
+    gameIcon(icon,'quick-icon')+
     (count!==null?'<small class="quick-count" data-quick-count="'+id+'">' + count + '</small>':'');
   });
   this.updatePrimaryAttack();
