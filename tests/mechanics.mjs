@@ -45,7 +45,7 @@ globalThis.window={
 };
 globalThis.document={hidden:false,activeElement:null,addEventListener(){},getElementById(id){if(!nodes.has(id))nodes.set(id,['game','portrait','minimap'].includes(id)?new Canvas(id):new Element(id));return nodes.get(id);},querySelectorAll(){return [];},createElement(tag){return tag==='canvas'?new Canvas():new Element();}};
 globalThis.Image=class{
- set src(value){this._src=value;const meta=value.includes('village-source')?[1254,1254]:value.includes('guardian')?[512,64]:value.includes('mossling')?[384,48]:value.includes('icons')?[192,24]:[480,192];[this.width,this.height]=meta;queueMicrotask(()=>this.onload());}
+ set src(value){this._src=value;const meta=value.includes('village-source')?[1254,1254]:value.includes('guardian')?[512,64]:value.includes('mossling')?[384,48]:value.includes('icons')?[192,24]:value.includes('npc-village-48.avif')?[576,240]:[480,192];[this.width,this.height]=meta;queueMicrotask(()=>this.onload());}
  get src(){return this._src;}
 };
 globalThis.requestAnimationFrame=()=>{};
@@ -90,7 +90,7 @@ assert.equal(TILE,32);
 // new 48px pixel hero exactly once, without deleting save data.
 store.set('tiholesye-model','3d');
 const defaultStyle=new Game(new Canvas('default-npc-style'));
-assert.equal(defaultStyle.npcStyle,'vector','vector NPC style is the default');
+assert.equal(defaultStyle.npcStyle,'pixel','new generated pixel NPCs are the default');
 assert.equal(defaultStyle.modelMode,'2d','old oversized hero preference is migrated');
 assert.equal(defaultStyle.player.sprite,'hero','new compact hero is selected');
 assert.equal(store.get('tiholesye-model'),'2d','migration persists new pixel default');
@@ -163,26 +163,33 @@ assert.equal(game.npcs.length,7,'seven villagers');
 assert.deepEqual(NPC_SPRITES,['elder','smith','merchant','villager','fisher']);
 assert.equal(game.npcStyle,'pixel');
 for(const npc of game.npcs){
- assert(game.assets.images['vector-'+npc.sprite],npc.sprite+' SVG asset loads');
+ const atlas=game.assets.images[npc.sprite];
+ assert.equal(atlas.width,144,'NPC '+npc.sprite+' has 3 frames at 48px');
+ assert.equal(atlas.height,192,'NPC '+npc.sprite+' has 4 directions');
  for(const [direction,row] of [['down',0],['left',1],['right',2],['up',3]]){
-  npc.direction=direction;
-  drawCharacter(game.ctx,game.assets,npc,0,'vector');
+  npc.direction=direction;npc.moving=false;
+  drawCharacter(game.ctx,game.assets,npc,0,'pixel');
   const op=game.ctx.ops.at(-1);
   assert.equal(op.op,'drawImage');
-  assert(op.args[0].includes('vector-'+npc.sprite+'.svg'),'vector art');
-  assert.equal(op.args[2],row*384);
+  assert.equal(op.args[0],atlas.id,'new character sheet is used');
+  assert.equal(op.args[2],row*48,'native 48px direction row');
+  assert.equal(op.args[3],48);
+  assert.equal(op.args[4],48);
   assert.equal(op.args[7],48);
   assert.equal(op.args[8],48);
  }
- npc.direction='down';
+ npc.direction='right';npc.moving=true;npc.animationTime=130;
+ drawCharacter(game.ctx,game.assets,npc,0,'pixel');
+ assert.equal(game.ctx.ops.at(-1).args[1],48,'walking animates to second real frame');
+ npc.moving=false;npc.direction='down';
 }
 game.ui.settings();
-assert(game.ui.panel.html.includes('id="npcStyle"'));
-game.ui.panel.querySelector('#npcStyle').click();
-assert.equal(game.npcStyle,'vector');
-assert.equal(store.get('tiholesye-npc-style'),'vector');
+assert(game.ui.panel.html.includes('Пиксельный стиль'),'settings show permanent pixel NPC art');
+assert(!game.ui.panel.html.includes('id="npcStyle"'),'old vector switch is retired');
+store.set('tiholesye-npc-style','vector');
 const restoredStyle=new Game(new Canvas('restored-style'));
-assert.equal(restoredStyle.npcStyle,'vector');
+assert.equal(restoredStyle.npcStyle,'pixel','old stored vector mode migrates to pixel');
+assert.equal(store.get('tiholesye-npc-style'),'pixel','pixel mode persists');
 game.ui.close();
 
 // Regression: rapid left clicks must only replace the queued route.
@@ -527,6 +534,10 @@ assert(barMarkup.includes('<kbd>0</kbd>'),'tenth slot visibly uses key zero');
 game.ui.slot(9);
 assert.equal(game.ui.toastEl.textContent,'Ячейка 0 пока свободна.','zero selects the tenth placeholder');
 
+// Asset is an actual generated 5x12 atlas, not a CSS replacement.
+const npcAtlas=fs.readFileSync('assets/npc-village-48.avif');
+assert(npcAtlas.length>10000,'generated 48px NPC atlas was committed');
+assert.equal(npcAtlas.toString('ascii',4,12),'ftypavif','atlas is a valid AVIF container');
 // A lightweight render snapshot remains available for asset audit tooling.
 store.clear();
 const fresh=new Game(new Canvas('preview'));await fresh.start();
