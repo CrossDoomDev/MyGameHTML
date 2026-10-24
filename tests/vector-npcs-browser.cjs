@@ -217,6 +217,69 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   console.log('PASS: Chromium completed '+rapidClickResult.clicks+
     ' rapid mouse retargets without coordinate snap, flipped facing or gait reset.');
 
+  // Real pointer and keyboard interaction: clicking a monster locks it,
+  // rightward WASD movement retains the lock, a ground click clears it.
+  await page.evaluate(()=>{
+   const g=window.tiholesye,T=32;
+   g.enterLocation('forest',3,40);
+   const boss=g.mobs.find(m=>m.boss),p=g.player;
+   for(const dy of [1,2,3,4])g.clearSpawn(boss.x,boss.y+dy);
+   g.clearSpawn(boss.x+1,boss.y+3);
+   g.clearSpawn(boss.x+3,boss.y+3);
+   Object.assign(p,{x:boss.x,y:boss.y+3,px:(boss.x+.5)*T,
+    py:(boss.y+3.8)*T,step:null,moving:false,direction:'down',
+    mana:60,attackUntil:0,weaponType:'staff',classId:'druid'});
+   g.ready=true;g.keys.clear();g.path=[];g.target=null;g.combatTarget=null;
+   g.skillCooldowns={};g.lastAttack=-1000;g.time+=10000;
+   boss.rootedUntil=g.time+18000;
+   g.renderer.draw(g.time);
+  });
+  const pointOnCanvas=await page.evaluate(()=>{
+   const g=window.tiholesye,m=g.mobs.find(t=>t.boss),r=g.canvas.getBoundingClientRect();
+   return {x:r.left+(m.px-g.camera.x)*r.width/g.canvas.width,
+    y:r.top+(m.py-12-g.camera.y)*r.height/g.canvas.height};
+  });
+  await page.mouse.click(pointOnCanvas.x,pointOnCanvas.y);
+  assert(await page.evaluate(()=>window.tiholesye.combatTarget?.boss),
+   'real mouse click selects forest boss as combat focus');
+  assert.equal(await page.locator('#combatFocus').isVisible(),true,
+   'locked enemy has a visible target HUD');
+  await page.screenshot({path:'.qa/combat-focus-selected.png'});
+  await page.keyboard.down('ArrowRight');
+  await page.waitForFunction(()=>{
+   const g=window.tiholesye,m=g.mobs.find(t=>t.boss);
+   return m.hp<m.max&&g.player.direction==='right'&&g.player.moving;
+  },{timeout:5000});
+  const lockedState=await page.evaluate(()=>{
+   const g=window.tiholesye;
+   return {focus:g.combatTarget?.boss,playerMoving:g.player.moving,
+    right:g.player.direction==='right',hp:g.mobs.find(m=>m.boss).hp,
+    attackPose:g.player.attackUntil>g.time};
+  });
+  assert(lockedState.focus&&lockedState.playerMoving&&lockedState.right,
+   'WASD movement keeps enemy focused and player facing along run direction');
+  assert(!lockedState.attackPose,'automatic firing must not flip walking pose');
+  await page.keyboard.up('ArrowRight');
+  const escapeClick=await page.evaluate(()=>{
+   const g=window.tiholesye,T=32,m=g.mobs.find(t=>t.boss),r=g.canvas.getBoundingClientRect();
+   const wx=(m.x+3.5)*T,wy=(m.y+3.5)*T;
+   g.renderer.draw(g.time);
+   return {x:r.left+(wx-g.camera.x)*r.width/g.canvas.width,
+    y:r.top+(wy-g.camera.y)*r.height/g.canvas.height};
+  });
+  await page.mouse.click(escapeClick.x,escapeClick.y);
+  assert.equal(await page.evaluate(()=>window.tiholesye.combatTarget),null,
+   'mouse movement click clears the combat target');
+  await page.waitForFunction(()=>document.getElementById('combatFocus').hidden);
+  const noFocusDamage=await page.evaluate(()=>{
+   const g=window.tiholesye,m=g.mobs.find(t=>t.boss);
+   const hp=m.hp;g.time+=3000;g.update(16);
+   return {before:hp,after:m.hp,focused:g.combatTarget};
+  });
+  assert.equal(noFocusDamage.after,noFocusDamage.before,
+   'auto ranged attacks stop after a ground click, even past cooldown');
+  assert.equal(noFocusDamage.focused,null);
+  console.log('PASS: Chromium mouse enemy focus, visible target highlight, WASD auto fire and mouse cancellation.');
   assert.deepEqual(errors,[]);
   console.log('PASS: seven SVG NPC instances decode in Chromium; pixel and vector contact sheets differ; settings click, instant switch, storage persistence, reload and reversibility all work.');
  }finally{
