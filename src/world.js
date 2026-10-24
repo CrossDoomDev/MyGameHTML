@@ -99,6 +99,7 @@ export class Game{
   if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
   Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
   this.path=[];this.target=null;this.combatTarget=null;this.effects=[];
+  this.ui?.updateCombatFocus();
   // Skill cooldowns persist between rooms and biomes.
   if(this.ready)this.renderer=new Renderer(this);
   this.save();
@@ -213,10 +214,12 @@ export class Game{
    this.combatTarget=actor;
    this.path=[];this.target=null;
    this.aimAtCombatTarget();
+   this.ui.updateCombatFocus();
    return;
   }
   // Any other left-click (terrain, NPC, doorway) cancels combat focus.
   this.combatTarget=null;
+  this.ui.updateCombatFocus();
   if(actor){
    if(this.target===actor)return; // Repeated NPC clicks preserve the approach.
    this.stopMovement();this.target=actor;this.approach(actor.x,actor.y);return;
@@ -355,7 +358,10 @@ export class Game{
   m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);
   this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
   if(m.hp>0)return true;
-  if(this.combatTarget===m)this.combatTarget=null;
+  if(this.combatTarget===m){
+   this.combatTarget=null;
+   this.ui.updateCombatFocus();
+  }
   m.alive=false;m.step=null;m.rootedUntil=0;m.respawnAt=this.time+20000;
   this.player.xp+=m.boss?70:20;this.player.coins+=m.boss?35:5;this.player.wood++;
   if(m.boss)this.player.boss=true;else this.player.kills++;
