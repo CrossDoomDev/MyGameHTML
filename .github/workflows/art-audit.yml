@@ -19,6 +19,11 @@ on:
       - 'tools/normalize-tavern-image.py'
       - 'src/assets.js'
       - 'src/druid-skills.js'
+      - 'src/combat-focus.js'
+      - 'tests/combat-focus.mjs'
+      - 'src/world.js'
+      - 'src/renderer.js'
+      - 'tests/mechanics.mjs'
       - 'tests/druid-skills.mjs'
       - 'src/ui.js'
       - 'style.css'
@@ -59,6 +64,8 @@ jobs:
         run: python3 tests/tavern-image.py
       - name: Test druid skills
         run: node tests/druid-skills.mjs
+      - name: Test combat focus and line of sight
+        run: node tests/combat-focus.mjs
       - name: Verify game mechanics
         run: node tests/mechanics.mjs
       - name: Verify crisp non-blurred buildings
