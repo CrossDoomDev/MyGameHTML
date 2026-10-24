@@ -1,6 +1,7 @@
 import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
 import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
+import {autoRangedSkill,canFocusShoot} from './combat-focus.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
@@ -10,7 +11,7 @@ import { readEditedMaps, hydratedMap, normalizeSnapshot, sceneSnapshot } from '.
 
 const STORAGE='tiholesye-v01';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const initial=()=>({x:SPAWN.x,y:SPAWN.y,hp:120,maxHp:120,mana:60,maxMana:60,level:1,xp:0,kills:0,coins:0,potions:2,wood:0,herbs:0,boss:false,questAccepted:false,questReward:false});
+const initial=()=>({classId:'druid',weaponType:'staff',x:SPAWN.x,y:SPAWN.y,hp:120,maxHp:120,mana:60,maxMana:60,level:1,xp:0,kills:0,coins:0,potions:2,wood:0,herbs:0,boss:false,questAccepted:false,questReward:false});
 const anchored=(e)=>({...e,px:(e.x+.5)*TILE,py:(e.y+.8)*TILE,direction:'down',moving:false,step:null,attackUntil:0,attackStarted:0,hitUntil:0});
 const distance=(a,b)=>Math.hypot(a.px-b.px,a.py-b.py);
 const directionTo=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down');
@@ -39,7 +40,7 @@ export class Game{
   }catch{}
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
-  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.keys=new Set();this.stick={x:0,y:0};
+  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.combatTarget=null;this.keys=new Set();this.stick={x:0,y:0};
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
@@ -89,7 +90,7 @@ export class Game{
    if(cell){p.x=cell[0];p.y=cell[1];}
   }
   p.px=(p.x+.5)*TILE;p.py=(p.y+.8)*TILE;p.step=null;p.moving=false;
-  this.path=[];this.target=null;this.effects=[];
+  this.path=[];this.target=null;this.combatTarget=null;this.effects=[];
   if(this.ready)this.renderer=new Renderer(this);
  }
  enterLocation(location,x,y){
@@ -97,7 +98,7 @@ export class Game{
   let sx=x,sy=y;
   if(this.blocked(sx,sy)){const cell=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]].find(([a,b])=>!this.blocked(a,b));if(cell)[sx,sy]=cell;}
   Object.assign(this.player,{x:sx,y:sy,px:(sx+.5)*TILE,py:(sy+.8)*TILE,step:null,moving:false});
-  this.path=[];this.target=null;this.effects=[];
+  this.path=[];this.target=null;this.combatTarget=null;this.effects=[];
   // Skill cooldowns persist between rooms and biomes.
   if(this.ready)this.renderer=new Renderer(this);
   this.save();
@@ -167,7 +168,7 @@ export class Game{
    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
    if(e.code==='Escape'){if(this.ui.open)this.ui.close();else this.ui.settings();return;}
    if(this.ui.open){if(e.code==='Tab')this.ui.trapFocus(e);return;}
-   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];}
+   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[]; // Keyboard movement never drops combat focus.}
    if(e.repeat)return;
    if(e.code==='Space')this.attack();
    if(SKILL_KEYS[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey)this.castSkill(SKILL_KEYS[e.code]);
@@ -206,8 +207,18 @@ export class Game{
   if(this.editor?.active||x<0||y<0||x>=this.map.width||y>=this.map.height)return;
   const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
    Math.abs(wx-t.px)<22&&wy>=t.py-49&&wy<=t.py+9);
+  if(actor?.kind==='mob'){
+   // Combat focus is separate from the queued movement route. Clicking an
+   // enemy selects it instead of walking into melee distance.
+   this.combatTarget=actor;
+   this.path=[];this.target=null;
+   this.aimAtCombatTarget();
+   return;
+  }
+  // Any other left-click (terrain, NPC, doorway) cancels combat focus.
+  this.combatTarget=null;
   if(actor){
-   if(this.target===actor)return; // Repeated clicks do not rebuild an active approach.
+   if(this.target===actor)return; // Repeated NPC clicks preserve the approach.
    this.stopMovement();this.target=actor;this.approach(actor.x,actor.y);return;
   }
   const building=this.map.buildings.find(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
@@ -229,6 +240,28 @@ export class Game{
   this.stopMovement();
   this.path=route;
   this.target=herb;
+ }
+ aimAtCombatTarget(){
+  const t=this.combatTarget,p=this.player;
+  if(!t?.alive)return;
+  p.aimDirection=directionTo(t.px-p.px,t.py-p.py);
+  // Do not flip the running sprite toward an enemy on every shot.
+  if(!p.moving&&!p.step&&!this.keys.size&&!this.stick.x&&!this.stick.y)
+   p.direction=p.aimDirection;
+ }
+ updateCombatFocus(){
+  const enemy=this.combatTarget;
+  if(!enemy)return;
+  if(!enemy.alive||!this.mobs.includes(enemy)){
+   this.combatTarget=null;return;
+  }
+  this.aimAtCombatTarget();
+  const skillId=autoRangedSkill(this.player);
+  if(!skillId||!this.ready||this.ui.open||this.editor?.active)return;
+  if(!canFocusShoot(this.map,this.player,enemy,skillId))return;
+  if(skillRemaining(this.skillCooldowns,skillId,this.time))return;
+  if(this.player.mana<DRUID_SKILLS[skillId].mana||this.time-this.lastAttack<600)return;
+  this.castSkill(skillId,{target:enemy,automatic:true});
  }
  stopMovement(){
   // Cancel future commands, not the step already being interpolated.
@@ -295,6 +328,7 @@ export class Game{
     if(tx!==undefined)this.beginStep(m,tx,ty,aggro?310:460);
    }
   }
+  this.updateCombatFocus();
   for(const entity of [p,...this.npcs,...this.mobs])updateAnimation(entity,dt,this.time);
   this.effects=this.effects.filter(e=>this.time-e.time<(e.duration||(e.type==='text'?950:500)));
   if(this.time-this.lastSave>5000){this.save();this.lastSave=this.time;}
@@ -321,6 +355,7 @@ export class Game{
   m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);
   this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
   if(m.hp>0)return true;
+  if(this.combatTarget===m)this.combatTarget=null;
   m.alive=false;m.step=null;m.rootedUntil=0;m.respawnAt=this.time+20000;
   this.player.xp+=m.boss?70:20;this.player.coins+=m.boss?35:5;this.player.wood++;
   if(m.boss)this.player.boss=true;else this.player.kills++;
@@ -332,18 +367,26 @@ export class Game{
   this.target=null;this.save();
   return true;
  }
- castSkill(id){
+ castSkill(id,{target=null,automatic=false}={}){
   const skill=DRUID_SKILLS[id],p=this.player;
   if(!skill||this.ui.open||this.editor?.active||!this.ready)return false;
+  if(automatic&&(!target||this.combatTarget!==target||
+     autoRangedSkill(p)!==id||!canFocusShoot(this.map,p,target,id)))return false;
   const remaining=skillRemaining(this.skillCooldowns,id,this.time);
-  if(remaining){this.toast(skill.name+': ещё '+Math.ceil(remaining/1000)+' с');return false;}
-  if(p.mana<skill.mana){this.toast('Недостаточно маны: нужно '+skill.mana);return false;}
-  if(id==='heal'&&p.hp>=p.maxHp){this.toast('Здоровье уже полное.');return false;}
+  if(remaining){if(!automatic)this.toast(skill.name+': ещё '+Math.ceil(remaining/1000)+' с');return false;}
+  if(p.mana<skill.mana){if(!automatic)this.toast('Недостаточно маны: нужно '+skill.mana);return false;}
+  if(id==='heal'&&p.hp>=p.maxHp){if(!automatic)this.toast('Здоровье уже полное.');return false;}
   p.mana-=skill.mana;this.skillCooldowns[id]=this.time+skill.cooldown;
-  p.attackStarted=this.time;p.attackUntil=this.time+360;p.attackDirection=p.direction;
+  // Automatic shots have visible projectiles, but must not interrupt the
+  // walking animation or flip its facing direction.
+  if(!automatic){
+   p.attackStarted=this.time;p.attackUntil=this.time+360;p.attackDirection=p.direction;
+  }
   this.lastAttack=this.time;
   if(id==='bolt'){
-   const result=boltTrace(this.map,p,p.direction,this.mobs);
+   const focused=target||(canFocusShoot(this.map,p,this.combatTarget,'bolt')?this.combatTarget:null);
+   const result=focused?{x:focused.px,y:focused.py,target:focused}
+                       :boltTrace(this.map,p,p.direction,this.mobs);
    this.effects.push({type:'bolt',x:p.px,y:p.py-22,tx:result.x,ty:result.y-16,
     time:this.time,duration:460,color:skill.color});
    if(result.target)this.damageMob(result.target,skill.damage+p.level*3);
