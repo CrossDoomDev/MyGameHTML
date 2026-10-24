@@ -141,6 +141,7 @@ game.player.hp=game.player.maxHp-45;
 game.ui.slot(9);
 assert.equal(game.player.potions,potionCountBefore-1,'mapped key zero uses a potion');
 assert.equal(game.player.hp,game.player.maxHp,'mapped potion restores health');
+game.player.potions=potionCountBefore; // Restore fixture for existing shop/quest assertions.
 game.character.quickSlots[9]=null;game.applyEquipment();
 
 assert.equal(game.mobs.length,0,'no combat spawns in the village');
