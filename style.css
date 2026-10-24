@@ -157,3 +157,17 @@
  #combatFocus strong{font-size:12px}
  #combatFocus small{font-size:9px}
  #combatFocus small:last-child{font-size:8px}}
+
+/* The player chooses exactly one primary attack with RMB. The gold frame
+   remains visible when the bolt is on cooldown, without changing LMB casts. */
+#primaryStaff.primary-attack,#skillbar #skill-bolt.primary-attack{
+ border-color:#fbe29c!important;
+ background:#485137!important;
+ box-shadow:0 0 0 2px #ffe3a44f,0 0 12px #e7bf6b99,inset 0 0 0 1px #fce09a!important;
+}
+#primaryStaff.primary-attack::after,#skillbar #skill-bolt.primary-attack::after{
+ content:"●";position:absolute;top:0;right:3px;font:10px/1 system-ui;
+ color:#ffe68b;text-shadow:0 0 3px #000;pointer-events:none;z-index:3;
+}
+#skillbar #skill-bolt[aria-disabled="true"]{opacity:.72}
+#skillbar #skill-bolt.primary-attack[aria-disabled="true"]{opacity:1}
