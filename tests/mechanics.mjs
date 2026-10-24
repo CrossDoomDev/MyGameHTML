@@ -126,6 +126,70 @@ const restoredStyle=new Game(new Canvas('restored-style'));
 assert.equal(restoredStyle.npcStyle,'vector');
 game.ui.close();
 
+// Regression: rapid left clicks must only replace the queued route.
+// No mid-tile coordinate rounding, reversal, diagonal jump or walk reset.
+const originalMove={
+ x:game.player.x,y:game.player.y,px:game.player.px,py:game.player.py,
+ direction:game.player.direction,animationTime:game.player.animationTime,
+ animationState:game.player.animationState,camera:{...game.camera}
+};
+let clickArea;
+for(let y=5;y<game.map.height-5&&!clickArea;y++)for(let x=5;x<game.map.width-5;x++){
+ const cells=[[x,y],[x+1,y],[x+2,y],[x+1,y-1],[x+1,y+1],[x+2,y+1]];
+ if(cells.every(([cx,cy])=>!game.blocked(cx,cy))&&
+    game.npcs.every(n=>Math.abs(n.x-x)>5||Math.abs(n.y-y)>5)){
+  clickArea={x,y};break;
+ }
+}
+assert(clickArea,'village contains a walkable test cross');
+const p=game.player;
+Object.assign(p,{x:clickArea.x,y:clickArea.y,px:(clickArea.x+.5)*TILE,
+ py:(clickArea.y+.8)*TILE,step:null,moving:false,direction:'down',animationTime:0,animationState:'idle'});
+game.path=[];game.target=null;game.camera={x:(clickArea.x-3)*TILE,y:(clickArea.y-3)*TILE};
+const tileClick=(x,y,button=0)=>game.click({
+ button,
+ clientX:((x+.5)*TILE-game.camera.x)/game.canvas.width*1280,
+ clientY:((y+.5)*TILE-game.camera.y)/game.canvas.height*720
+});
+const testX=clickArea.x,testY=clickArea.y;
+tileClick(testX+1,testY);
+assert.deepEqual(game.path,[{x:testX+1,y:testY}],'click starts a cardinal route');
+game.update(0);game.update(90);
+const midX=p.px,midY=p.py,activeStep=p.step,phase=p.animationTime;
+assert(activeStep&&p.direction==='right','hero is travelling right');
+assert(midX>(testX+.5)*TILE&&midX<(testX+1.5)*TILE,'hero is inside the tile');
+for(let i=0;i<35;i++)tileClick(testX+1,testY);
+assert.strictEqual(p.step,activeStep,'repeat-click never cancels the current step');
+assert.equal(p.px,midX,'repeat-click does not snap pixels or teleport');
+assert.equal(p.py,midY,'repeat-click leaves vertical coordinate intact');
+assert.equal(p.direction,'right','facing stays stable mid-stride');
+assert.equal(p.animationTime,phase,'gait phase is not reset by input');
+tileClick(testX+2,testY);
+assert.strictEqual(p.step,activeStep,'new destination queues after the ongoing step');
+assert.deepEqual(game.path,[{x:testX+2,y:testY}],'path is based on step destination');
+const keptRoute=game.path;
+for(let i=0;i<25;i++)tileClick(testX+2,testY);
+assert.strictEqual(game.path,keptRoute,'repeated target does not recompute or jitter');
+tileClick(testX+1,testY-1);
+assert.strictEqual(p.step,activeStep,'even a sharp turn does not reverse in mid-cell');
+assert.deepEqual(game.path,[{x:testX+1,y:testY-1}],'the next tile is cardinal, no backwards zero-length hop');
+tileClick(testX+2,testY+1,2);
+assert.deepEqual(game.path,[{x:testX+1,y:testY-1}],'right mouse clicks do not navigate');
+tileClick(-1,testY);
+assert.deepEqual(game.path,[{x:testX+1,y:testY-1}],'invalid click retains current route');
+assert.equal(p.px,midX,'frequent input alone never changes actual position');
+game.update(210);
+assert.equal(p.x,testX+1,'first step lands on its originally committed cell');
+assert.equal(p.px,(testX+1.5)*TILE,'step ends at the exact cell center');
+assert.equal(p.py,(testY+.8)*TILE,'no diagonal y drift at the turn');
+assert.equal(p.direction,'up','hero turns only after landing');
+assert.deepEqual([p.step?.x,p.step?.y],[testX+1,testY-1],'next step uses new destination');
+game.update(90);
+assert(p.py<(testY+.8)*TILE&&p.py>(testY-.2)*TILE,'next step interpolates smoothly');
+assert.equal(p.px,(testX+1.5)*TILE,'no sideways jitter after turning');
+Object.assign(p,originalMove);delete p.camera;p.step=null;p.moving=false;
+game.camera=originalMove.camera;game.path=[];game.target=null;
+
 // All new houses are sourced from the concept-art atlas (legacy repair used
 // clearRect, but replacing that canvas with authored artwork should not).
 for(const [sprite,width] of [['cabin',5*TILE],['cottage',5*TILE],['forge',5*TILE],['inn',5*TILE],['market',5*TILE],['chapel',5*TILE]]){
