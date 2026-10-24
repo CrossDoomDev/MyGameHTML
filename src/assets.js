@@ -141,6 +141,25 @@ export async function loadAssets() {
    environmentMasks.inn=Uint8Array.from({length:160*160},(_,i)=>pixels[i*4+3]>=32?1:0);
   }
  }
+ // A compact 48px village NPC sheet generated from the five-row artwork.
+ // The source holds 12 frames per NPC: three frames for each cardinal view.
+ // Repack once into the same four-row 48x48 layout as the player character.
+ const villagePixels=await new Promise((resolve,reject)=>{
+  const image=new Image();
+  image.onload=()=>resolve(image);
+  image.onerror=()=>reject(new Error('Не удалось загрузить пиксельных жителей'));
+  image.src=assetURL('npc-village-48.avif');
+ });
+ if(villagePixels.width!==576||villagePixels.height!==240)
+  throw new Error('Неверные размеры атласа NPC: ожидается 576×240');
+ for(const [index,name] of NPC_SPRITES.entries()){
+  const sheet=document.createElement('canvas');sheet.width=144;sheet.height=192;
+  const context=sheet.getContext('2d');context.imageSmoothingEnabled=false;
+  for(let view=0;view<4;view++)for(let pose=0;pose<3;pose++)
+   context.drawImage(villagePixels,(view*3+pose)*48,index*48,48,48,
+    pose*48,view*48,48,48);
+  images[name]=sheet;
+ }
  // Normalize generated poses into 10 equal 80px cells per direction. Foot
  // anchors prevent jitter; attacks retain their extended staff inside each cell.
  const hero=document.createElement('canvas');hero.width=800;hero.height=320;
@@ -203,19 +222,19 @@ export async function loadAssets() {
 }
 export const directions=['down','left','right','up'];
 export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
+ const npc=NPC_SPRITES.includes(entity.sprite);
  const attacking=time<entity.attackUntil;
- const frame=NPC_SPRITES.includes(entity.sprite)?0:characterFrame(entity,time);
+ const frame=npc
+  ?(entity.moving?Math.floor((entity.animationTime||0)/120)%3:0)
+  :characterFrame(entity,time);
  const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
  const row=Math.max(0,directions.indexOf(direction||'down'));
  const is3d=entity.sprite==='hero3d',isPixelHero=entity.sprite==='hero';
- const vectorNPC=npcStyle==='vector'&&NPC_SPRITES.includes(entity.sprite);
- const image=vectorNPC?assets.images['vector-'+entity.sprite]:assets.images[entity.sprite||'hero'];
- const sourceCell=vectorNPC?384:is3d?128:48;
- // Only the optional 3D model is drawn at 80px. The pixel hero has an
- // actual 48x48 source cell AND a 48x48 world footprint with safe insets.
+ const image=assets.images[entity.sprite||'hero'];
+ const sourceCell=is3d?128:48;
+ // New villagers and hero have identical native 48x48 frames. Never use
+ // browser interpolation, even for direction changes or walking cycles.
  const size=is3d?80:48,anchorX=is3d?40:24,anchorY=is3d?64:isPixelHero?43:42;
- // Smooth SVG source art in canvases that draw it at native screen resolution.
- if(vectorNPC){c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';}
- c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
- if(vectorNPC)c.restore();
+ c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,
+  Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
 }
