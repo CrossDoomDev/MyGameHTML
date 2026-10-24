@@ -9,7 +9,21 @@ export class UI{
   document.getElementById('settings').onclick=()=>this.settings();
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>this.slot(Number(b.dataset.slot)));
   document.querySelectorAll('[data-skill]').forEach(b=>b.onclick=()=>this.g.castSkill(b.dataset.skill));
+  this.updatePrimaryAttack();
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
+ }
+ updatePrimaryAttack(){
+  const useBolt=this.g.primaryAttackMode==='bolt';
+  const staff=document.getElementById('primaryStaff');
+  const bolt=document.getElementById('skill-bolt');
+  for(const [button,active] of [[staff,!useBolt],[bolt,useBolt]]){
+   if(!button)continue;
+   button.classList.toggle('primary-attack',active);
+   button.setAttribute?.('aria-pressed',active?'true':'false');
+  }
+  const mobile=document.getElementById('mobileAttack');
+  if(mobile)mobile.setAttribute?.('aria-label',
+   useBolt?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
  }
  portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
@@ -45,7 +59,10 @@ export class UI{
    if(!button)continue;
    const remaining=skillRemaining(g.skillCooldowns,id,g.time);
    const reason=remaining?'Перезарядка':p.mana<skill.mana?'Недостаточно маны':id==='heal'&&p.hp>=p.maxHp?'Здоровье полное':'';
-   button.disabled=!!reason||this.open||!!g.editor?.active;
+   // RMB must still select the bolt while it is recharging or out of mana.
+   // Keep that one icon enabled, while castSkill itself blocks invalid casts.
+   button.disabled=id==='bolt'?false:!!reason||this.open||!!g.editor?.active;
+   button.setAttribute?.('aria-disabled',reason||this.open||g.editor?.active?'true':'false');
    button.classList.toggle('recharging',remaining>0);
    const label=button.querySelector('.skill-timer');
    if(label)label.textContent=remaining?String(Math.ceil(remaining/1000)):reason?'—':'';
