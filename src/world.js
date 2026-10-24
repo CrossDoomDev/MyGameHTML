@@ -41,6 +41,7 @@ export class Game{
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
   this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.combatTarget=null;this.keys=new Set();this.stick={x:0,y:0};
+  this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'?'bolt':'staff';
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
@@ -156,7 +157,16 @@ export class Game{
   this.canvas.addEventListener('pointermove',e=>{if(this.editor?.active)this.editor.pointerMove(e);});
   this.canvas.addEventListener('pointerup',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
   this.canvas.addEventListener('pointercancel',e=>{if(this.editor?.active)this.editor.pointerUp(e);});
-  this.canvas.addEventListener('contextmenu',e=>{if(this.editor?.active)e.preventDefault();});
+  // Game reserves RMB: never show the browser menu anywhere inside its UI.
+  // Contextmenu is delegated to #app, so right-click still works on a spell
+  // during cooldown, when its regular action button is disabled.
+  document.getElementById('app').addEventListener('contextmenu',e=>{
+   e.preventDefault();
+   if(this.editor?.active)return;
+   const button=e.target?.closest?.('[data-skill="bolt"],[data-slot="0"]');
+   if(button?.dataset.skill==='bolt')this.setPrimaryAttack('bolt');
+   else if(button?.dataset.slot==='0')this.setPrimaryAttack('staff');
+  });
   this.canvas.addEventListener('wheel',e=>{
    if(this.editor?.active){e.preventDefault();this.setZoom(this.zoom+(e.deltaY<0?.25:-.25));}
   },{passive:false});
@@ -171,7 +181,7 @@ export class Game{
    if(this.ui.open){if(e.code==='Tab')this.ui.trapFocus(e);return;}
    if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];} // Keyboard movement never drops combat focus.
    if(e.repeat)return;
-   if(e.code==='Space')this.attack();
+   if(e.code==='Space')this.primaryAttack();
    if(SKILL_KEYS[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey)this.castSkill(SKILL_KEYS[e.code]);
    if(e.code==='KeyE')this.interactNearest();
    if(e.code==='KeyB')this.ui.inventory();
@@ -180,7 +190,7 @@ export class Game{
    if(e.code.startsWith('Digit'))this.ui.slot(Number(e.code.slice(5))-1);
   });
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
-  document.getElementById('mobileAttack').onclick=()=>this.attack();
+  document.getElementById('mobileAttack').onclick=()=>this.primaryAttack();
   document.getElementById('mobileInteract').onclick=()=>this.interactNearest();
   const stick=document.getElementById('joystick'),knob=stick.querySelector('i');let pointer=null;
   const move=e=>{if(e.pointerId!==pointer)return;const r=stick.getBoundingClientRect();let dx=(e.clientX-r.left-r.width/2)/32,dy=(e.clientY-r.top-r.height/2)/32;const length=Math.hypot(dx,dy);if(length>1){dx/=length;dy/=length;}this.stick={x:Math.abs(dx)>.25?dx:0,y:Math.abs(dy)>.25?dy:0};knob.style.transform='translate('+dx*24+'px,'+dy*24+'px)';this.path=[];this.target=null;};
@@ -244,6 +254,24 @@ export class Game{
   this.path=route;
   this.target=herb;
  }
+ setPrimaryAttack(mode){
+  if(mode!=='staff'&&mode!=='bolt')return false;
+  if(mode==='bolt'&&!autoRangedSkill(this.player)){
+   this.toast('Для Изумрудного луча нужен посох друида.');return false;
+  }
+  this.primaryAttackMode=mode;
+  try{localStorage.setItem('tiholesye-primary-attack',mode);}catch{}
+  this.ui.updatePrimaryAttack();
+  this.toast(mode==='bolt'?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
+  return true;
+ }
+ primaryAttack(){
+  if(this.primaryAttackMode==='bolt'){
+   // The focused target is optional: without it Q/Space use the current facing.
+   return this.castSkill('bolt');
+  }
+  return this.attack(this.combatTarget?.alive?this.combatTarget:undefined);
+ }
  aimAtCombatTarget(){
   const t=this.combatTarget,p=this.player;
   if(!t?.alive)return;
@@ -259,9 +287,16 @@ export class Game{
    this.combatTarget=null;return;
   }
   this.aimAtCombatTarget();
+  if(!this.ready||this.ui.open||this.editor?.active)return;
+  if(this.primaryAttackMode==='staff'){
+   // Staff is melee and free of mana cost. No automatic chase: the
+   // controlled character may run around the locked monster with WASD.
+   if(distance(this.player,enemy)<49&&this.time-this.lastAttack>=600)
+    this.attack(enemy,{automatic:true});
+   return;
+  }
   const skillId=autoRangedSkill(this.player);
-  if(!skillId||!this.ready||this.ui.open||this.editor?.active)return;
-  if(!canFocusShoot(this.map,this.player,enemy,skillId))return;
+  if(!skillId||!canFocusShoot(this.map,this.player,enemy,skillId))return;
   if(skillRemaining(this.skillCooldowns,skillId,this.time))return;
   if(this.player.mana<DRUID_SKILLS[skillId].mana||this.time-this.lastAttack<600)return;
   this.castSkill(skillId,{target:enemy,automatic:true});
@@ -414,17 +449,26 @@ export class Game{
   }
   this.save();return true;
  }
- attack(target){
-  if(this.ui.open||this.time-this.lastAttack<600)return;
-  if(this.player.mana<2)return this.toast('Посоху нужно немного маны.');
-  this.lastAttack=this.time;this.player.mana-=2;this.player.attackStarted=this.time;this.player.attackUntil=this.time+360;
-  this.player.attackDirection=this.player.direction;
-  const m=target||this.mobs.filter(m=>m.alive&&distance(m,this.player)<49).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
+ attack(target,{automatic=false}={}){
+  if(this.ui.open||this.editor?.active||this.time-this.lastAttack<600)return false;
+  const m=target?.alive?target:this.mobs.filter(m=>m.alive&&distance(m,this.player)<49)
+   .sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
+  if(automatic&&(!m?.alive||distance(m,this.player)>=49))return false;
+  this.lastAttack=this.time;
+  // Staff is a physical melee attack and does not drain the druid's mana.
+  // Automatic hits must never overwrite the walk pose or flip a moving sprite.
+  if(!automatic){
+   this.player.attackStarted=this.time;this.player.attackUntil=this.time+360;
+   this.player.attackDirection=this.player.direction;
+  }
   this.bip(360,.05);
-  if(!m||!m.alive||distance(m,this.player)>49)return;
-  this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
-  this.player.attackDirection=this.player.direction;
+  if(!m?.alive||distance(m,this.player)>=49)return false;
+  if(!automatic){
+   this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
+   this.player.attackDirection=this.player.direction;
+  }
   this.damageMob(m,10+this.player.level*3);
+  return true;
  }
  effect(text,e,color){this.effects.push({type:'text',text,x:e.px,y:e.py,time:this.time,color});}
  potion(){
