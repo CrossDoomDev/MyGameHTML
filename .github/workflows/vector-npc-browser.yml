@@ -1,4 +1,4 @@
-name: NPC vector graphics browser check
+name: Village NPC pixel graphics browser check
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - 'assets/vector-*.webp'
       - 'tests/vector-npcs-art.py'
       - 'src/assets.js'
+      - 'assets/npc-village-48.avif'
       - 'src/druid-skills.js'
       - 'src/ui.js'
       - 'src/world.js'
@@ -50,7 +51,7 @@ jobs:
         run: |
           npm install --no-save --no-audit --no-fund playwright
           npx playwright install --with-deps chromium
-      - name: Run real browser tests, capture both styles
+      - name: Test 48px pixel NPCs and unselectable HUD in Chromium
         run: node tests/vector-npcs-browser.cjs
       - name: Test F2 world editor with Chromium
         run: node tests/map-editor-browser.cjs
@@ -58,7 +59,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npc-vector-versus-pixel-screenshots
+          name: npc-pixel-screenshots
           path: |
             .qa/npc-pixel.png
             .qa/npc-vector.png
