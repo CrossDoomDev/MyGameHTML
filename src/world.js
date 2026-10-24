@@ -238,7 +238,7 @@ export class Game{
    return;
   }
   // Any other left-click (terrain, NPC, doorway) cancels combat and pursuit.
-  this.combatTarget=null;this.combatRepathAt=0;this.path=[];
+  if(this.combatTarget){this.combatTarget=null;this.combatRepathAt=0;this.path=[];}
   this.ui.updateCombatFocus();
   if(actor){
    if(this.target===actor)return; // Repeated NPC clicks preserve the approach.
