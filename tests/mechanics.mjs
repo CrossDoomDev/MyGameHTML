@@ -23,7 +23,9 @@ class Context{
 for(const key of ['fillStyle','strokeStyle','globalAlpha','font','textAlign','lineWidth'])Object.defineProperty(Context.prototype,key,{get(){return this.state[key];},set(v){this.state[key]=v;}});
 class Element{
  constructor(id=''){this.id=id;this.hidden=true;this.style={};this.dataset={};this.textContent='';this.classList={add(){},remove(){},toggle(){}};this.children=new Map();this.width=0;this.height=0;}
- addEventListener(){}focus(){document.activeElement=this;}click(){this.onclick?.();}
+ addEventListener(type,listener){(this.events??={})[type]??=[];this.events[type].push(listener);}
+ emit(type,event){for(const listener of this.events?.[type]||[])listener(event);}
+ focus(){document.activeElement=this;}click(){this.onclick?.();}
  getBoundingClientRect(){return {left:0,top:0,width:1280,height:720};}
  querySelector(selector){if(!this.children.has(selector))this.children.set(selector,new Element(selector));return this.children.get(selector);}
  querySelectorAll(selector){return [...this.children.values()];}
@@ -303,8 +305,17 @@ assert.equal(game.primaryAttackMode,'staff','melee staff is selected by default'
 game.update(16);
 assert.equal(focusedBoss.hp,firstHp,'default staff never attacks from three tiles away');
 const manaBeforeSelection=focusHero.mana;
-assert.equal(game.setPrimaryAttack('bolt'),true,'right-click assignment can enable emerald bolt');
-assert.equal(game.primaryAttackMode,'bolt');
+const app=document.getElementById('app');
+const rightClickIcon=id=>{
+ let pressPrevented=false,menuPrevented=false;
+ const target={closest:()=>document.getElementById(id)};
+ app.emit('pointerdown',{button:2,target,preventDefault(){pressPrevented=true;}});
+ app.emit('contextmenu',{target,preventDefault(){menuPrevented=true;}});
+ assert(pressPrevented,'RMB press is handled by the game');
+ assert(menuPrevented,'browser context menu is suppressed');
+};
+rightClickIcon('skill-bolt');
+assert.equal(game.primaryAttackMode,'bolt','RMB on emerald bolt equips it as primary');
 assert.equal(store.get('tiholesye-primary-attack'),'bolt','primary attack persisted');
 game.keys.add('KeyD');
 game.update(60);
@@ -316,6 +327,15 @@ assert(game.effects.some(e=>e.type==='bolt'),'auto ranged fire draws a visible p
 const firstAutoCooldown=game.skillCooldowns.bolt;
 assert(firstAutoCooldown>game.time,'auto ranged spell observes normal cooldown');
 assert.equal(focusHero.attackUntil<game.time,true,'auto shot does not force attack pose during walking');
+rightClickIcon('skill-bolt');
+assert.equal(game.primaryAttackMode,'bolt','RMB keeps bolt selected during cooldown');
+let canvasPrevented=false;
+game.canvas.emit('pointerdown',{button:2,preventDefault(){canvasPrevented=true;}});
+assert(canvasPrevented,'RMB on the game canvas is intercepted');
+let contextPrevented=false;
+app.emit('contextmenu',{target:{closest:()=>null},preventDefault(){contextPrevented=true;}});
+assert(contextPrevented,'RMB on the game world cannot show a browser menu');
+assert.strictEqual(game.combatTarget,focusedBoss,'world right click never clears focus');
 const focusedHp=focusedBoss.hp;
 game.update(100);
 assert.equal(focusedBoss.hp,focusedHp,'cooldown prevents repeated hits every frame');
@@ -332,8 +352,8 @@ assert.equal(focusedBoss.hp,focusedHp,'no more auto damage after ground click');
 assert.equal(document.getElementById('combatFocus').hidden,true,'HUD hides without a target');
 // Switching back to staff disables ranged autofire and performs a mana-free
 // automatic melee strike only when a focused enemy is within touching range.
-assert.equal(game.setPrimaryAttack('staff'),true);
-assert.equal(game.primaryAttackMode,'staff');
+rightClickIcon('primaryStaff');
+assert.equal(game.primaryAttackMode,'staff','RMB on staff restores melee as primary');
 assert.equal(store.get('tiholesye-primary-attack'),'staff','staff selection persists');
 game.combatTarget=focusedBoss;
 Object.assign(focusHero,{x:focusedBoss.x,y:focusedBoss.y+1,
