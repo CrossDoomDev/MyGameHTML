@@ -46,7 +46,7 @@ export class UI{
    button.setAttribute?.('aria-label',button.title);
    button.innerHTML='<kbd>'+(i===9?'0':i+1)+'</kbd>'+
     '<span class="'+(!id?'empty-mark':'quick-icon')+'">'+icon+'</span>'+
-    (count!==null?'<small>' + count + '</small>':'');
+    (count!==null?'<small class="quick-count" data-quick-count="'+id+'">' + count + '</small>':'');
   });
   this.updatePrimaryAttack();
  }
@@ -79,6 +79,10 @@ export class UI{
   text('level',p.level);text('hpText',Math.ceil(p.hp)+' / '+p.maxHp);text('manaText',Math.floor(p.mana)+' / '+p.maxMana);
   document.getElementById('hpFill').style.width=p.hp/p.maxHp*100+'%';document.getElementById('manaFill').style.width=p.mana/p.maxMana*100+'%';document.getElementById('xpFill').style.width=p.xp/(p.level*50)*100+'%';
   text('potionCount',p.potions);text('woodCount',p.wood);text('herbCount',p.herbs);
+  // Multiple quickslots may hold the same consumable: refresh every count.
+  document.querySelectorAll?.('[data-quick-count]').forEach(el=>{
+   el.textContent=itemQuantity(g,el.dataset.quickCount);
+  });
   text('region',g.map.label);
   this.updateCombatFocus();
   for(const [id,skill] of Object.entries(DRUID_SKILLS)){
