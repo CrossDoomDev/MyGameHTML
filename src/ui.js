@@ -1,5 +1,7 @@
 import { assetURL } from './asset-url.js';
 import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
+import {ITEMS,equipCharacterItem,itemQuantity} from './character-data.js';
+import {CharacterMenu} from './character-menu.js';
 export class UI{
  constructor(game){
   this.g=game;this.open=false;this.panel=document.getElementById('panel');this.backdrop=document.getElementById('panelBackdrop');this.toastEl=document.getElementById('toast');this.lastUpdate=-999;
@@ -9,12 +11,15 @@ export class UI{
   document.getElementById('settings').onclick=()=>this.settings();
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>this.slot(Number(b.dataset.slot)));
   document.querySelectorAll('[data-skill]').forEach(b=>b.onclick=()=>this.g.castSkill(b.dataset.skill));
+  this.characterMenu=new CharacterMenu(this);
+  this.renderQuickbar();
   this.updatePrimaryAttack();
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
  }
  updatePrimaryAttack(){
   const useBolt=this.g.primaryAttackMode==='bolt';
-  const staff=document.getElementById('primaryStaff');
+  const staff=document.querySelector?.('[data-quick-id="weapon"]')||
+   (document.getElementById('primaryStaff')?.dataset.quickId==='weapon'?document.getElementById('primaryStaff'):null);
   const bolt=document.getElementById('skill-bolt');
   for(const [button,active] of [[staff,!useBolt],[bolt,useBolt]]){
    if(!button)continue;
@@ -25,14 +30,36 @@ export class UI{
   if(mobile)mobile.setAttribute?.('aria-label',
    useBolt?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
  }
+ renderQuickbar(){
+  const slots=this.g.character?.quickSlots;
+  if(!slots)return;
+  slots.forEach((id,i)=>{
+   const button=document.querySelector?.('#quickbar [data-slot="'+i+'"]');
+   if(!button)return;
+   const item=ITEMS[id],equipped=ITEMS[this.g.character.equipment.weapon];
+   const icon=id==='weapon'?(equipped?.icon||'👊'):item?.icon||'＋';
+   const count=id==='herb'||id==='potion'||id==='wood'?itemQuantity(this.g,id):null;
+   button.dataset.quickId=id||'';
+   button.classList.toggle('empty-slot',!id);
+   button.classList.toggle('primary-attack',id==='weapon'&&this.g.primaryAttackMode==='staff');
+   button.title=(item?.name||'Свободная ячейка')+' · '+(i===9?'0':i+1);
+   button.setAttribute?.('aria-label',button.title);
+   button.innerHTML='<kbd>'+(i===9?'0':i+1)+'</kbd>'+
+    '<span class="'+(!id?'empty-mark':'quick-icon')+'">'+icon+'</span>'+
+    (count!==null?'<small>' + count + '</small>':'');
+  });
+  this.updatePrimaryAttack();
+ }
  portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
   if(this.g.editor?.active)this.g.editor.close();
+  if(title!=='Персонаж'&&this.characterMenu)this.characterMenu.active=false;
+  this.panel.classList.remove('character-panel');
   this.g.keys.clear();this.g.stick={x:0,y:0};this.g.path=[];this.g.target=null;
   this.panel.innerHTML='<button class="close" id="closePanel" aria-label="Закрыть">×</button><span class="eyebrow">'+subtitle+'</span><h2 id="panelTitle">'+title+'</h2>'+html;
   this.backdrop.hidden=false;this.open=true;this.panel.querySelector('#closePanel').onclick=()=>this.close();this.panel.querySelector('#closePanel').focus();
  }
- close(){this.backdrop.hidden=true;this.open=false;this.g.canvas.focus({preventScroll:true});this.g.save();}
+ close(){this.backdrop.hidden=true;this.open=false;this.panel.classList.remove('character-panel');if(this.characterMenu)this.characterMenu.active=false;this.g.canvas.focus({preventScroll:true});this.g.save();}
  trapFocus(e){const elements=[...this.panel.querySelectorAll('button,a,input')].filter(el=>!el.disabled);const first=elements[0],last=elements.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
  toast(text){this.toastEl.textContent=text;this.toastEl.classList.add('show');clearTimeout(this.timer);this.timer=setTimeout(()=>this.toastEl.classList.remove('show'),2300);}
  updateCombatFocus(){
@@ -48,7 +75,7 @@ export class UI{
  }
  update(){
   const g=this.g,p=g.player;if(g.time-this.lastUpdate<100)return;this.lastUpdate=g.time;
-  const text=(id,value)=>document.getElementById(id).textContent=value;
+  const text=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   text('level',p.level);text('hpText',Math.ceil(p.hp)+' / '+p.maxHp);text('manaText',Math.floor(p.mana)+' / '+p.maxMana);
   document.getElementById('hpFill').style.width=p.hp/p.maxHp*100+'%';document.getElementById('manaFill').style.width=p.mana/p.maxMana*100+'%';document.getElementById('xpFill').style.width=p.xp/(p.level*50)*100+'%';
   text('potionCount',p.potions);text('woodCount',p.wood);text('herbCount',p.herbs);
@@ -79,17 +106,27 @@ export class UI{
  slot(index){
   if(!Number.isInteger(index)||index<0||index>9)return;
   document.querySelectorAll('[data-slot]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.slot)===index));
-  if(index>=6){this.toast('Ячейка '+(index+1===10?'0':index+1)+' пока свободна.');return;}
-  if(index===0)this.g.attack();
-  if(index===1){if(this.g.player.herbs<1)this.toast('Собирай травы в Великом лесу.');else if(this.g.player.hp>=this.g.player.maxHp)this.toast('Здоровье уже полное.');else{this.g.player.herbs--;this.g.player.hp=Math.min(this.g.player.maxHp,this.g.player.hp+15);this.g.save();this.toast('Лесная трава: +15 здоровья.');}}
-  if(index===2)this.g.potion();if(index===3)this.toast('Древесина: '+this.g.player.wood+' · трофеи лесных существ');if(index===4)this.inventory();if(index===5)this.journal();
- }
- inventory(){
+  const id=this.g.character.quickSlots[index];
+  if(!id){this.toast('Ячейка '+(index===9?'0':index+1)+' пока свободна.');return;}
   const p=this.g.player;
-  const items=[['staff','Посох лесника','Экипирован · урон '+(10+p.level*3)],['potion','Лечебное зелье',p.potions+' шт. · +45 здоровья'],['herb','Лесная трава',p.herbs+' шт. · +15 здоровья'],['wood','Древесина',p.wood+' шт. · трофеи']];
-  this.show('Рюкзак','Снаряжение и находки','<div class="inventory-grid">'+items.map(([icon,name,desc])=>'<div class="inventory-item"><span class="item item-'+icon+'"></span><span>'+name+'<br><small>'+desc+'</small></span></div>').join('')+'</div><p>Монеты: <strong>'+p.coins+'</strong> · Уровень '+p.level+'</p><p class="note">Опыт '+p.xp+' / '+p.level*50+'<br>Купить лечебные зелья можно у Миры на рынке или у трактирщицы.</p><button class="button" id="usePotion">Выпить зелье</button>');
-  this.panel.querySelector('#usePotion').onclick=()=>{this.g.potion();this.inventory();};
+  if(id==='weapon'){this.g.primaryAttack();return;}
+  if(id==='herb'){
+   if(p.herbs<1)this.toast('Собирай травы в Великом лесу.');
+   else if(p.hp>=p.maxHp)this.toast('Здоровье уже полное.');
+   else{p.herbs--;p.hp=Math.min(p.maxHp,p.hp+15);this.g.save();this.toast('Лесная трава: +15 здоровья.');}
+  }else if(id==='potion')this.g.potion();
+  else if(id==='wood')this.toast('Древесина: '+p.wood+' · трофеи лесных существ');
+  else if(id==='bag')this.inventory();
+  else if(id==='journal')this.journal();
+  else if(ITEMS[id]?.slot){
+   if(this.g.character.equipment[ITEMS[id].slot]===id)this.toast('Уже экипировано: '+ITEMS[id].name);
+   else if(equipCharacterItem(this.g.character,id)){
+    this.g.applyEquipment();this.toast('Экипировано: '+ITEMS[id].name);
+   }
+  }
+  this.renderQuickbar();
  }
+ inventory(){this.characterMenu.open('inventory');}
  dialogue(npc){
   const p=this.g.player;
   if(npc.id==='elder'){
@@ -134,7 +171,7 @@ export class UI{
   return '<div class="setting-row npc-style-setting"><span><strong>Графика NPC</strong><small>Чиби-староста с фонарём и четыре рисованных жителя. Мир и герой не меняются.</small></span><button id="npcStyle" class="button" type="button" aria-label="Переключить стиль NPC" aria-pressed="'+vector+'">'+(vector?'Векторный':'Пиксельный')+'</button></div>';
  }
  settings(){
-  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="'+assetURL('hero-3d-preview.png')+'" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="'+assetURL('hero-3d.glb')+'" download>Скачать GLB</a></div></div>'+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор<br>1–0 — десять быстрых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.7 · единая панель и автобой</p>');
+  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="'+assetURL('hero-3d-preview.png')+'" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="'+assetURL('hero-3d.glb')+'" download>Скачать GLB</a></div></div>'+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.7 · единая панель и автобой</p>');
   this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
