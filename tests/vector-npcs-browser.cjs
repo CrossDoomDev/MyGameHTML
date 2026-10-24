@@ -62,7 +62,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   for(const equipped of ['staff','hood','robe','cloak','boots'])
    assert.equal(await page.locator('[data-item="'+equipped+'"]').count(),0,
     equipped+' cannot be duplicated in the bag');
-  assert(await page.locator('[data-item="oakstaff"]').isVisible(),'spare staff remains in bag');
+  assert(await page.locator('.char-item[data-item="oakstaff"]').isVisible(),'spare staff remains in bag');
   assert(await page.locator('[data-item="potion"] .game-icon').isVisible(),'potions have painted icons');
   await page.screenshot({path:'.qa/character-inventory.png'});
   await page.locator('[data-character-action="tab"][data-tab="skills"]').click();
