@@ -15,7 +15,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   fs.readFile(file,(err,data)=>{
    if(err){res.writeHead(404).end();return;}
    const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css',
-    '.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.json':'application/json'};
+    '.png':'image/png','.webp':'image/webp','.avif':'image/avif','.svg':'image/svg+xml','.json':'application/json'};
    res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
    res.end(data);
   });
@@ -39,6 +39,38 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
+  // Chromium decodes the generated art and checks all 10 quick slots and
+  // all ability buttons, plus an inventory that excludes equipped pieces.
+  const art=await page.evaluate(async()=>{
+   const image=new Image();image.src='/assets/character-atlas.avif';
+   await new Promise((resolve,reject)=>{
+    image.onload=resolve;image.onerror=()=>reject(Error('Generated atlas failed to decode'));
+   });
+   return {
+    width:image.naturalWidth,height:image.naturalHeight,
+    skills:[...document.querySelectorAll('#skillbar .game-icon')].map(e=>e.dataset.icon),
+    quick:[...document.querySelectorAll('#quickbar .game-icon')].map(e=>e.dataset.icon)
+   };
+  });
+  assert.deepEqual([art.width,art.height],[192,240],'generated fantasy AVIF atlas decoded');
+  assert.deepEqual(art.skills,['skill_bolt','skill_roots','skill_heal'],'Q/R/F have real icons');
+  assert.equal(art.quick.length,10,'ten illustrated numeric slots');
+  assert(art.quick.includes('potion_red')&&art.quick.includes('staff_basic'),'consumables and staff illustrated');
+  await page.keyboard.press('i');
+  assert(await page.locator('#panel.character-panel').isVisible(),'I opens the menu');
+  await page.locator('[data-character-action="tab"][data-tab="inventory"]').click();
+  for(const equipped of ['staff','hood','robe','cloak','boots'])
+   assert.equal(await page.locator('[data-item="'+equipped+'"]').count(),0,
+    equipped+' cannot be duplicated in the bag');
+  assert(await page.locator('[data-item="oakstaff"]').isVisible(),'spare staff remains in bag');
+  assert(await page.locator('[data-item="potion"] .game-icon').isVisible(),'potions have painted icons');
+  await page.screenshot({path:'.qa/character-inventory.png'});
+  await page.locator('[data-character-action="tab"][data-tab="skills"]').click();
+  assert.equal(await page.locator('.char-skill-row .game-icon').count(),3,'all skills illustrated');
+  await page.screenshot({path:'.qa/character-skills.png'});
+  await page.keyboard.press('i');
+  assert.equal(await page.locator('#panelBackdrop').isVisible(),false,'I closes the menu');
+  console.log('PASS: actual illustrated inventory, quickbar and ability art; worn gear excluded from backpack.');
   // Verify that the real druid PNG is decoded and mapped to all forty frames,
   // not that the old generated hero silently rendered through the fallback.
   const heroReview=await page.evaluate(async()=>{
