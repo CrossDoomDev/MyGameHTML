@@ -168,7 +168,7 @@ export class Game{
    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
    if(e.code==='Escape'){if(this.ui.open)this.ui.close();else this.ui.settings();return;}
    if(this.ui.open){if(e.code==='Tab')this.ui.trapFocus(e);return;}
-   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[]; // Keyboard movement never drops combat focus.}
+   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];} // Keyboard movement never drops combat focus.
    if(e.repeat)return;
    if(e.code==='Space')this.attack();
    if(SKILL_KEYS[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey)this.castSkill(SKILL_KEYS[e.code]);
