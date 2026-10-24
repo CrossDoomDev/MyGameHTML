@@ -217,6 +217,43 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   console.log('PASS: Chromium completed '+rapidClickResult.clicks+
     ' rapid mouse retargets without coordinate snap, flipped facing or gait reset.');
 
+  // RMB is reserved throughout the game: select an attack without casting,
+  // including while the spell is cooling down, and never open a browser menu.
+  await page.evaluate(()=>{
+   const app=document.getElementById('app');
+   app.addEventListener('contextmenu',e=>{
+    window.__gameMenu={prevented:e.defaultPrevented,target:e.target.id};
+   });
+  });
+  assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'staff',
+   'new game defaults to physical staff attack');
+  await page.locator('#skill-bolt').click({button:'right'});
+  assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'bolt',
+   'right-clicking bolt assigns magic auto attack');
+  assert.equal(await page.locator('#skill-bolt').getAttribute('aria-pressed'),'true',
+   'bolt is visibly chosen as primary');
+  assert.equal(await page.locator('#primaryStaff').getAttribute('aria-pressed'),'false');
+  assert.equal(await page.evaluate(()=>window.__gameMenu.prevented),true,
+   'game cancels native browser context menu for bolt');
+  await page.locator('#primaryStaff').click({button:'right'});
+  assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'staff',
+   'right-clicking staff selects melee attack');
+  assert.equal(await page.locator('#primaryStaff').getAttribute('aria-pressed'),'true',
+   'staff has active primary attack marker');
+  await page.locator('#skill-bolt').click({button:'right'});
+  await page.reload();await page.waitForFunction(()=>window.tiholesye?.ready);
+  assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'bolt',
+   'attack selection persists after reload');
+  assert.equal(await page.locator('#skill-bolt').getAttribute('aria-pressed'),'true');
+  // Right click on game canvas is gameplay input, not native browser UI.
+  await page.evaluate(()=>{
+   document.getElementById('app').addEventListener('contextmenu',e=>{
+    window.__gameMenu={prevented:e.defaultPrevented,target:e.target.id};
+   });
+  });
+  await page.mouse.click(1100,450,{button:'right'});
+  assert.equal(await page.evaluate(()=>window.__gameMenu?.prevented),true,
+   'right click on game canvas is suppressed');
   // Real pointer and keyboard interaction: clicking a monster locks it,
   // rightward WASD movement retains the lock, a ground click clears it.
   await page.evaluate(()=>{
@@ -260,6 +297,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    'WASD movement keeps enemy focused and player facing along run direction');
   assert(!lockedState.attackPose,'automatic firing must not flip walking pose');
   await page.keyboard.up('ArrowRight');
+  // RMB on the ground must never drop target focus or change the primary action.
+  await page.mouse.click(1100,450,{button:'right'});
+  assert(await page.evaluate(()=>window.tiholesye.combatTarget?.boss),
+   'right click in the field preserves locked target');
+  assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'bolt');
   const escapeClick=await page.evaluate(()=>{
    const g=window.tiholesye,T=32,m=g.mobs.find(t=>t.boss),r=g.canvas.getBoundingClientRect();
    const wx=(m.x+3.5)*T,wy=(m.y+3.5)*T;
