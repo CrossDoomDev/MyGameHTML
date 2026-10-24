@@ -271,6 +271,62 @@ assert.equal(game.npcs.length,0,'no village NPCs in forest');
 assert.equal(game.mobs.length,7);
 assert(game.mobs.some(m=>m.boss),'forest boss exists');
 assert(game.herbs.length>0,'forest resources exist');
+// Combat focus stays on one enemy while keyboard movement controls the player.
+// No auto navigation into melee, and one left click on the ground cancels it.
+const focusedBoss=game.mobs.find(m=>m.boss);
+const focusHero=game.player;
+for(const dy of [1,2,3,4])game.clearSpawn(focusedBoss.x,focusedBoss.y+dy);
+Object.assign(focusHero,{
+ x:focusedBoss.x,y:focusedBoss.y+3,
+ px:(focusedBoss.x+.5)*TILE,py:(focusedBoss.y+3.8)*TILE,
+ step:null,moving:false,direction:'down',mana:60,hp:120,weaponType:'staff',classId:'druid'
+});
+game.path=[];game.target=null;game.keys.clear();game.ui.open=false;
+game.time=10000;game.lastAttack=-1000;game.skillCooldowns={};game.ready=true;
+const focusClick=(wx,wy,button=0)=>{
+ game.camera.x=wx-180;game.camera.y=wy-180;
+ const rect=game.canvas.getBoundingClientRect();
+ game.click({button,
+  clientX:(wx-game.camera.x)/game.canvas.width*rect.width+rect.left,
+  clientY:(wy-game.camera.y)/game.canvas.height*rect.height+rect.top});
+};
+focusClick(focusedBoss.px,focusedBoss.py-17);
+assert.strictEqual(game.combatTarget,focusedBoss,'click on hostile sets combat focus');
+assert.equal(game.target,null,'combat focus does not become NPC interaction target');
+assert.equal(game.path.length,0,'selecting a hostile does not make character run at it');
+game.ui.update();
+assert.equal(document.getElementById('combatFocus').hidden,false,'target status visible');
+assert.equal(document.getElementById('combatFocusName').textContent,'Лесной страж');
+const firstHp=focusedBoss.hp;
+game.keys.add('KeyD');
+game.update(60);
+assert.strictEqual(game.combatTarget,focusedBoss,'WASD keeps focused enemy selected');
+assert.equal(focusHero.direction,'right','walking sprite faces movement, not enemy aim');
+assert.equal(focusHero.step?.x,focusedBoss.x+1,'keyboard keeps moving while auto firing');
+assert(focusedBoss.hp<firstHp,'automatic ranged attack damages the locked enemy');
+assert(game.effects.some(e=>e.type==='bolt'),'auto ranged fire draws a visible projectile');
+const firstAutoCooldown=game.skillCooldowns.bolt;
+assert(firstAutoCooldown>game.time,'auto ranged spell observes normal cooldown');
+assert.equal(focusHero.attackUntil<game.time,true,'auto shot does not force attack pose during walking');
+const focusedHp=focusedBoss.hp;
+game.update(100);
+assert.equal(focusedBoss.hp,focusedHp,'cooldown prevents repeated hits every frame');
+game.keys.delete('KeyD');
+assert.strictEqual(game.combatTarget,focusedBoss,'releasing WASD keeps focus');
+focusClick((focusedBoss.x+3.5)*TILE,(focusedBoss.y+3.5)*TILE,2);
+assert.strictEqual(game.combatTarget,focusedBoss,'right mouse button does not clear focus');
+game.clearSpawn(focusedBoss.x+2,focusedBoss.y+3);
+focusClick((focusedBoss.x+2.5)*TILE,(focusedBoss.y+3.5)*TILE);
+assert.equal(game.combatTarget,null,'left mouse movement removes combat focus immediately');
+assert.equal(document.getElementById('combatFocus').hidden,false,'HUD updates on UI tick');
+game.time+=2500;game.update(60);game.ui.update();
+assert.equal(focusedBoss.hp,focusedHp,'no more auto damage after ground click');
+assert.equal(document.getElementById('combatFocus').hidden,true,'HUD hides without a target');
+game.combatTarget=focusedBoss;
+game.enterLocation('village',15,16);
+assert.equal(game.combatTarget,null,'combat focus is released when leaving location');
+game.enterLocation('forest',3,40);
+game.skillCooldowns={};game.lastAttack=-1000;
 // Cast all druid spells against a durable enemy; preserve normal mob reward test.
 const boss=game.mobs.find(m=>m.boss);
 const beforeBoss=boss.hp;
