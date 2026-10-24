@@ -455,15 +455,18 @@ export class Game{
    .sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
   if(automatic&&(!m?.alive||distance(m,this.player)>=49))return false;
   this.lastAttack=this.time;
-  // Staff is a physical melee attack and does not drain the druid's mana.
-  // Automatic hits must never overwrite the walk pose or flip a moving sprite.
-  if(!automatic){
+  // Staff is a physical melee attack and does not drain mana. Show a swing
+  // when the druid stands still; preserve the stride when running with WASD.
+  const inMotion=this.player.moving||this.player.step||this.keys.size||
+   this.stick.x||this.stick.y;
+  const showSwing=!automatic||!inMotion;
+  if(showSwing){
    this.player.attackStarted=this.time;this.player.attackUntil=this.time+360;
    this.player.attackDirection=this.player.direction;
   }
   this.bip(360,.05);
   if(!m?.alive||distance(m,this.player)>=49)return false;
-  if(!automatic){
+  if(showSwing){
    this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
    this.player.attackDirection=this.player.direction;
   }
