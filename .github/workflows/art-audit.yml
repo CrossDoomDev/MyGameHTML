@@ -18,6 +18,7 @@ on:
       - 'tests/tavern-image.py'
       - 'tools/normalize-tavern-image.py'
       - 'src/assets.js'
+      - 'assets/npc-village-48.avif'
       - 'src/druid-skills.js'
       - 'src/combat-focus.js'
       - 'tests/combat-focus.mjs'
