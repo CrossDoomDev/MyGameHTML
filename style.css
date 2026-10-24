@@ -171,3 +171,54 @@
 }
 #skillbar #skill-bolt[aria-disabled="true"]{opacity:.72}
 #skillbar #skill-bolt.primary-attack[aria-disabled="true"]{opacity:1}
+
+
+/* Unified action dock: letter abilities first, then numeric slots 1-0.
+   On narrow phones the same single row can be swiped horizontally. */
+#hotbar{
+ bottom:16px;left:50%;transform:translateX(-50%);
+ display:flex;align-items:center;flex-wrap:nowrap;gap:4px;
+ width:max-content;max-width:calc(100vw - 16px);
+ padding:5px;z-index:4;overflow-x:auto;overflow-y:hidden;
+ scrollbar-width:thin;scrollbar-color:#bca367 #332c23;
+ overscroll-behavior-x:contain;touch-action:pan-x;
+}
+#hotbar #skillbar,#hotbar #quickbar{
+ position:static;left:auto;right:auto;bottom:auto;transform:none;
+ display:flex;flex:0 0 auto;align-items:center;gap:3px;padding:0;
+ background:none;border:0;box-shadow:none;
+}
+#hotbar .hotbar-divider{
+ flex:0 0 2px;height:36px;background:#8f7752;
+ border-radius:2px;box-shadow:1px 0 0 #2b251d;margin:0 3px;
+}
+#hotbar .slot,#hotbar #skillbar .skill{
+ flex:0 0 44px;width:44px;height:46px;
+ border-radius:5px;overflow:hidden;
+}
+#hotbar .slot .item{
+ margin:2px 0 0 -1px;transform:scale(.82);transform-origin:left top;
+}
+#hotbar #skillbar .skill{font-size:19px}
+#hotbar #skillbar .skill-timer{font-size:13px}
+#hotbar .empty-slot{border-color:#554a37;background:#22251ecb}
+#hotbar .empty-mark{
+ display:grid;place-items:center;height:100%;
+ color:#77765d;font:bold 21px system-ui;opacity:.65;
+}
+#interaction{bottom:94px}
+@media(max-width:1200px){
+ #actions{bottom:94px}
+ #hint{bottom:107px}
+}
+@media(max-width:680px){
+ #hotbar{bottom:12px;max-width:calc(100vw - 12px);gap:3px;padding:4px}
+ #hotbar #skillbar .skill,#hotbar .slot{width:43px;height:44px;flex-basis:43px}
+ #hotbar #skillbar .skill{font-size:17px}
+ #hotbar .hotbar-divider{height:32px;margin:0 2px}
+ #actions{bottom:86px}
+ #interaction{bottom:155px}
+}
+@media(pointer:coarse){
+ #hotbar #skillbar{position:static;left:auto;right:auto;bottom:auto;transform:none}
+}
