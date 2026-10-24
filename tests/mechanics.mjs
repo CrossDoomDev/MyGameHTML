@@ -38,7 +38,11 @@ class Canvas extends Element{
 }
 globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
 globalThis.innerWidth=1280;globalThis.innerHeight=720;
-globalThis.window={addEventListener(){}};
+globalThis.window={
+ handlers:new Map(),
+ addEventListener(type,fn){this.handlers.set(type,[...(this.handlers.get(type)||[]),fn]);},
+ emit(type,event){for(const fn of this.handlers.get(type)||[])fn(event);}
+};
 globalThis.document={hidden:false,activeElement:null,addEventListener(){},getElementById(id){if(!nodes.has(id))nodes.set(id,['game','portrait','minimap'].includes(id)?new Canvas(id):new Element(id));return nodes.get(id);},querySelectorAll(){return [];},createElement(tag){return tag==='canvas'?new Canvas():new Element();}};
 globalThis.Image=class{
  set src(value){this._src=value;const meta=value.includes('village-source')?[1254,1254]:value.includes('guardian')?[512,64]:value.includes('mossling')?[384,48]:value.includes('icons')?[192,24]:[480,192];[this.width,this.height]=meta;queueMicrotask(()=>this.onload());}
@@ -101,6 +105,44 @@ store.set('tiholesye-npc-style','pixel');
 const game=new Game(document.getElementById('game'));
 await game.start();
 assert.equal(game.location,'village');
+
+// Physical I uses KeyboardEvent.code and works on a Russian keyboard.
+let characterHotkeyPrevented=false;
+window.emit('keydown',{code:'KeyI',key:'ш',repeat:false,ctrlKey:false,metaKey:false,altKey:false,
+ preventDefault(){characterHotkeyPrevented=true;}});
+assert(characterHotkeyPrevented,'I key intercepts browser action');
+assert.equal(game.ui.open,true,'I opens the character sheet');
+assert.equal(game.ui.characterMenu.active,true);
+assert(game.ui.panel.html.includes('data-tab="equipment"'));
+assert(game.ui.panel.html.includes('data-tab="inventory"'));
+assert(game.ui.panel.html.includes('data-tab="stats"'));
+assert(game.ui.panel.html.includes('data-tab="skills"'));
+assert(game.ui.panel.html.includes('id="characterFigure"'),'outfit preview exists');
+game.ui.characterMenu.open('stats');
+assert(game.ui.panel.html.includes('Защита снаряжения'),'equipment affects stats');
+game.ui.characterMenu.open('skills');
+assert(game.ui.panel.html.includes('Улучшить'),'upgrades have placeholders');
+assert(game.ui.panel.html.includes('disabled'),'skill spending not yet enabled');
+game.ui.characterMenu.open('inventory');
+assert(game.ui.panel.html.includes('data-item="potion"'),'consumables included');
+assert(game.ui.panel.html.includes('data-item="shirt"'),'changeable clothes included');
+window.emit('keydown',{code:'KeyI',key:'ш',repeat:false,ctrlKey:false,metaKey:false,altKey:false,
+ preventDefault(){}});
+assert.equal(game.ui.open,false,'second I closes the window');
+game.character.equipment.weapon='sword';game.applyEquipment();
+assert.equal(game.player.weaponType,'sword');
+assert.equal(game.setPrimaryAttack('bolt'),false,'sword cannot use staff-only spell');
+game.character.equipment.weapon='staff';game.applyEquipment();
+assert.equal(game.player.weaponType,'staff');
+game.character.quickSlots[9]='potion';
+game.ui.renderQuickbar();
+const potionCountBefore=game.player.potions;
+game.player.hp=game.player.maxHp-45;
+game.ui.slot(9);
+assert.equal(game.player.potions,potionCountBefore-1,'mapped key zero uses a potion');
+assert.equal(game.player.hp,game.player.maxHp,'mapped potion restores health');
+game.character.quickSlots[9]=null;game.applyEquipment();
+
 assert.equal(game.mobs.length,0,'no combat spawns in the village');
 assert.equal(game.npcs.length,7,'seven villagers');
 assert.deepEqual(NPC_SPRITES,['elder','smith','merchant','villager','fisher']);
