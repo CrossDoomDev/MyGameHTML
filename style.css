@@ -342,3 +342,8 @@
  .char-assign-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
  .char-stats-grid{grid-template-columns:1fr}
 }
+
+/* A weapon can be moved to any numeric quick slot. */
+#quickbar .slot[data-quick-id="weapon"].primary-attack{border-color:#fbe29c!important;background:#485137!important;box-shadow:0 0 0 2px #ffe3a44f,0 0 12px #e7bf6b99,inset 0 0 0 1px #fce09a!important}
+#quickbar .quick-icon{display:grid;place-items:center;height:100%;font:24px/1 system-ui}
+#quickbar .slot small{z-index:3;color:#f6dda1}
