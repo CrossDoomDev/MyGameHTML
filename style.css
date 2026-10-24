@@ -392,3 +392,27 @@
 .char-badge-weapon{top:86px;right:3px}
 .char-badge-cloak{top:86px;left:3px}
 .char-badge-boots{bottom:32px;right:3px}
+
+
+/* Game HUD, character sheet and all NPC dialogue are never text-selectable.
+   Real text-editing fields (map editor / forms) keep selection and a caret. */
+html,body,#app,#app *{
+ -webkit-user-select:none!important;
+ user-select:none!important;
+ -webkit-touch-callout:none;
+}
+#app input,#app textarea,#app select,#app [contenteditable="true"],
+#app [contenteditable="true"] *{
+ -webkit-user-select:text!important;
+ user-select:text!important;
+ -webkit-touch-callout:default;
+}
+#app img,#app canvas{
+ -webkit-user-drag:none;
+ user-drag:none;
+}
+.npc-pixel-label{
+ flex-shrink:0;padding:7px 9px;border:1px solid #697e56;
+ border-radius:4px;background:#2f4436;color:#c7e4bb;
+ font:11px system-ui;text-align:center;
+}
