@@ -196,7 +196,7 @@ export class Game{
    if(e.code==='KeyB')this.ui.inventory();
    if(e.code==='KeyM')this.ui.map();
    if(e.code==='KeyJ')this.ui.journal();
-   if(e.code.startsWith('Digit'))this.ui.slot(Number(e.code.slice(5))-1);
+   if(/^Digit[0-9]$/.test(e.code))this.ui.slot(e.code==='Digit0'?9:Number(e.code.slice(5))-1);
   });
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
   document.getElementById('mobileAttack').onclick=()=>this.primaryAttack();
