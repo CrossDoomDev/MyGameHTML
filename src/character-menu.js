@@ -1,11 +1,11 @@
-import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuickSlot,persistCharacter,itemQuantity} from './character-data.js';
+import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuickSlot,persistCharacter,itemQuantity,gameIcon} from './character-data.js';
 import {DRUID_SKILLS} from './druid-skills.js';
 
 // The character window intentionally shares the existing in-game modal layer.
 export class CharacterMenu{
  constructor(ui){
   this.ui=ui;this.game=ui.g;this.active=false;this.tab='equipment';
-  this.selected='staff';this.pending=null;
+  this.selected='oakstaff';this.pending=null;
   ui.panel.addEventListener('click',event=>{
    if(!this.active)return;
    const button=event.target?.closest?.('[data-character-action]');
@@ -44,16 +44,21 @@ export class CharacterMenu{
   this.active=true;this.tab=['equipment','inventory','stats','skills'].includes(tab)?tab:'equipment';
   this.pending=null;this.render();
  }
+ inventoryItems(){
+  const worn=new Set(Object.values(this.game.character.equipment).filter(Boolean));
+  return this.game.character.owned.filter(id=>!worn.has(id))
+   .concat(['herb','potion','wood']);
+ }
  itemButton(id){
   const item=ITEMS[id];
   if(!item)return '';
   const worn=item.slot&&this.game.character.equipment[item.slot]===id;
   const quantity=itemQuantity(this.game,id);
-  const label=worn?'Надето':item.consumable?'×'+quantity:'';
+  const label=item.consumable?'×'+quantity:'';
   return '<button type="button" class="char-item '+(this.selected===id?'is-selected ':'')+
-    (worn?'is-equipped':'')+'" data-character-action="select" data-item="'+id+
-    '" title="'+item.name+'" aria-pressed="'+(this.selected===id)+'"><span class="char-item-icon">'+
-    item.icon+'</span><small>'+item.name+'</small><i>'+label+'</i></button>';
+    '" data-character-action="select" data-item="'+id+
+    '" title="'+item.name+'" aria-pressed="'+(this.selected===id)+'">'+
+    gameIcon(item.icon,'char-item-icon')+'<small>'+item.name+'</small><i>'+label+'</i></button>';
  }
  gearMarkup(){
   const character=this.game.character;
@@ -61,14 +66,17 @@ export class CharacterMenu{
    const id=character.equipment[slot],item=ITEMS[id];
    return '<button type="button" class="char-equip-slot" data-character-action="select" data-item="'+
      (id||character.owned.find(value=>ITEMS[value]?.slot===slot)||'staff')+
-     '" title="'+name+'"><span class="char-equip-icon">'+(item?.icon||'＋')+
+     '" title="'+name+'"><span class="char-equip-icon">'+gameIcon(item?.icon||'slot_plus')+
      '</span><span><small>'+name+'</small><strong>'+(item?.name||'Свободно')+'</strong></span></button>';
   });
   const bonuses=characterBonuses(character);
-  const all=character.owned.concat(['herb','potion','wood']);
+  const all=this.inventoryItems();
   return '<div class="char-columns"><div class="char-paper"><div class="char-section-title">Экипировка</div>'+
    '<div class="char-hero-name">Друид · уровень '+this.game.player.level+'</div>'+
    '<div class="char-figure-wrap"><canvas id="characterFigure" width="144" height="144" aria-label="Персонаж в экипировке"></canvas>'+
+   Object.entries({head:'head',weapon:'weapon',cloak:'cloak',boots:'boots'}).map(([slot,position])=>
+    this.game.character.equipment[slot]?'<span class="char-figure-badge char-badge-'+position+'">'+
+     gameIcon(ITEMS[this.game.character.equipment[slot]].icon)+'</span>':'').join('')+
    '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?.name||'Без одежды')+'</div></div>'+
    '<div class="char-equip-grid">'+slotButtons.join('')+'</div>'+
    '<div class="char-gear-summary">⚔ '+(10+this.game.player.level*3+bonuses.attack)+
@@ -79,9 +87,9 @@ export class CharacterMenu{
    this.selectionMarkup()+'</div></div>';
  }
  inventoryMarkup(){
-  const items=this.game.character.owned.concat(['herb','potion','wood']);
+  const items=this.inventoryItems();
   const empties=Array.from({length:Math.max(0,30-items.length)},()=>
-   '<span class="char-empty-item" aria-hidden="true">+</span>').join('');
+   '<span class="char-empty-item" aria-hidden="true">'+gameIcon('slot_plus')+'</span>').join('');
   return '<div class="char-inventory"><div><div class="char-section-title">Все предметы <small>'+
    items.length+' / 30 ячеек</small></div><div class="char-items">'+
    items.map(id=>this.itemButton(id)).join('')+empties+'</div></div>'+
@@ -97,12 +105,14 @@ export class CharacterMenu{
   const slots=this.game.character.quickSlots.map((entry,i)=>
    '<button type="button" data-character-action="assign" data-index="'+i+
    '" title="Назначить в ячейку '+(i===9?'0':i+1)+'">'+(i===9?'0':i+1)+
-   '<small>'+(ITEMS[entry]?.icon||'＋')+'</small></button>').join('');
+   '<small>'+gameIcon(entry==='weapon'?
+     (ITEMS[this.game.character.equipment.weapon]?.icon||'slot_plus'):
+     (ITEMS[entry]?.icon||'slot_plus'))+'</small></button>').join('');
   const assignment=this.pending===id?'<div class="char-assign"><strong>Выбери ячейку быстрого доступа</strong>'+
    '<div class="char-assign-grid">'+slots+'</div></div>':'';
   const count=item.consumable||id==='wood'?' · В сумке: '+itemQuantity(this.game,id):'';
-  return '<div class="char-selection"><div class="char-selected-heading"><span>'+item.icon+
-   '</span><div><strong>'+item.name+'</strong>'+info+'</div></div>'+
+  return '<div class="char-selection"><div class="char-selected-heading">'+gameIcon(item.icon)+
+   '<div><strong>'+item.name+'</strong>'+info+'</div></div>'+
    '<p>'+item.detail+count+'</p><div class="char-selection-actions">'+equipAction+
    '<button class="char-action char-action-outline" type="button" data-character-action="assign-start" data-item="'+id+
    '">На быструю панель</button></div>'+assignment+'</div>';
@@ -122,7 +132,7 @@ export class CharacterMenu{
    '</span><strong>'+value+'</strong></div>').join('')+'</div></div>';
  }
  skillsMarkup(){
-  const icons={bolt:'✦',roots:'♣',heal:'✚'};
+  const icons={bolt:'skill_bolt',roots:'skill_roots',heal:'skill_heal'};
   const descriptions={
    bolt:'Дальний магический удар по выбранной цели.',
    roots:'Опутывает ближайших врагов корнями.',
@@ -131,7 +141,7 @@ export class CharacterMenu{
   return '<div class="char-skills"><div class="char-section-title">Развитие способностей <small>Свободно очков: 0</small></div>'+
    '<p class="char-muted">Способы получения очков и правила повышения уровней пока не утверждены. Прокачка будет доступна позднее.</p>'+
    Object.entries(DRUID_SKILLS).map(([id,skill])=>'<div class="char-skill-row">'+
-   '<div class="char-skill-icon">'+icons[id]+'</div><div class="char-skill-detail"><strong>'+
+   '<div class="char-skill-icon">'+gameIcon(icons[id])+'</div><div class="char-skill-detail"><strong>'+
    skill.name+'</strong><small>'+descriptions[id]+'</small><span>Уровень 1 · Мана '+skill.mana+
    ' · Перезарядка '+(skill.cooldown/1000).toFixed(1)+' с</span></div>'+
    '<button disabled type="button" class="char-action" title="Очки навыков пока недоступны">Улучшить</button></div>').join('')+
@@ -139,6 +149,10 @@ export class CharacterMenu{
  }
  render(){
   if(!this.active)return;
+  // Equipment has a dedicated slot. Never duplicate an equipped item in
+  // the backpack, including the selection sidebar of the inventory tab.
+  if(this.tab==='inventory'&&!this.inventoryItems().includes(this.selected))
+   this.selected=this.inventoryItems()[0]||null;
   const tabNames=[['equipment','Снаряжение'],['inventory','Инвентарь'],['stats','Статистика'],['skills','Способности']];
   const nav='<nav class="char-tabs" aria-label="Вкладки персонажа">'+tabNames.map(([id,label])=>
    '<button type="button" data-character-action="tab" data-tab="'+id+'" class="'+
@@ -157,13 +171,7 @@ export class CharacterMenu{
   const c=canvas.getContext('2d');c.clearRect(0,0,144,144);c.imageSmoothingEnabled=false;
   const hero=this.game.assets.images.hero;
   if(hero)c.drawImage(hero,0,0,48,48,5,5,134,134);
-  // Small, crisp badges on the preview identify the live selected outfit.
-  const gear=this.game.character.equipment;
-  c.font='17px sans-serif';c.textAlign='center';
-  if(gear.head)c.fillText(ITEMS[gear.head].icon,116,27);
-  if(gear.cloak)c.fillText(ITEMS[gear.cloak].icon,24,89);
-  if(gear.weapon)c.fillText(ITEMS[gear.weapon].icon,119,110);
-  if(gear.boots)c.fillText(ITEMS[gear.boots].icon,75,139);
-  c.textAlign='left';
+  // The worn gear is presented as separate generated icon badges around
+  // the canvas, not as emoji overlays on the sprite.
  }
 }
