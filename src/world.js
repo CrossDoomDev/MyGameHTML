@@ -206,6 +206,10 @@ export class Game{
   window.addEventListener('blur',()=>{this.keys.clear();this.stick={x:0,y:0};this.save();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){this.keys.clear();this.save();}});
   window.addEventListener('keydown',e=>{
+   // Ctrl+A / Cmd+A may not emit selectstart in all browsers.
+   if((e.ctrlKey||e.metaKey)&&e.code==='KeyA'&&!isEditingText(document.activeElement)){
+    e.preventDefault();return;
+   }
    if(e.code==='F2'){e.preventDefault();if(this.editor?.active)this.editor.close();else this.ui.builder();return;}
    if(this.editor?.active){this.editor.onKey(e);return;}
    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
