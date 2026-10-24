@@ -2,6 +2,7 @@ import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
 import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
 import {autoRangedSkill,canFocusShoot,findFocusApproach} from './combat-focus.js';
+import {loadCharacter,persistCharacter,characterBonuses,ITEMS} from './character-data.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
@@ -40,7 +41,10 @@ export class Game{
   }catch{}
   // NPC graphics can be changed independently from the player and gameplay.
   this.npcStyle=localStorage.getItem('tiholesye-npc-style')==='pixel'?'pixel':'vector';
-  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
+  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});
+  this.character=loadCharacter();
+  this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
+  this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
   this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'?'bolt':'staff';
   this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
@@ -129,6 +133,13 @@ export class Game{
  }
  resize(){this.canvas.width=Math.max(1,Math.floor(innerWidth/this.zoom));this.canvas.height=Math.max(1,Math.floor(innerHeight/this.zoom));this.ctx.imageSmoothingEnabled=false;}
  setZoom(value){this.zoom=clamp(value,1,3);this.resize();this.toast('Масштаб '+this.zoom.toFixed(1)+'×');}
+ applyEquipment(){
+  this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
+  persistCharacter(this.character);
+  if(this.player.weaponType!=='staff'&&this.primaryAttackMode==='bolt')
+   this.setPrimaryAttack('staff');
+  if(this.ui)this.ui.renderQuickbar();
+ }
  setModelMode(mode){
   this.modelMode=mode==='3d'?'3d':'2d';this.player.sprite=this.modelMode==='3d'?'hero3d':'hero';
   try{localStorage.setItem('tiholesye-model',this.modelMode);}catch{}
@@ -162,9 +173,10 @@ export class Game{
   // Select the primary attack immediately on RMB press, including while the
   // bolt is recharging. Contextmenu remains as a keyboard/browser fallback.
   const choosePrimaryFromTarget=target=>{
-   const button=target?.closest?.('#primaryStaff, #skill-bolt');
+   const button=target?.closest?.('[data-quick-id="weapon"], #primaryStaff, #skill-bolt');
    if(button?.id==='skill-bolt')this.setPrimaryAttack('bolt');
-   else if(button?.id==='primaryStaff')this.setPrimaryAttack('staff');
+   else if(button?.dataset.quickId==='weapon'||button?.id==='primaryStaff'&&!button?.dataset.quickId)
+    this.setPrimaryAttack('staff');
   };
   const gameSurface=document.getElementById('app');
   gameSurface.addEventListener('pointerdown',e=>{
@@ -187,6 +199,13 @@ export class Game{
    if(this.editor?.active){this.editor.onKey(e);return;}
    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
    if(e.code==='Escape'){if(this.ui.open)this.ui.close();else this.ui.settings();return;}
+   // KeyboardEvent.code is physical-key based, so I works with RU/EN layouts.
+   if(e.code==='KeyI'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    e.preventDefault();
+    if(this.ui.open&&this.ui.characterMenu.active)this.ui.close();
+    else this.ui.characterMenu.open('equipment');
+    return;
+   }
    if(this.ui.open){if(e.code==='Tab')this.ui.trapFocus(e);return;}
    if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];} // Keyboard movement never drops combat focus.
    if(e.repeat)return;
@@ -384,7 +403,8 @@ export class Game{
    const d=distance(m,p),aggro=d<(m.boss?190:120),adjacent=d<43;
    if(adjacent&&this.time-m.lastAttack>1400){
     m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);m.attackDirection=m.direction;
-    p.hp=Math.max(0,p.hp-(m.boss?14:6));p.hitUntil=this.time+250;this.effect('-'+(m.boss?14:6),p,'#e59973');this.bip(110,.07);
+    const taken=Math.max(1,(m.boss?14:6)-characterBonuses(this.character).armor);
+    p.hp=Math.max(0,p.hp-taken);p.hitUntil=this.time+250;this.effect('-'+taken,p,'#e59973');this.bip(110,.07);
     if(p.hp<=0){this.respawn();break;}this.save();
    }
    if(this.time>=(m.rootedUntil||0)&&!m.step&&this.time>m.nextThink&&!adjacent){
@@ -465,7 +485,7 @@ export class Game{
                        :boltTrace(this.map,p,p.direction,this.mobs);
    this.effects.push({type:'bolt',x:p.px,y:p.py-22,tx:result.x,ty:result.y-16,
     time:this.time,duration:460,color:skill.color});
-   if(result.target)this.damageMob(result.target,skill.damage+p.level*3);
+   if(result.target)this.damageMob(result.target,skill.damage+p.level*3+characterBonuses(this.character).magic);
    this.bip(550,.13);
   }else if(id==='roots'){
    const victims=rootsTargets(p,this.mobs);
@@ -505,7 +525,8 @@ export class Game{
    this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
    this.player.attackDirection=this.player.direction;
   }
-  this.damageMob(m,10+this.player.level*3);
+  this.damageMob(m,(this.player.weaponType==='unarmed'?4:10)+
+   this.player.level*3+characterBonuses(this.character).attack);
   return true;
  }
  effect(text,e,color){this.effects.push({type:'text',text,x:e.px,y:e.py,time:this.time,color});}
