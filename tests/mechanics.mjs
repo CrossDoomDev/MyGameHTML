@@ -318,7 +318,7 @@ assert.strictEqual(game.combatTarget,focusedBoss,'right mouse button does not cl
 game.clearSpawn(focusedBoss.x+2,focusedBoss.y+3);
 focusClick((focusedBoss.x+2.5)*TILE,(focusedBoss.y+3.5)*TILE);
 assert.equal(game.combatTarget,null,'left mouse movement removes combat focus immediately');
-assert.equal(document.getElementById('combatFocus').hidden,false,'HUD updates on UI tick');
+assert.equal(document.getElementById('combatFocus').hidden,true,'HUD clears immediately on ground click');
 game.time+=2500;game.update(60);game.ui.update();
 assert.equal(focusedBoss.hp,focusedHp,'no more auto damage after ground click');
 assert.equal(document.getElementById('combatFocus').hidden,true,'HUD hides without a target');
