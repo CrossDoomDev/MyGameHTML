@@ -620,3 +620,6 @@ button.talent-node:active{transform:translate(-50%,-50%);}
  #mobileActions{top:170px;right:12px;bottom:auto;left:auto;z-index:6}
  #joystick{left:10px;z-index:5}
 }
+
+/* Modals and editor overlays must remain above the illustrated HUD. */
+#panelBackdrop{z-index:20}
