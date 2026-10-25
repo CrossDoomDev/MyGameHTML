@@ -147,6 +147,18 @@ export class UI{
    this.show(npc.name,'Таверна «Зелёный лист»','<p>У нас всегда найдутся тёплый чай и припасы для лесных походов.</p><p>Лечебное зелье — <strong>5 монет</strong>. У тебя: '+p.coins+' монет.</p><button class="button" id="buyPotion">Купить зелье</button> <button class="button" id="rest">Отдохнуть бесплатно</button>');
    this.panel.querySelector('#buyPotion').onclick=()=>{if(p.coins<5)return this.toast('Не хватает монет.');p.coins-=5;p.potions++;this.g.save();this.toast('Куплено зелье.');this.dialogue(npc);};
    this.panel.querySelector('#rest').onclick=()=>{p.hp=p.maxHp;p.mana=p.maxMana;this.g.save();this.close();this.toast('Ты отдохнул в таверне.');};
+  }else if(npc.visitor){
+   const lines={
+    archer:'Я тренируюсь стрелять по мишеням у лесной дороги. В чаще пригодятся меткость и осторожность.',
+    warrior:'Меч и щит — хороший выбор для того, кто любит стоять на передовой.',
+    mage:'Стихии подчиняются терпеливым. Я собираю знания о древних рунах.',
+    rogue:'Тише шаг — безопаснее путь. Иногда ловкость сильнее тяжёлых доспехов.',
+    paladin:'Я охраняю дороги деревни. Свет помогает нам пережить тёмные времена.',
+    cleric:'Мои заклинания поддерживают товарищей. В походе целитель всегда нужен.'
+   };
+   this.show(npc.name,npc.role+' · путник Тихолесья',
+    '<p>'+(lines[npc.sprite]||'Приятно познакомиться, друид!')+
+    '</p><p class="note">Это образец игрового класса. Пока я гуляю по деревне и не выполняю задания.</p>');
   }else if(npc.id==='patron'){
    this.show(npc.name,'За дубовым столом','<p>Дальше деревни начинаются большие лесные тропы. Не забудь запасные зелья!</p>');
   }else if(npc.id==='smith'){
