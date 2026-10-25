@@ -86,22 +86,17 @@ for(const [scene,start] of [[map,SPAWN],[forest,{x:3,y:40}],[tavern,{x:12,y:14}]
 }
 assert.equal(TILE,32);
 
-// Headless DOM/game initialization still checks art, inventories and interactions.
-// A pre-update browser that saved the old 80px 3D hero must migrate to the
-// new 48px pixel hero exactly once, without deleting save data.
+// The hero is strictly 2D, even when a returning browser retains obsolete
+// 3D-model preferences. Keep all unrelated save data untouched.
 store.set('tiholesye-model','3d');
+store.set('tiholesye-compact-hero-48','1');
 const defaultStyle=new Game(new Canvas('default-npc-style'));
 assert.equal(defaultStyle.npcStyle,'pixel','new generated pixel NPCs are the default');
-assert.equal(defaultStyle.modelMode,'2d','old oversized hero preference is migrated');
-assert.equal(defaultStyle.player.sprite,'hero','new compact hero is selected');
-assert.equal(store.get('tiholesye-model'),'2d','migration persists new pixel default');
-assert.equal(store.get('tiholesye-compact-hero-48'),'1','migration runs once');
-// Simulate a later explicit 3D choice; a fresh Game must retain it once the
-// one-time migration flag exists. Don't call UI setters before assets load.
-store.set('tiholesye-model','3d');
-const restoredChoice=new Game(new Canvas('restored-3d-choice'));
-assert.equal(restoredChoice.modelMode,'3d','explicit new choice persists after migration');
-store.set('tiholesye-model','2d');
+assert.equal(defaultStyle.player.sprite,'hero','retired 3D setting cannot change the 2D hero');
+assert.equal(defaultStyle.modelMode,undefined,'no retired character-model switch remains');
+assert.equal(store.get('tiholesye-model'),'3d','legacy settings need not be rewritten');
+const restoredChoice=new Game(new Canvas('restored-old-save'));
+assert.equal(restoredChoice.player.sprite,'hero','all newly constructed games use the pixel hero');
 store.set('tiholesye-npc-style','pixel');
 const game=new Game(document.getElementById('game'));
 await game.start();
@@ -277,17 +272,21 @@ for(const row of heroFrames)for(const frame of row){
  const [,,w,h]=frame.source,dx=40-Math.round(frame.anchor[0]*.175),dy=64-Math.round(h*.175);
  assert(dx>=0&&dy>=0&&dx+Math.round(w*.175)<=80&&dy+Math.round(h*.175)<=80,'hero frame fits');
 }
-assert.equal(game.modelMode,'2d','pixel druid is the default for new players');
+assert.equal(game.player.sprite,'hero','pixel druid is the only available hero');
 assert.deepEqual([game.assets.images.hero.width,game.assets.images.hero.height],[480,192],
  'the hero should have ten 48px frames by four directions, not 80px frames');
 const heroOps=[],heroContext={drawImage(...args){heroOps.push(args);}};
 drawCharacter(heroContext,game.assets,game.player,0);
 assert.deepEqual(heroOps[0].slice(1,5),[0,0,48,48],'48px source frame');
 assert.deepEqual(heroOps[0].slice(7),[48,48],'48px rendered hero, without oversize scaling');
-game.setModelMode('2d');
-assert.equal(game.player.sprite,'hero');
-game.setModelMode('3d');
-assert.equal(game.player.sprite,'hero3d');
+assert.equal(game.assets.images.hero3d,undefined,'3D sprite atlas is no longer loaded');
+assert.equal(game.setModelMode,undefined,'3D selection API is removed');
+game.ui.settings();
+assert(!game.ui.panel.html.includes('modelMode'),'settings contain no retired model button');
+assert(!game.ui.panel.html.includes('hero-3d'),'settings contain no old 3D preview or download');
+assert(!game.ui.panel.html.includes('GLB'),'settings contain no model download');
+game.ui.close();
+assert.equal(game.player.sprite,'hero','settings leave the 2D hero unchanged');
 
 // Clicking a character walks to the nearest free neighboring tile.
 const elder=game.npcs.find(n=>n.id==='elder');
