@@ -489,7 +489,10 @@ html,body,#app,#app *{
 .talent-node-rank{position:absolute;right:4px;top:2px;padding:1px 3px;
  border-radius:3px;background:#0c1b15c9;color:#d0bf89;font:9px system-ui}
 .talent-inspector{background:linear-gradient(#22372c,#192a21);border:1px solid #718065;
- border-radius:6px;padding:13px;min-width:0;min-height:516px;display:flex;flex-direction:column}
+ border-radius:6px;padding:13px;min-width:0;min-height:0;height:516px;
+ box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;
+ scrollbar-color:#8b8057 #213025;scrollbar-width:thin;
+ display:flex;flex-direction:column}
 .talent-inspector-icon{margin:2px auto 7px;border:2px solid #a29461;border-radius:8px;
  width:70px;height:70px;display:grid;place-items:center;background:#1c3128}
 .talent-inspector-icon .game-icon{width:65px;height:65px}
@@ -515,7 +518,7 @@ html,body,#app,#app *{
 @media(max-width:800px){
  .talent-branches{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
  .talent-workspace{grid-template-columns:minmax(0,1fr)}
- .talent-inspector{min-height:0}
+ .talent-inspector{min-height:0;height:auto;max-height:none;overflow-y:visible}
  .talent-branch{min-height:57px}
 }
 @media(max-width:410px){
