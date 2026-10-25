@@ -227,7 +227,13 @@
 /* Character menu: a compact classic-RPG paper doll and backpack.
    Equipment, stats and skills are accessible from the same I-key window. */
 #panel.character-panel{
- width:min(930px,96vw);max-height:min(92dvh,900px);
+ /* Keep the entire character sheet at a stable size across all four tabs. */
+ box-sizing:border-box;
+ width:min(930px,96vw);
+ height:min(740px,calc(100dvh - 24px));
+ min-height:0;max-height:none;
+ display:flex;flex-direction:column;
+ overflow:hidden;
  padding:22px 24px 20px;border:3px solid #8f7246;
  background:linear-gradient(145deg,#302b22f8,#18241ef8 63%,#25271ff8);
  box-shadow:0 18px 60px #091810cc,inset 0 0 0 2px #b99a58,inset 0 0 0 6px #30241b;
@@ -235,7 +241,7 @@
 #panel.character-panel h2{font:normal 25px Georgia;color:#eddbad;letter-spacing:.4px}
 #panel.character-panel .eyebrow{letter-spacing:1px;color:#a9bb9b}
 #panel.character-panel button{transition:background .12s,border-color .12s}
-.char-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:17px 0 15px}
+.char-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:17px 0 15px;flex-shrink:0}
 .char-tabs button{
  border:1px solid #6c6547;border-bottom:3px solid #51452c;
  background:#253329;min-height:41px;padding:8px 4px;color:#bdc9ad;
@@ -245,7 +251,17 @@
  background:linear-gradient(#666140,#3c4b33);border-color:#c8aa6a;
  color:#fff0c2;border-bottom-color:#e2c17d;font-weight:700;
 }
-.char-content{font:13px/1.5 system-ui;color:#e6dcc2}
+/* Only the tab body scrolls. Header, tabs and footer stay fixed in place. */
+#panel.character-panel .eyebrow,
+#panel.character-panel h2,
+#panel.character-panel .char-footer{flex-shrink:0}
+.char-content{
+ flex:1 1 auto;min-height:0;min-width:0;
+ overflow-y:auto;overflow-x:hidden;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ font:13px/1.5 system-ui;color:#e6dcc2;
+}
 .char-columns{display:grid;grid-template-columns:minmax(280px,.95fr) minmax(310px,1.05fr);gap:13px}
 .char-paper,.char-bag,.char-inventory>div,.char-stats,.char-skills{
  background:#17241edb;border:1px solid #6c6043;border-radius:6px;
@@ -327,7 +343,11 @@
 .char-footer{margin-top:12px;padding-top:9px;border-top:1px solid #6c6545;
  font:11px/1.5 system-ui;color:#a4b4a1;text-align:center}
 @media(max-width:760px){
- #panel.character-panel{width:96vw;max-height:94dvh;padding:18px 11px 14px}
+ #panel.character-panel{
+  width:96vw;height:min(740px,calc(100dvh - 20px));
+  min-height:0;max-height:none;
+  padding:18px 11px 14px;
+ }
  .char-tabs button{font-size:11px;padding:7px 1px}
  .char-columns,.char-inventory{grid-template-columns:minmax(0,1fr)}
  .char-figure-wrap{margin:0 auto 9px}
