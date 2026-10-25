@@ -26,7 +26,7 @@ export const ENVIRONMENT = {
  crops: {source:[955,1004,299,250],size:[48,44]}
 };
 export async function loadAssets() {
- const names=['village-source','hero-source','hero-walk','hero-3d-atlas','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
+ const names=['village-source','hero-source','hero-walk','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  // Preserve the original pixel NPC art; SVG sheets are fully separate.
  const files=[...names.map(name=>[name,name+'.png']),
   ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+'.svg'])];
@@ -217,7 +217,6 @@ export async function loadAssets() {
   compactCtx.drawImage(refined,0,0);
  }
  images.hero=compact;
- images.hero3d=images['hero-3d-atlas'];
  return {images,environment,environmentMasks};
 }
 export const directions=['down','left','right','up'];
@@ -229,12 +228,12 @@ export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
   :characterFrame(entity,time);
  const direction=attacking?(entity.attackDirection||entity.direction):entity.direction;
  const row=Math.max(0,directions.indexOf(direction||'down'));
- const is3d=entity.sprite==='hero3d',isPixelHero=entity.sprite==='hero';
+ const isPixelHero=entity.sprite==='hero';
  const image=assets.images[entity.sprite||'hero'];
- const sourceCell=is3d?128:48;
+ const sourceCell=48;
  // New villagers and hero have identical native 48x48 frames. Never use
  // browser interpolation, even for direction changes or walking cycles.
- const size=is3d?80:48,anchorX=is3d?40:24,anchorY=is3d?64:isPixelHero?43:42;
+ const size=48,anchorX=24,anchorY=isPixelHero?43:42;
  c.drawImage(image,frame*sourceCell,row*sourceCell,sourceCell,sourceCell,
   Math.round(entity.px)-anchorX,Math.round(entity.py)-anchorY,size,size);
 }
