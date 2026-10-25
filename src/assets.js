@@ -1,6 +1,7 @@
 // Generated environment artwork is sampled onto fixed integer-sized sprites.
 // Source rectangles isolate each illustration; gameplay never relies on image borders.
 import { heroFrames } from './hero-frames.js';
+import { CLASS_SPRITES } from './village-visitors.js';
 import { characterFrame } from './animation.js';
 import { assetURL } from './asset-url.js';
 import { repairForgeRoof } from './forge-animation.js';
@@ -29,6 +30,7 @@ export async function loadAssets() {
  const names=['village-source','hero-source','hero-walk','hero','elder','smith','merchant','villager','fisher','goblin','mossling','guardian','icons'];
  // Preserve the original pixel NPC art; SVG sheets are fully separate.
  const files=[...names.map(name=>[name,name+'.png']),
+  ['class-villagers','class-villagers.png'],
   ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+'.svg'])];
  const images=Object.fromEntries(await Promise.all(files.map(([name,file])=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+file)); image.src=assetURL(file);
@@ -141,6 +143,17 @@ export async function loadAssets() {
    environmentMasks.inn=Uint8Array.from({length:160*160},(_,i)=>pixels[i*4+3]>=32?1:0);
   }
  }
+ // Six new 48x48 class-character sheets, pre-separated with transparent
+ // cell margins to prevent one animation frame bleeding into another.
+ const classAtlas=images['class-villagers'];
+ if(classAtlas.width!==144||classAtlas.height!==1152)
+  throw new Error('Class sprite atlas dimensions must be 144×1152');
+ for(const [index,name] of CLASS_SPRITES.entries()){
+  const sheet=document.createElement('canvas');sheet.width=144;sheet.height=192;
+  const ctx=sheet.getContext('2d');ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(classAtlas,0,index*192,144,192,0,0,144,192);
+  images[name]=sheet;
+ }
  // A compact 48px village NPC sheet generated from the five-row artwork.
  // The source holds 12 frames per NPC: three frames for each cardinal view.
  // Repack once into the same four-row 48x48 layout as the player character.
@@ -221,7 +234,7 @@ export async function loadAssets() {
 }
 export const directions=['down','left','right','up'];
 export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
- const npc=NPC_SPRITES.includes(entity.sprite);
+ const npc=NPC_SPRITES.includes(entity.sprite)||CLASS_SPRITES.includes(entity.sprite);
  const attacking=time<entity.attackUntil;
  const frame=npc
   ?(entity.moving?Math.floor((entity.animationTime||0)/120)%3:0)
