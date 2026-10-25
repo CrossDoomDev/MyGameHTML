@@ -125,7 +125,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   });
   const beforeTalentScroll=await page.locator('.char-content').evaluate(el=>el.scrollTop);
   assert(beforeTalentScroll>0,'the skill graph can be scrolled to its lower tiers');
-  await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').click({timeout:10000});
+  const capstone=await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').boundingBox();
+  assert(capstone&&capstone.y>=0&&capstone.y+capstone.height<900,'scrolled capstone is visible on screen');
+  // Click the actual screen point rather than forcing an element event;
+  // both button hit-testing and the graph fallback must act as an RPG UI.
+  await page.mouse.click(capstone.x+capstone.width/2,capstone.y+capstone.height/2);
   const afterTalentScroll=await page.locator('.char-content').evaluate(el=>el.scrollTop);
   assert(afterTalentScroll>0,'inspecting a deep talent preserves the scroll position');
   assert(await page.locator('.talent-inspector h3').textContent()==='Ярость небосвода',
