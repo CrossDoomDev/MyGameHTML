@@ -1,17 +1,30 @@
 import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuickSlot,persistCharacter,itemQuantity,gameIcon} from './character-data.js';
 import {DRUID_SKILLS} from './druid-skills.js';
+import {DRUID_TREES,findDruidTree,DRUID_NODE_BY_ID,nodeRank,nodeRequirementsMet,branchLearnedCount} from './druid-tree.js';
 
 // The character window intentionally shares the existing in-game modal layer.
 export class CharacterMenu{
  constructor(ui){
   this.ui=ui;this.game=ui.g;this.active=false;this.tab='equipment';
   this.selected='oakstaff';this.pending=null;
+  this.skillBranch='wrath';this.skillSelected='bolt';
   ui.panel.addEventListener('click',event=>{
    if(!this.active)return;
    const button=event.target?.closest?.('[data-character-action]');
    if(!button)return;
    const action=button.dataset.characterAction;
    if(action==='tab'){this.open(button.dataset.tab);return;}
+   if(action==='skill-branch'){
+    this.skillBranch=button.dataset.branch;
+    this.skillSelected=findDruidTree(this.skillBranch).nodes[0].id;
+    this.render();return;
+   }
+   if(action==='skill-node'){
+    if(DRUID_NODE_BY_ID[button.dataset.skillNode]){
+     this.skillSelected=button.dataset.skillNode;this.render();
+    }
+    return;
+   }
    if(action==='select'){this.selected=button.dataset.item;this.pending=null;this.render();return;}
    if(action==='equip'){
     if(equipCharacterItem(this.game.character,button.dataset.item)){
@@ -132,20 +145,73 @@ export class CharacterMenu{
    '</span><strong>'+value+'</strong></div>').join('')+'</div></div>';
  }
  skillsMarkup(){
-  const icons={bolt:'skill_bolt',roots:'skill_roots',heal:'skill_heal'};
-  const descriptions={
-   bolt:'Дальний магический удар по выбранной цели.',
-   roots:'Опутывает ближайших врагов корнями.',
-   heal:'Восстанавливает здоровье персонажа.'
-  };
-  return '<div class="char-skills"><div class="char-section-title">Развитие способностей <small>Свободно очков: 0</small></div>'+
-   '<p class="char-muted">Способы получения очков и правила повышения уровней пока не утверждены. Прокачка будет доступна позднее.</p>'+
-   Object.entries(DRUID_SKILLS).map(([id,skill])=>'<div class="char-skill-row">'+
-   '<div class="char-skill-icon">'+gameIcon(icons[id])+'</div><div class="char-skill-detail"><strong>'+
-   skill.name+'</strong><small>'+descriptions[id]+'</small><span>Уровень 1 · Мана '+skill.mana+
-   ' · Перезарядка '+(skill.cooldown/1000).toFixed(1)+' с</span></div>'+
-   '<button disabled type="button" class="char-action" title="Очки навыков пока недоступны">Улучшить</button></div>').join('')+
-   '</div>';
+  const g=this.game,character=g.character,tree=findDruidTree(this.skillBranch);
+  const selected=tree.nodes.find(n=>n.id===this.skillSelected)||tree.nodes[0];
+  const selectedRank=nodeRank(character,selected.id);
+  const learned=branchLearnedCount(character,tree.id);
+  const nodePoint=n=>({x:[0,100,300,500][n.column],y:70+n.row*127});
+  const edgeMarkup=tree.nodes.flatMap(n=>n.requires.map(parentId=>{
+   const parent=tree.nodes.find(p=>p.id===parentId);
+   if(!parent)return '';
+   const from=nodePoint(parent),to=nodePoint(n);
+   const unlocked=nodeRank(character,parent.id)>0&&nodeRank(character,n.id)>0;
+   const partial=nodeRank(character,parent.id)>0;
+   return '<path class="talent-connector '+(unlocked?'is-active':partial?'is-available':'is-locked')+
+    '" d="M '+from.x+' '+(from.y+46)+' V '+(from.y+60)+' L '+to.x+' '+(to.y-60)+' V '+(to.y-46)+'"/>';
+  })).join('');
+  const nodeMarkup=tree.nodes.map(n=>{
+   const position=nodePoint(n),rank=nodeRank(character,n.id);
+   const eligible=nodeRequirementsMet(character,n.id);
+   const active=rank>0,chosen=selected.id===n.id;
+   const state=active?'learned':eligible?'unlearned':'locked';
+   return '<button type="button" data-character-action="skill-node" data-skill-node="'+n.id+
+    '" class="talent-node '+state+(chosen?' is-chosen':'')+'"'+
+    ' style="left:'+position.x+'px;top:'+position.y+'px" aria-pressed="'+chosen+
+    '" title="'+n.name+' — '+(active?'Изучено':'Пока не изучено')+'">'+
+    '<span class="talent-art">'+gameIcon(n.icon)+'</span>'+
+    '<span class="talent-node-label">'+n.name+'</span>'+
+    '<span class="talent-node-rank">'+(active?'Ур. '+rank+'/'+n.maxRank:'0/'+n.maxRank)+'</span>'+
+    '</button>';
+  }).join('');
+  const branchMarkup=DRUID_TREES.map(branch=>{
+   const count=branchLearnedCount(character,branch.id);
+   return '<button type="button" data-character-action="skill-branch" data-branch="'+branch.id+
+    '" class="talent-branch talent-theme-'+branch.tone+
+    (tree.id===branch.id?' is-current':'')+'" aria-pressed="'+(tree.id===branch.id)+'">'+
+    gameIcon(branch.icon)+'<span><strong>'+branch.name+'</strong><small>'+branch.subtitle+
+    '</small></span><i>'+count+'/'+branch.nodes.length+'</i></button>';
+  }).join('');
+  const prereqs=selected.requires.map(id=>DRUID_NODE_BY_ID[id]?.name).filter(Boolean);
+  const available=nodeRequirementsMet(character,selected.id)&&g.player.level>=selected.level;
+  const installed=Object.prototype.hasOwnProperty.call(DRUID_SKILLS,selected.id);
+  const state=selectedRank>0?(installed?'Изучено · применяется в бою':'Изучено'):
+    !available?'Закрыто: нужны предыдущие умения или уровень':'Ещё не изучено';
+  const requirements='<div class="talent-requirements"><span>Уровень героя: '+selected.level+'+</span>'+
+   '<span>Предыдущие умения: '+(prereqs.join(', ')||'нет')+'</span>'+
+   '<span>Очки развития: система ещё не определена</span></div>';
+  const selection='<aside class="talent-inspector">'+
+   '<div class="talent-inspector-icon">'+gameIcon(selected.icon)+'</div>'+
+   '<div class="talent-inspector-kind">'+selected.kind+'</div>'+
+   '<h3>'+selected.name+'</h3>'+
+   '<span class="talent-inspector-status '+(selectedRank?'is-learned':'')+'">'+state+'</span>'+
+   '<p>'+selected.description+'</p><div class="talent-effect"><strong>Эффект</strong><span>'+
+   selected.detail+'</span></div>'+
+   requirements+
+   '<div class="talent-rank-label">Развитие <strong>'+selectedRank+' / '+selected.maxRank+'</strong></div>'+
+   '<div class="talent-rank-track"><span style="width:'+(selectedRank/selected.maxRank*100)+'%"></span></div>'+
+   '<button type="button" class="talent-upgrade" disabled aria-disabled="true" title="Прокачка станет доступна после появления системы очков">Улучшить</button>'+
+   '<small class="talent-disabled-note">Пока только дерево: очки не начисляются и не расходуются.</small></aside>';
+  return '<div class="char-skills talent-screen">'+
+   '<div class="char-section-title">Пути друида <small>Очки развития: '+character.skillPoints+'</small></div>'+
+   '<p class="char-muted">Выбирай специализацию и исследуй развитие заклинаний. Золотые рамки — изученные умения; остальные откроем вместе с системой прокачки.</p>'+
+   '<div class="talent-branches" role="group" aria-label="Специализации друида">'+branchMarkup+'</div>'+
+   '<div class="talent-header talent-theme-'+tree.tone+'"><span>'+gameIcon(tree.icon)+'</span>'+
+   '<div><h3>'+tree.name+'</h3><p>'+tree.subtitle+'</p></div>'+
+   '<strong>'+learned+' из '+tree.nodes.length+'</strong></div>'+
+   '<div class="talent-workspace talent-theme-'+tree.tone+'"><div class="talent-graph-scroll" aria-label="Дерево способностей '+tree.name+'">'+
+   '<div class="talent-graph"><svg viewBox="0 0 600 516" preserveAspectRatio="none" aria-hidden="true">'+
+   edgeMarkup+'</svg>'+nodeMarkup+'</div></div>'+selection+'</div>'+
+   '<p class="talent-footnote">Золото — изучено · зелёные связи — доступный путь · тёмные связи — закрытые ступени. Неизученные способности пока не участвуют в бою.</p></div>';
  }
  render(){
   if(!this.active)return;
