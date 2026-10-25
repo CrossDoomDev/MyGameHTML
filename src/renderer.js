@@ -5,6 +5,10 @@ import { drawForgeEffects } from './forge-animation.js';
 import { HOUSES,drawSmoke,drawBuildingLights,drawFountainWater } from './village-art.js';
 
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),w,h);};
+// Destination square and dotted route belong to ground-click movement ONLY.
+// Chasing enemies or approaching NPCs, doors and pickups is target-directed:
+// their destination is implicit and must never display an extra square.
+export const showGroundRoute=game=>game.path.length>0&&!game.target&&!game.combatTarget;
 export class Renderer{
  constructor(game){this.game=game;this.c=game.ctx;const WIDTH=game.map.width,HEIGHT=game.map.height;
   const overlay=document.getElementById('npcOverlay');
@@ -195,7 +199,7 @@ export class Renderer{
   const sw=Math.min(w,this.ground.width-sx),sh=Math.min(h,this.ground.height-sy);
   if(sw>0&&sh>0)c.drawImage(this.ground,sx,sy,sw,sh,sx,sy,sw,sh);
   this.water(time);this.bridge();
-  if(g.path.length){c.globalAlpha=.26;for(const step of g.path){rect(c,step.x*TILE+14,step.y*TILE+14,4,4,'#ece5b1');}c.globalAlpha=1;const end=g.path.at(-1);c.strokeStyle='#e6d48d';c.strokeRect(end.x*TILE+7,end.y*TILE+7,18,18);}
+  if(showGroundRoute(g)){c.globalAlpha=.26;for(const step of g.path){rect(c,step.x*TILE+14,step.y*TILE+14,4,4,'#ece5b1');}c.globalAlpha=1;const end=g.path.at(-1);c.strokeStyle='#e6d48d';c.strokeRect(end.x*TILE+7,end.y*TILE+7,18,18);}
   // Cull world decoration before depth-sorting to keep large biomes fast on phones.
   const objects=g.map.objects.filter(o=>o.px>g.camera.x-110&&o.px<g.camera.x+w+110&&o.py>g.camera.y-110&&o.py<g.camera.y+h+140).map(o=>({y:o.py,draw:()=>this.environment(o,time)}));
   for(const b of g.map.buildings){
