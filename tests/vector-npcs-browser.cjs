@@ -117,7 +117,23 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   }
   await page.locator('[data-character-action="skill-branch"][data-branch="wrath"]').click();
   assert.equal(await page.locator('.talent-node.learned').count(),1,'emerald bolt remains learned');
-  await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').click();
+  const skillHit=await page.evaluate(()=>{
+   const el=document.querySelector('[data-skill-node="tempest"]'),
+    r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,
+    graph=document.querySelector('.talent-graph').getBoundingClientRect(),
+    scroller=document.querySelector('.talent-graph-scroll'),
+    content=document.querySelector('.char-content'),
+    at=document.elementFromPoint(x,y);
+   return {button:{x:r.x,y:r.y,w:r.width,h:r.height},
+    graph:{x:graph.x,y:graph.y,w:graph.width,h:graph.height},
+    scroller:{top:scroller.scrollTop,height:scroller.clientHeight,scrollHeight:scroller.scrollHeight},
+    content:{top:content.scrollTop,height:content.clientHeight,scrollHeight:content.scrollHeight},
+    point:{x,y},hit:at?.outerHTML?.slice(0,260),styles:{
+     position:getComputedStyle(el).position,pointerEvents:getComputedStyle(el).pointerEvents,
+     zIndex:getComputedStyle(el).zIndex,display:getComputedStyle(el).display}};
+  });
+  console.log('TALENT_HIT_DIAGNOSTIC',JSON.stringify(skillHit));
+  await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').click({timeout:5000});
   assert(await page.locator('.talent-inspector h3').textContent()==='Ярость небосвода',
    'clicking a locked spell previews its details');
   assert(await page.locator('.talent-upgrade').isDisabled(),
