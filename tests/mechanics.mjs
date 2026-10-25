@@ -45,13 +45,14 @@ globalThis.window={
 };
 globalThis.document={hidden:false,activeElement:null,addEventListener(){},getElementById(id){if(!nodes.has(id))nodes.set(id,['game','portrait','minimap'].includes(id)?new Canvas(id):new Element(id));return nodes.get(id);},querySelectorAll(){return [];},createElement(tag){return tag==='canvas'?new Canvas():new Element();}};
 globalThis.Image=class{
- set src(value){this._src=value;const meta=value.includes('village-source')?[1254,1254]:value.includes('guardian')?[512,64]:value.includes('mossling')?[384,48]:value.includes('icons')?[192,24]:value.includes('npc-village-48.avif')?[576,240]:[480,192];[this.width,this.height]=meta;queueMicrotask(()=>this.onload());}
+ set src(value){this._src=value;const meta=value.includes('village-source')?[1254,1254]:value.includes('guardian')?[512,64]:value.includes('mossling')?[384,48]:value.includes('icons')?[192,24]:value.includes('npc-village-48.avif')?[576,240]:value.includes('class-villagers.png')?[144,1152]:[480,192];[this.width,this.height]=meta;queueMicrotask(()=>this.onload());}
  get src(){return this._src;}
 };
 globalThis.requestAnimationFrame=()=>{};
 const { Game }=await import('../src/world.js');
 const { showGroundRoute }=await import('../src/renderer.js');
 const { drawCharacter, NPC_SPRITES }=await import('../src/assets.js');
+const {CLASS_SPRITES,PATROL_RADIUS}=await import('../src/village-visitors.js');
 
 // Version 0.4: scenes are distinct maps; the old 40x30 river/bridge is retired.
 const map=createMap('village'),forest=createMap('forest'),tavern=createMap('tavern');
@@ -156,6 +157,44 @@ game.character.quickSlots[9]=null;game.applyEquipment();
 
 assert.equal(game.mobs.length,0,'no combat spawns in the village');
 assert.equal(game.npcs.length,7,'seven villagers');
+assert.equal(game.visitors.length,6,'six independently wandering class previews join the village');
+assert.deepEqual(game.visitors.map(v=>v.sprite),CLASS_SPRITES,'all six archetypes placed in village');
+for(const visitor of game.visitors){
+ assert(!isBlocked(game.map,visitor.x,visitor.y),visitor.sprite+' spawns on passable ground');
+ assert.equal(visitor.visitor,true);
+ assert.equal(visitor.homeX,visitor.x);
+ assert.equal(visitor.homeY,visitor.y);
+ const img=game.assets.images[visitor.sprite];
+ assert.deepEqual([img.width,img.height],[144,192],visitor.sprite+' has twelve isolated 48px poses');
+}
+const positions=new Map(game.visitors.map(v=>[v.id,new Set([v.x+','+v.y])]));
+for(let i=0;i<480;i++){
+ game.time+=50;
+ game.updateVisitors(50);
+ for(const v of game.visitors){
+  assert(!isBlocked(game.map,v.x,v.y),v.sprite+' stays off scenery');
+  assert(Math.abs(v.x-v.homeX)+Math.abs(v.y-v.homeY)<=PATROL_RADIUS,
+   v.sprite+' never wanders further than three tiles from start');
+  positions.get(v.id).add(v.x+','+v.y);
+  assert(!v.step||Math.abs(v.step.x-v.x)+Math.abs(v.step.y-v.y)===1,
+   v.sprite+' uses cardinal one-tile walking, no diagonal or teleport');
+ }
+ const occupied=new Set();
+ for(const v of game.visitors){
+  const location=v.x+','+v.y;
+  assert(!occupied.has(location),'villagers never share an occupied tile');
+  occupied.add(location);
+ }
+}
+assert([...positions.values()].every(cells=>cells.size>=2),
+ 'every class should visibly take a few short steps');
+game.time=0;
+for(const v of game.visitors){
+ v.x=v.homeX;v.y=v.homeY;
+ v.px=(v.x+.5)*TILE;v.py=(v.y+.8)*TILE;
+ v.step=null;v.moving=false;v.nextThink=420+v.seed*245;
+}
+
 assert.deepEqual(NPC_SPRITES,['elder','smith','merchant','villager','fisher']);
 assert.equal(game.npcStyle,'pixel');
 for(const npc of game.npcs){
