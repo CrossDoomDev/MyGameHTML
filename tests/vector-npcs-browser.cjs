@@ -114,6 +114,40 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.locator('[data-character-action="skill-branch"][data-branch="'+branch+'"]').click();
    assert.equal(await page.locator('.talent-node').count(),7,branch+' has seven linked talents');
    assert(await page.locator('.talent-connector').count()>=6,branch+' graph shows dependency links');
+   // Hold the physical mouse button on EVERY node of EACH specialization.
+   // Previously the shared button:active rule displaced its position by
+   // 71px horizontally (half width) and 47px vertically (half height).
+   // Comparing only before and after a click misses the one-frame jump.
+   const nodeIds=await page.locator('.talent-node').evaluateAll(els=>els.map(el=>el.dataset.skillNode));
+   for(const id of nodeIds){
+    const point=await page.evaluate(skillId=>{
+     const el=document.querySelector('[data-skill-node="'+skillId+'"]');
+     const viewport=document.querySelector('.char-content');
+     let r=el.getBoundingClientRect(),v=viewport.getBoundingClientRect();
+     if(r.bottom>v.bottom-14)viewport.scrollTop+=r.bottom-(v.bottom-14);
+     r=el.getBoundingClientRect();v=viewport.getBoundingClientRect();
+     if(r.top<v.top+14)viewport.scrollTop-=v.top+14-r.top;
+     const box=el.getBoundingClientRect();
+     return {x:box.left+box.width/2,y:box.top+box.height/2};
+    },id);
+    const measure=()=>page.evaluate(skillId=>{
+     const el=document.querySelector('[data-skill-node="'+skillId+'"]');
+     const r=el.getBoundingClientRect();
+     return {x:r.x,y:r.y,width:r.width,height:r.height,transform:getComputedStyle(el).transform};
+    },id);
+    await page.mouse.move(point.x,point.y);
+    const before=await measure();
+    await page.mouse.down();
+    const pressed=await measure();
+    await page.mouse.up();
+    const after=await measure();
+    for(const key of ['x','y','width','height']){
+     assert(Math.abs(pressed[key]-before[key])<1,
+      branch+'/'+id+' jumps in '+key+' while mouse button is pressed');
+     assert(Math.abs(after[key]-before[key])<1,
+      branch+'/'+id+' jumps in '+key+' after selecting ability');
+    }
+   }
   }
   await page.locator('[data-character-action="skill-branch"][data-branch="wrath"]').click();
   assert.equal(await page.locator('.talent-node.learned').count(),1,'emerald bolt remains learned');
