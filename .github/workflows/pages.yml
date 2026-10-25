@@ -26,6 +26,7 @@ jobs:
           node-version: '22'
       - run: python3 -m pip install --quiet Pillow
       - run: python3 tests/vector-npcs-art.py
+      - run: python3 tests/forest-hud-art.py
       - run: node tests/mechanics.mjs
       - run: node tests/character-data.mjs
       - run: node tests/druid-skills.mjs
