@@ -21,7 +21,11 @@ export class CharacterMenu{
    }
    if(action==='skill-node'){
     if(DRUID_NODE_BY_ID[button.dataset.skillNode]){
+     // Clicking a lower talent must not jump the entire tree back to the top.
+     const previousScroll=this.ui.panel.querySelector('.char-content')?.scrollTop||0;
      this.skillSelected=button.dataset.skillNode;this.render();
+     const content=this.ui.panel.querySelector('.char-content');
+     if(content)content.scrollTop=previousScroll;
     }
     return;
    }
