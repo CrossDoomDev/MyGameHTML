@@ -40,6 +40,53 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
+  // The bottom-right HUD uses authentic generated pixel-art sprites, not emoji.
+  const newHud=await page.evaluate(async()=>{
+   const read=src=>new Promise((resolve,reject)=>{
+    const image=new Image();image.onload=()=>resolve([image.naturalWidth,image.naturalHeight]);
+    image.onerror=()=>reject(Error('HUD image failed: '+src));image.src=src;
+   });
+   const frame=await read('/assets/forest-hud-frame.png');
+   const icons=await read('/assets/forest-hud-icons.png');
+   const buttons=[...document.querySelectorAll('#actions .forest-action-button')];
+   return {frame,icons,buttonIds:buttons.map(b=>b.id),
+    borderStyle:getComputedStyle(document.querySelector('.forest-action-heading')).backgroundImage,
+    artwork:getComputedStyle(buttons[0].querySelector('.forest-action-art')).backgroundImage,
+    grid:getComputedStyle(document.querySelector('.forest-action-grid')).gridTemplateColumns};
+  });
+  assert.deepEqual(newHud.frame,[220,77],'decorative forest HUD frame decodes');
+  assert.deepEqual(newHud.icons,[256,64],'16 states in illustrated action button atlas decode');
+  assert.deepEqual(newHud.buttonIds,
+   ['characterAction','bag','skillsAction','map','questsAction','chatAction','settings','journalAction'],
+   'all eight actions appear in generated icon order');
+  assert(newHud.borderStyle.includes('forest-hud-frame.png'));
+  assert(newHud.artwork.includes('forest-hud-icons.png'));
+  assert.equal(newHud.grid.split(' ').length,4,'HUD uses four columns');
+  // Keep the old actions operational, even though their visual buttons changed.
+  for(const [id,title] of [
+   ['characterAction','Персонаж'],['bag','Персонаж'],['skillsAction','Персонаж'],
+   ['map','Карта'],['questsAction','Дорожный журнал'],
+   ['journalAction','Дорожный журнал'],['settings','У костра']
+  ]){
+   await page.locator('#'+id).click();
+   assert((await page.locator('#panelTitle').innerText()).includes(title),
+    id+' still opens the intended interface');
+   await page.locator('#closePanel').click();
+  }
+  await page.locator('#chatAction').click();
+  assert((await page.locator('#toast').innerText()).includes('позднее'),
+   'future chat is labeled as not yet implemented');
+  await page.screenshot({path:'.qa/forest-hud-desktop.png'});
+  await page.setViewportSize({width:375,height:700});
+  const mobileHud=await page.evaluate(()=>{
+   const rect=document.querySelector('#actions').getBoundingClientRect();
+   const mobileControl=document.querySelector('#mobileActions').getBoundingClientRect();
+   return {x:rect.x,right:rect.right,top:rect.top,bottom:rect.bottom,control:mobileControl};
+  });
+  assert(mobileHud.x>=0&&mobileHud.right<=375,'mobile forest menu fits screen width');
+  assert(mobileHud.bottom<=700,'mobile forest menu fits screen height');
+  await page.screenshot({path:'.qa/forest-hud-mobile.png'});
+  await page.setViewportSize({width:1280,height:900});
   const classSprites=await page.evaluate(async()=>{
    const g=window.tiholesye;
    const asset=new Image();
