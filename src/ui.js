@@ -5,6 +5,10 @@ export class UI{
  constructor(game){
   this.g=game;this.open=false;this.panel=document.getElementById('panel');this.backdrop=document.getElementById('panelBackdrop');this.toastEl=document.getElementById('toast');this.lastUpdate=-999;
   document.getElementById('bag').onclick=()=>this.inventory();
+  document.getElementById('characterAction').onclick=()=>this.characterMenu.open('equipment');
+  document.getElementById('skillsAction').onclick=()=>this.characterMenu.open('skills');
+  document.getElementById('questsAction').onclick=()=>this.journal();
+  document.getElementById('chatAction').onclick=()=>this.toast('Общение с игроками появится позднее.');
   for(const id of ['map','minimapButton'])document.getElementById(id).onclick=()=>this.map();
   for(const id of ['journal','journalAction'])document.getElementById(id).onclick=()=>this.journal();
   document.getElementById('settings').onclick=()=>this.settings();
