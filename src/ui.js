@@ -1,4 +1,3 @@
-import { assetURL } from './asset-url.js';
 import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
 import {ITEMS,equipCharacterItem,itemQuantity,gameIcon} from './character-data.js';
 import {CharacterMenu} from './character-menu.js';
@@ -50,7 +49,7 @@ export class UI{
   });
   this.updatePrimaryAttack();
  }
- portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);if(this.g.modelMode==='3d')c.drawImage(assets.images.hero3d,0,0,128,128,0,0,48,48);else c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
+ portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
   if(this.g.editor?.active)this.g.editor.close();
   if(title!=='Персонаж'&&this.characterMenu)this.characterMenu.active=false;
@@ -174,11 +173,10 @@ export class UI{
   return '<div class="setting-row npc-style-setting"><span><strong>Графика NPC</strong><small>Пиксельные персонажи 48×48, как у главного героя. Четыре направления и кадры ходьбы.</small></span><span class="npc-pixel-label">Пиксельный стиль</span></div>';
  }
  settings(){
-  this.show('У костра','Настройки и управление','<div class="model-setting"><img src="'+assetURL('hero-3d-preview.png')+'" alt="Трёхмерная модель героя"><div><strong>Вид героя</strong><p class="note">2D — рисованный пиксельный герой<br>3D — кадры настоящей low-poly модели</p><button id="modelMode" class="button">'+(this.g.modelMode==='3d'?'3D-модель':'2D-спрайт')+'</button> <a class="button model-download" href="'+assetURL('hero-3d.glb')+'" download>Скачать GLB</a></div></div>'+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс и выбранный вид героя сохраняются на этом устройстве.<br>Версия 0.10 · новые пиксельные NPC, выделение текста отключено</p>');
+  this.show('У костра','Настройки и управление',this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс героя сохраняется на этом устройстве.<br>Версия 0.10 · новые пиксельные NPC, выделение текста отключено</p>');
   this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
-  this.panel.querySelector('#modelMode').onclick=()=>{this.g.setModelMode(this.g.modelMode==='3d'?'2d':'3d');this.settings();};
   this.panel.querySelector('#openBuilder').onclick=()=>this.builder();
  }
  builder(){
