@@ -108,7 +108,26 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(await page.locator('[data-item="potion"] .game-icon').isVisible(),'potions have painted icons');
   await page.screenshot({path:'.qa/character-inventory.png'});
   await page.locator('[data-character-action="tab"][data-tab="skills"]').click();
-  assert.equal(await page.locator('.char-skill-row .game-icon').count(),3,'all skills illustrated');
+  assert.equal(await page.locator('.talent-branch').count(),4,
+   'four druid specializations appear in the character sheet');
+  for(const branch of ['wrath','grove','restoration','wild']){
+   await page.locator('[data-character-action="skill-branch"][data-branch="'+branch+'"]').click();
+   assert.equal(await page.locator('.talent-node').count(),7,branch+' has seven linked talents');
+   assert(await page.locator('.talent-connector').count()>=6,branch+' graph shows dependency links');
+  }
+  await page.locator('[data-character-action="skill-branch"][data-branch="wrath"]').click();
+  assert.equal(await page.locator('.talent-node.learned').count(),1,'emerald bolt remains learned');
+  await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').click();
+  assert(await page.locator('.talent-inspector h3').textContent()==='Ярость небосвода',
+   'clicking a locked spell previews its details');
+  assert(await page.locator('.talent-upgrade').isDisabled(),
+   'talents cannot be purchased without a point economy');
+  await page.locator('[data-character-action="skill-branch"][data-branch="grove"]').click();
+  assert.equal(await page.locator('.talent-node.learned').count(),1,'existing roots skill remains learned');
+  await page.locator('[data-character-action="skill-branch"][data-branch="restoration"]').click();
+  assert.equal(await page.locator('.talent-node.learned').count(),1,'existing healing remains learned');
+  await page.locator('[data-character-action="skill-branch"][data-branch="wild"]').click();
+  assert.equal(await page.locator('.talent-node.learned').count(),0,'animal transformations are future abilities');
   await page.screenshot({path:'.qa/character-skills.png'});
   await page.keyboard.press('i');
   assert.equal(await page.locator('#panelBackdrop').isVisible(),false,'I closes the menu');
