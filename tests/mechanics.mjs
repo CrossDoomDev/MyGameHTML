@@ -569,7 +569,7 @@ for(const icon of ['skill_bolt','skill_roots','skill_heal'])
  assert(skillMarkup.includes('data-icon="'+icon+'"'),'QRF button has '+icon);
 // One shared row contains Q/R/F first, followed by ten numeric key slots.
 const layout=fs.readFileSync('index.html','utf8');
-const startBar=layout.indexOf('<div id="hotbar"'),endBar=layout.indexOf('<div id="actions">',startBar);
+const startBar=layout.indexOf('<div id="hotbar"'),endBar=layout.indexOf('<div id="actions"',startBar);
 const barMarkup=layout.slice(startBar,endBar);
 assert(startBar>=0&&endBar>startBar,'the unified hotbar wraps both ability and numeric slots');
 assert(barMarkup.indexOf('id="skillbar"')<barMarkup.indexOf('id="quickbar"'),
@@ -578,6 +578,14 @@ assert.equal((barMarkup.match(/data-skill=/g)||[]).length,3,'three letter-bound 
 assert.equal((barMarkup.match(/data-slot=/g)||[]).length,10,'all 10 numeric slots are present');
 for(let i=0;i<10;i++)assert(barMarkup.includes('data-slot="'+i+'"'),'missing numeric slot '+i);
 assert(barMarkup.includes('<kbd>0</kbd>'),'tenth slot visibly uses key zero');
+const actions=layout.slice(endBar);
+assert((actions.match(/class="forest-action-button"/g)||[]).length===8,
+ 'new illustrated right-side menu contains eight actual buttons');
+for(const id of ['characterAction','bag','skillsAction','map','questsAction','chatAction','settings','journalAction'])
+ assert(actions.includes('id="'+id+'"'),'missing forest menu action '+id);
+const menuStyles=fs.readFileSync('style.css','utf8');
+assert(menuStyles.includes("url('assets/forest-hud-frame.png')"),'forest menu decor uses generated background');
+assert(menuStyles.includes("url('assets/forest-hud-icons.png')"),'forest menu sprites use generated icons');
 game.ui.slot(9);
 assert.equal(game.ui.toastEl.textContent,'Ячейка 0 пока свободна.','zero selects the tenth placeholder');
 
