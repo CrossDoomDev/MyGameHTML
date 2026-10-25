@@ -58,6 +58,48 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(art.quick.includes('potion_red')&&art.quick.includes('staff_basic'),'consumables and staff illustrated');
   await page.keyboard.press('i');
   assert(await page.locator('#panel.character-panel').isVisible(),'I opens the menu');
+
+  // Character window must not jump or shrink as each tab replaces its body.
+  const sheet=page.locator('#panel.character-panel');
+  const fixedBox=await sheet.boundingBox();
+  assert(fixedBox&&fixedBox.width>750&&fixedBox.height>580,'character sheet uses stable desktop dimensions');
+  for(const tab of ['inventory','stats','skills','equipment']){
+   await page.locator('[data-character-action="tab"][data-tab="'+tab+'"]').click();
+   const rect=await sheet.boundingBox();
+   assert(Math.abs(rect.width-fixedBox.width)<1&&Math.abs(rect.height-fixedBox.height)<1,
+    tab+' must not resize the character window');
+   assert(Math.abs(rect.x-fixedBox.x)<1&&Math.abs(rect.y-fixedBox.y)<1,
+    tab+' must not move the character window');
+  }
+  // Oversized content should scroll inside the modal without growing it.
+  const scrollCheck=await page.evaluate(()=>{
+   const content=document.querySelector('#panel.character-panel .char-content');
+   const probe=document.createElement('div');
+   probe.id='character-overflow-probe';probe.style.height='1600px';
+   content.append(probe);content.scrollTop=content.scrollHeight;
+   const result={scrolled:content.scrollTop>0,
+    overflow:getComputedStyle(content).overflowY,client:content.clientHeight,
+    content:content.scrollHeight};
+   probe.remove();content.scrollTop=0;return result;
+  });
+  assert.equal(scrollCheck.overflow,'auto','only character tab content should scroll');
+  assert(scrollCheck.scrolled&&scrollCheck.content>scrollCheck.client,
+   'large inventory content scrolls within the fixed window');
+  const afterOverflow=await sheet.boundingBox();
+  assert(Math.abs(afterOverflow.width-fixedBox.width)<1&&
+    Math.abs(afterOverflow.height-fixedBox.height)<1,'overflow keeps outer panel fixed');
+  // Small screens keep the same rule but clamp to viewport size.
+  await page.setViewportSize({width:390,height:680});
+  const compactBox=await sheet.boundingBox();
+  assert(compactBox.width<=390&&compactBox.height<=680,'small screen modal fits viewport');
+  for(const tab of ['skills','stats','inventory']){
+   await page.locator('[data-character-action="tab"][data-tab="'+tab+'"]').click();
+   const rect=await sheet.boundingBox();
+   assert(Math.abs(rect.width-compactBox.width)<1&&Math.abs(rect.height-compactBox.height)<1,
+    tab+' must not change mobile character window size');
+  }
+  await page.setViewportSize({width:1280,height:900});
+  await page.locator('[data-character-action="tab"][data-tab="equipment"]').click();
   await page.locator('[data-character-action="tab"][data-tab="inventory"]').click();
   for(const equipped of ['staff','hood','robe','cloak','boots'])
    assert.equal(await page.locator('[data-item="'+equipped+'"]').count(),0,
