@@ -35,14 +35,21 @@
 <button class="slot empty-slot" data-slot="9" type="button" title="Ячейка 0 свободна для предметов и расходников" aria-label="Ячейка 0: свободна"><kbd>0</kbd><span class="empty-mark">+</span></button>
 </div>
 </div>
-<div id="actions">
-<button id="bag" class="wood-frame" title="Персонаж / инвентарь (I / B)" aria-label="Персонаж и инвентарь"><span class="item item-bag"></span><kbd>B</kbd></button>
-<button id="map" class="wood-frame" title="Карта (M)" aria-label="Карта"><span class="item item-map"></span><kbd>M</kbd></button>
-<button id="journalAction" class="wood-frame" title="Журнал (J)" aria-label="Журнал"><span class="item item-journal"></span><kbd>J</kbd></button>
-<button id="settings" class="wood-frame" title="Настройки (Esc)" aria-label="Настройки"><span class="item item-settings"></span><kbd>Esc</kbd></button>
+<div id="actions" class="forest-action-dock" aria-label="Игровое меню">
+ <div class="forest-action-heading" aria-hidden="true"><span>МЕНЮ</span></div>
+ <div class="forest-action-grid">
+ <button id="characterAction" class="forest-action-button" type="button" title="Персонаж и экипировка (I)" aria-label="Персонаж и экипировка (I)"><span class="forest-action-art" style="--icon-x:0.0000%" aria-hidden="true"></span><kbd>I</kbd></button>
+ <button id="bag" class="forest-action-button" type="button" title="Инвентарь (B)" aria-label="Инвентарь (B)"><span class="forest-action-art" style="--icon-x:14.2857%" aria-hidden="true"></span><kbd>B</kbd></button>
+ <button id="skillsAction" class="forest-action-button" type="button" title="Способности друида" aria-label="Способности друида"><span class="forest-action-art" style="--icon-x:28.5714%" aria-hidden="true"></span></button>
+ <button id="map" class="forest-action-button" type="button" title="Карта (M)" aria-label="Карта (M)"><span class="forest-action-art" style="--icon-x:42.8571%" aria-hidden="true"></span><kbd>M</kbd></button>
+ <button id="questsAction" class="forest-action-button" type="button" title="Задания" aria-label="Задания"><span class="forest-action-art" style="--icon-x:57.1429%" aria-hidden="true"></span></button>
+ <button id="chatAction" class="forest-action-button" type="button" title="Общение — скоро появится" aria-label="Общение — скоро появится"><span class="forest-action-art" style="--icon-x:71.4286%" aria-hidden="true"></span></button>
+ <button id="settings" class="forest-action-button" type="button" title="Настройки (Esc)" aria-label="Настройки (Esc)"><span class="forest-action-art" style="--icon-x:85.7143%" aria-hidden="true"></span><kbd>Esc</kbd></button>
+ <button id="journalAction" class="forest-action-button" type="button" title="Дорожный журнал (J)" aria-label="Дорожный журнал (J)"><span class="forest-action-art" style="--icon-x:100.0000%" aria-hidden="true"></span><kbd>J</kbd></button>
+ </div>
 </div>
 <div id="hint">I · персонаж и снаряжение <span>Пробел · основная атака</span> ПКМ по посоху или лучу · выбор атаки<br>Q · луч · R · корни · F · лечение · 1–0 · быстрые ячейки</div>
 <div id="mobileActions"><button id="mobileInteract" aria-label="Взаимодействовать">E</button><button id="mobileAttack" aria-label="Атаковать">⚔</button></div><div id="joystick" aria-label="Джойстик движения"><i></i></div>
 <div id="panelBackdrop" hidden><section id="panel" class="wood-frame" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></section></div>
-<aside id="editorPanel" hidden aria-label="Редактор игрового мира"></aside><div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.10</span>
+<aside id="editorPanel" hidden aria-label="Редактор игрового мира"></aside><div id="toast" role="status" aria-live="polite"></div><span id="build">ПРОТОТИП · 0.11</span>
 </main><script type="module" src="src/main.js"></script></body></html>
