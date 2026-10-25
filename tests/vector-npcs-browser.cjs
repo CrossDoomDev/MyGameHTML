@@ -28,7 +28,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().includes('favicon'))errors.push(r.status()+' '+r.url());});
   await page.addInitScript(()=>{
-    localStorage.setItem('tiholesye-model','2d');
+    // A saved old model setting must not bring the deleted character back.
+    localStorage.setItem('tiholesye-model','3d');
     // Seed the old pixel preference only on first navigation: a reload must
     // preserve the user's newly selected illustrated style.
     if(!sessionStorage.getItem('seeded-npc-pixel')){
@@ -39,6 +40,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
+  assert.equal(await page.evaluate(()=>window.tiholesye.player.sprite),'hero',
+   'old model preference never overrides the only supported 48px hero');
+  assert.equal(await page.evaluate(()=>window.tiholesye.assets.images.hero3d),undefined,
+   'retired 3D sprite atlas is not loaded');
   // Chromium decodes the generated art and checks all 10 quick slots and
   // all ability buttons, plus an inventory that excludes equipped pieces.
   const art=await page.evaluate(async()=>{
@@ -302,6 +307,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert.equal(initialPixel,'pixel','all NPCs use pixel art');
   await page.evaluate(()=>window.tiholesye.ui.settings());
   assert.equal(await page.locator('#npcStyle').count(),0,'obsolete vector toggle removed');
+  assert.equal(await page.locator('#modelMode, .model-setting, .model-download').count(),0,
+   'settings do not offer retired 3D model controls');
+  assert(!/3D|GLB|трёхмерн/i.test(await page.locator('#panel').innerText()),
+   'settings do not mention or link to the deleted 3D model');
   // Multiple ways of selecting game text are blocked, but form editors
   // remain usable when the player opens the world-building tools.
   const title=page.locator('#panelTitle');
