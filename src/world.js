@@ -30,20 +30,13 @@ export class Game{
   this.map=hydratedMap(this.location,this.worldMaps[this.location]);
   if(data.version!==3){p.x=SPAWN.x;p.y=SPAWN.y;}
   p.x=Math.floor(p.x);p.y=Math.floor(p.y);if(isBlocked(this.map,p.x,p.y)){p.x=SPAWN.x;p.y=SPAWN.y;}
-  // One-time migration: old users may have explicitly saved the oversized
-  // 3D model. Show them the new compact pixel druid on their first updated load.
-  // After migration, changing the model in Settings remains persistent.
-  const compactActivated=localStorage.getItem('tiholesye-compact-hero-48');
-  this.modelMode=compactActivated&&localStorage.getItem('tiholesye-model')==='3d'?'3d':'2d';
-  if(!compactActivated)try{
-   localStorage.setItem('tiholesye-compact-hero-48','1');
-   localStorage.setItem('tiholesye-model','2d');
-  }catch{}
+  // The hero is now always the 48px 2D druid. Ignore obsolete preferences
+  // without disturbing any saved progress, inventory or character stats.
   // Village NPCs use the same native 48px pixel-art style as the hero.
   // Override the retired vector setting from existing local saves.
   this.npcStyle='pixel';
   try{localStorage.setItem('tiholesye-npc-style','pixel');}catch{}
-  this.player=anchored({...p,sprite:this.modelMode==='3d'?'hero3d':'hero'});
+  this.player=anchored({...p,sprite:'hero'});
   this.character=loadCharacter();
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
   this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
@@ -141,11 +134,6 @@ export class Game{
   if(this.player.weaponType!=='staff'&&this.primaryAttackMode==='bolt')
    this.setPrimaryAttack('staff');
   if(this.ui)this.ui.renderQuickbar();
- }
- setModelMode(mode){
-  this.modelMode=mode==='3d'?'3d':'2d';this.player.sprite=this.modelMode==='3d'?'hero3d':'hero';
-  try{localStorage.setItem('tiholesye-model',this.modelMode);}catch{}
-  this.ui.portrait(this.assets);this.toast(this.modelMode==='3d'?'Включена 3D-модель героя':'Включён пиксельный 2D-герой');
  }
  setNPCStyle(){
   // Retained for compatibility with legacy callers; all NPCs are pixel-art.
