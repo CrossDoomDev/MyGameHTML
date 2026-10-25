@@ -21,12 +21,7 @@ export class CharacterMenu{
       const cx=[0,100,300,500][n.column],cy=70+n.row*127;
       return Math.abs(x-cx)<=71&&Math.abs(y-cy)<=47;
      });
-     if(selected){
-      const scroll=this.ui.panel.querySelector('.char-content')?.scrollTop||0;
-      this.skillSelected=selected.id;this.render();
-      const body=this.ui.panel.querySelector('.char-content');
-      if(body)body.scrollTop=scroll;
-     }
+     if(selected)this.selectSkillNode(selected.id);
     }
     return;
    }
@@ -34,19 +29,10 @@ export class CharacterMenu{
    const action=button.dataset.characterAction;
    if(action==='tab'){this.open(button.dataset.tab);return;}
    if(action==='skill-branch'){
-    this.skillBranch=button.dataset.branch;
-    this.skillSelected=findDruidTree(this.skillBranch).nodes[0].id;
-    this.render();return;
+    this.selectSkillBranch(button.dataset.branch);return;
    }
    if(action==='skill-node'){
-    if(DRUID_NODE_BY_ID[button.dataset.skillNode]){
-     // Clicking a lower talent must not jump the entire tree back to the top.
-     const previousScroll=this.ui.panel.querySelector('.char-content')?.scrollTop||0;
-     this.skillSelected=button.dataset.skillNode;this.render();
-     const content=this.ui.panel.querySelector('.char-content');
-     if(content)content.scrollTop=previousScroll;
-    }
-    return;
+    this.selectSkillNode(button.dataset.skillNode);return;
    }
    if(action==='select'){this.selected=button.dataset.item;this.pending=null;this.render();return;}
    if(action==='equip'){
@@ -79,6 +65,38 @@ export class CharacterMenu{
  open(tab='equipment'){
   this.active=true;this.tab=['equipment','inventory','stats','skills'].includes(tab)?tab:'equipment';
   this.pending=null;this.render();
+ }
+ // Changing the inspected ability never destroys the graph's DOM nodes.
+ // This preserves mouse position, focus, and both vertical and horizontal scroll.
+ selectSkillNode(id){
+  if(!this.active||this.tab!=='skills')return;
+  const tree=findDruidTree(this.skillBranch);
+  const node=tree.nodes.find(entry=>entry.id===id);
+  if(!node)return;
+  this.skillSelected=id;
+  const content=this.ui.panel.querySelector('.char-content');
+  if(!content){this.render();return;}
+  content.querySelectorAll('[data-character-action="skill-node"]').forEach(button=>{
+   const chosen=button.dataset.skillNode===id;
+   button.classList.toggle('is-chosen',chosen);
+   button.setAttribute('aria-pressed',String(chosen));
+  });
+  const inspector=content.querySelector('.talent-inspector');
+  if(inspector)inspector.outerHTML=this.skillInspectorMarkup(node);
+ }
+ selectSkillBranch(id){
+  const tree=DRUID_TREES.find(entry=>entry.id===id);
+  if(!tree||!this.active||this.tab!=='skills'||this.skillBranch===id)return;
+  this.skillBranch=id;
+  this.skillSelected=tree.nodes[0].id;
+  const content=this.ui.panel.querySelector('.char-content');
+  if(!content){this.render();return;}
+  const previousTop=content.scrollTop;
+  const previousLeft=content.querySelector('.talent-graph-scroll')?.scrollLeft||0;
+  content.innerHTML=this.skillsMarkup();
+  content.scrollTop=previousTop;
+  const graph=content.querySelector('.talent-graph-scroll');
+  if(graph)graph.scrollLeft=previousLeft;
  }
  inventoryItems(){
   const worn=new Set(Object.values(this.game.character.equipment).filter(Boolean));
@@ -167,6 +185,30 @@ export class CharacterMenu{
    '<div class="char-stats-grid">'+stats.map(([name,value])=>'<div><span>'+name+
    '</span><strong>'+value+'</strong></div>').join('')+'</div></div>';
  }
+ skillInspectorMarkup(selected){
+  const prereqs=selected.requires.map(id=>DRUID_NODE_BY_ID[id]?.name).filter(Boolean);
+  const character=this.game.character;
+  const selectedRank=nodeRank(character,selected.id);
+  const available=nodeRequirementsMet(character,selected.id)&&this.game.player.level>=selected.level;
+  const installed=Object.prototype.hasOwnProperty.call(DRUID_SKILLS,selected.id);
+  const state=selectedRank>0?(installed?'Изучено · применяется в бою':'Изучено'):
+    !available?'Закрыто: нужны предыдущие умения или уровень':'Ещё не изучено';
+  const requirements='<div class="talent-requirements"><span>Уровень героя: '+selected.level+'+</span>'+
+   '<span>Предыдущие умения: '+(prereqs.join(', ')||'нет')+'</span>'+
+   '<span>Очки развития: система ещё не определена</span></div>';
+  return '<aside class="talent-inspector">'+
+   '<div class="talent-inspector-icon">'+gameIcon(selected.icon)+'</div>'+
+   '<div class="talent-inspector-kind">'+selected.kind+'</div>'+
+   '<h3>'+selected.name+'</h3>'+
+   '<span class="talent-inspector-status '+(selectedRank?'is-learned':'')+'">'+state+'</span>'+
+   '<p>'+selected.description+'</p><div class="talent-effect"><strong>Эффект</strong><span>'+
+   selected.detail+'</span></div>'+
+   requirements+
+   '<div class="talent-rank-label">Развитие <strong>'+selectedRank+' / '+selected.maxRank+'</strong></div>'+
+   '<div class="talent-rank-track"><span style="width:'+(selectedRank/selected.maxRank*100)+'%"></span></div>'+
+   '<button type="button" class="talent-upgrade" disabled aria-disabled="true" title="Прокачка станет доступна после появления системы очков">Улучшить</button>'+
+   '<small class="talent-disabled-note">Пока только дерево: очки не начисляются и не расходуются.</small></aside>';
+ }
  skillsMarkup(){
   const g=this.game,character=g.character,tree=findDruidTree(this.skillBranch);
   const selected=tree.nodes.find(n=>n.id===this.skillSelected)||tree.nodes[0];
@@ -204,26 +246,7 @@ export class CharacterMenu{
     gameIcon(branch.icon)+'<span><strong>'+branch.name+'</strong><small>'+branch.subtitle+
     '</small></span><i>'+count+'/'+branch.nodes.length+'</i></button>';
   }).join('');
-  const prereqs=selected.requires.map(id=>DRUID_NODE_BY_ID[id]?.name).filter(Boolean);
-  const available=nodeRequirementsMet(character,selected.id)&&g.player.level>=selected.level;
-  const installed=Object.prototype.hasOwnProperty.call(DRUID_SKILLS,selected.id);
-  const state=selectedRank>0?(installed?'Изучено · применяется в бою':'Изучено'):
-    !available?'Закрыто: нужны предыдущие умения или уровень':'Ещё не изучено';
-  const requirements='<div class="talent-requirements"><span>Уровень героя: '+selected.level+'+</span>'+
-   '<span>Предыдущие умения: '+(prereqs.join(', ')||'нет')+'</span>'+
-   '<span>Очки развития: система ещё не определена</span></div>';
-  const selection='<aside class="talent-inspector">'+
-   '<div class="talent-inspector-icon">'+gameIcon(selected.icon)+'</div>'+
-   '<div class="talent-inspector-kind">'+selected.kind+'</div>'+
-   '<h3>'+selected.name+'</h3>'+
-   '<span class="talent-inspector-status '+(selectedRank?'is-learned':'')+'">'+state+'</span>'+
-   '<p>'+selected.description+'</p><div class="talent-effect"><strong>Эффект</strong><span>'+
-   selected.detail+'</span></div>'+
-   requirements+
-   '<div class="talent-rank-label">Развитие <strong>'+selectedRank+' / '+selected.maxRank+'</strong></div>'+
-   '<div class="talent-rank-track"><span style="width:'+(selectedRank/selected.maxRank*100)+'%"></span></div>'+
-   '<button type="button" class="talent-upgrade" disabled aria-disabled="true" title="Прокачка станет доступна после появления системы очков">Улучшить</button>'+
-   '<small class="talent-disabled-note">Пока только дерево: очки не начисляются и не расходуются.</small></aside>';
+  const selection=this.skillInspectorMarkup(selected);
   return '<div class="char-skills talent-screen">'+
    '<div class="char-section-title">Пути друида <small>Очки развития: '+character.skillPoints+'</small></div>'+
    '<p class="char-muted">Выбирай специализацию и исследуй развитие заклинаний. Золотые рамки — изученные умения; остальные откроем вместе с системой прокачки.</p>'+
