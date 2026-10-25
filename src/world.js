@@ -3,6 +3,7 @@ import { updateAnimation } from './animation.js';
 import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
 import {autoRangedSkill,canFocusShoot,findFocusApproach} from './combat-focus.js';
 import {loadCharacter,persistCharacter,characterBonuses,ITEMS} from './character-data.js';
+import {CLASS_VISITORS,nextVisitorStep,PATROL_RADIUS} from './village-visitors.js';
 import { TILE, WIDTH, HEIGHT, SPAWN, createMap, isBlocked, findPath, removeScenery } from './map.js';
 import { sceneryPlacement, coversActor } from './visibility.js';
 import { Renderer } from './renderer.js';
@@ -47,6 +48,7 @@ export class Game{
   this.ui=new UI(this);this.editor=new MapEditor(this);this.bindInput();this.resize();
  }
  populateLocation(){
+  this.visitors=[];
   const saved=normalizeSnapshot(this.location,this.worldMaps?.[this.location]);
   if(saved){
    this.map=hydratedMap(this.location,saved);
@@ -54,6 +56,7 @@ export class Game{
    this.mobs=saved.mobs.map(e=>this.makeMob(e.x,e.y,e.sprite));
    for(const m of this.mobs)if(m.boss&&this.player.boss)m.alive=false;
    this.herbs=saved.herbs.map(h=>anchored({...h,kind:'herb',collected:false}));
+   this.populateVisitors();
    return;
   }
   this.npcs=(this.location==='village'?[
@@ -74,6 +77,40 @@ export class Game{
   this.herbs=(this.location==='forest'?[[11,40],[25,40],[48,36],[62,40],[72,23],[38,63],[82,60]]:[])
    .map(([x,y])=>anchored({x,y,kind:'herb',collected:false}));
   for(const h of this.herbs)this.clearSpawn(h.x,h.y);
+  this.populateVisitors();
+ }
+ populateVisitors(){
+  if(this.location!=='village')return;
+  const nearby=[];
+  for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
+   if(Math.abs(dx)+Math.abs(dy)<=4)nearby.push([dx,dy]);
+  }
+  nearby.sort((a,b)=>(Math.abs(a[0])+Math.abs(a[1]))-(Math.abs(b[0])+Math.abs(b[1])));
+  for(const entry of CLASS_VISITORS){
+   const at=nearby.find(([dx,dy])=>{
+    const x=entry.x+dx,y=entry.y+dy;
+    return !isBlocked(this.map,x,y)&&!this.occupied(x,y);
+   });
+   if(!at)continue;
+   const x=entry.x+at[0],y=entry.y+at[1];
+   this.visitors.push(anchored({id:entry.id,kind:'npc',visitor:true,
+    role:entry.role,name:entry.name,sprite:entry.sprite,x,y,
+    homeX:x,homeY:y,seed:entry.seed,
+    nextThink:420+entry.seed*245}));
+  }
+ }
+ updateVisitors(dt){
+  if(this.location!=='village')return;
+  for(const person of this.visitors){
+   this.advance(person,dt);
+   if(person.step||this.target===person||this.time<person.nextThink)continue;
+   // Pause briefly between short walks; arrivals aren't instantly followed
+   // by another move. The destination must be open at step start.
+   const step=nextVisitorStep(person,this.time,(x,y)=>!this.blocked(x,y,person));
+   person.nextThink=this.time+950+
+    Math.floor((Math.sin(this.time/1873+person.seed*7)*.5+.5)*2100);
+   if(step)this.beginStep(person,step.x,step.y,480);
+  }
  }
  restoreEditedScene(snapshot){
   if(snapshot){
@@ -116,7 +153,7 @@ export class Game{
  }
  clearSpawn(x,y){if(this.map.terrain[y]?.[x]==='water')return;this.map.blocked[y][x]=false;this.map.objects=this.map.objects.filter(o=>o.x!==x||o.y!==y);}
  occupied(x,y,exclude=this.player){
-  return [...this.npcs,...this.mobs.filter(m=>m.alive),this.player].some(e=>e!==exclude&&((e.x===x&&e.y===y)||(e.step&&e.step.x===x&&e.step.y===y)));
+  return [...this.npcs,...(this.visitors||[]),...this.mobs.filter(m=>m.alive),this.player].some(e=>e!==exclude&&((e.x===x&&e.y===y)||(e.step&&e.step.x===x&&e.step.y===y)));
  }
  blocked(x,y,exclude=this.player){return isBlocked(this.map,x,y)||this.occupied(x,y,exclude);}
  // Plan from the tile the current step is already committed to reach.
@@ -247,7 +284,7 @@ export class Game{
   const r=this.canvas.getBoundingClientRect(),wx=(e.clientX-r.left)/r.width*this.canvas.width+this.camera.x,wy=(e.clientY-r.top)/r.height*this.canvas.height+this.camera.y;
   const x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);
   if(this.editor?.active||x<0||y<0||x>=this.map.width||y>=this.map.height)return;
-  const actor=[...this.npcs,...this.mobs.filter(m=>m.alive)].find(t=>
+  const actor=[...this.npcs,...this.visitors,...this.mobs.filter(m=>m.alive)].find(t=>
    Math.abs(wx-t.px)<22&&wy>=t.py-49&&wy<=t.py+9);
   if(actor?.kind==='mob'){
    // One click locks the opponent and starts a persistent fight. The hero
@@ -392,6 +429,7 @@ export class Game{
  update(dt){
   const p=this.player;this.advance(p,dt);
   if(!p.step&&this.checkPortals())return;
+  this.updateVisitors(dt);
   if(!p.step){
    let dx=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0),dy=(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0);
    if(this.stick.x||this.stick.y){if(Math.abs(this.stick.x)>Math.abs(this.stick.y))dx=Math.sign(this.stick.x);else dy=Math.sign(this.stick.y);}
@@ -425,14 +463,14 @@ export class Game{
    }
   }
   this.updateCombatFocus();
-  for(const entity of [p,...this.npcs,...this.mobs])updateAnimation(entity,dt,this.time);
+  for(const entity of [p,...this.npcs,...this.visitors,...this.mobs])updateAnimation(entity,dt,this.time);
   this.effects=this.effects.filter(e=>this.time-e.time<(e.duration||(e.type==='text'?950:500)));
   if(this.time-this.lastSave>5000){this.save();this.lastSave=this.time;}
  }
  nearestInteractable(){
   const doors=this.map.buildings.filter(b=>Math.abs(this.player.x-b.doorX)+Math.abs(this.player.y-b.doorY)<=2)
    .map(b=>anchored({...b,kind:'building',x:b.doorX,y:b.doorY}));
-  return [...this.npcs,...this.herbs.filter(h=>!h.collected),...doors]
+  return [...this.npcs,...this.visitors,...this.herbs.filter(h=>!h.collected),...doors]
    .filter(e=>distance(e,this.player)<70).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];
  }
  interactNearest(){const t=this.nearestInteractable();if(t){this.target=t;this.interactTarget();return;}const b=this.map.buildings.find(b=>Math.abs(this.player.x-b.doorX)+Math.abs(this.player.y-b.doorY)<=2);if(b){this.target=anchored({...b,kind:'building',x:b.doorX,y:b.doorY});this.interactTarget();}else if(this.location==='tavern'&&this.player.y>=14)this.enterLocation('village',15,16);else this.toast('Рядом нет доступного объекта.');}
