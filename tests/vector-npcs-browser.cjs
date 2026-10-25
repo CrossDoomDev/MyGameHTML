@@ -40,6 +40,48 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.goto('http://127.0.0.1:'+server.address().port+'/');
   await page.waitForFunction(()=>window.tiholesye?.ready,{timeout:30000});
   assert.equal(await page.evaluate(()=>window.tiholesye.npcStyle),'pixel');
+  const classSprites=await page.evaluate(async()=>{
+   const g=window.tiholesye;
+   const asset=new Image();
+   asset.src='/assets/class-villagers.png';
+   await new Promise((resolve,reject)=>{asset.onload=resolve;asset.onerror=reject;});
+   return {dimensions:[asset.naturalWidth,asset.naturalHeight],
+    characters:g.visitors.map(v=>({id:v.id,role:v.role,sprite:v.sprite,home:[v.homeX,v.homeY]})),
+    spriteSizes:g.visitors.map(v=>[g.assets.images[v.sprite].width,g.assets.images[v.sprite].height]),
+    sample:g.assets.images.archer.getContext('2d').getImageData(0,0,144,192).data
+      .some((value,i)=>i%4===3&&value>128)};
+  });
+  assert.deepEqual(classSprites.dimensions,[144,1152],'class pixel atlas decodes in Chromium');
+  assert.deepEqual(classSprites.characters.map(v=>v.sprite),
+   ['archer','warrior','mage','rogue','paladin','cleric'],
+   'all six new classes are visible in village');
+  assert(classSprites.spriteSizes.every(s=>s[0]===144&&s[1]===192),
+   'all class sheets have 12 native 48×48 frames');
+  assert(classSprites.sample,'actual pixel artwork is drawn into the new sprite sheets');
+  const roaming=await page.evaluate(()=>{
+   const g=window.tiholesye;
+   const discovered=new Map(g.visitors.map(v=>[v.id,new Set([v.x+','+v.y])]));
+   let sawWalking=false;
+   for(let tick=0;tick<500;tick++){
+    g.time+=50;g.updateVisitors(50);
+    const reserved=new Set();
+    for(const v of g.visitors){
+     discovered.get(v.id).add(v.x+','+v.y);
+     if(v.moving)sawWalking=true;
+     if(Math.abs(v.x-v.homeX)+Math.abs(v.y-v.homeY)>3)return {error:'wander radius',sprite:v.sprite};
+     if(g.map.blocked[v.y][v.x])return {error:'solid cell',sprite:v.sprite};
+     const xy=v.x+','+v.y;
+     if(reserved.has(xy))return {error:'villager overlap',sprite:v.sprite};
+     reserved.add(xy);
+    }
+   }
+   return {allMoved:[...discovered.values()].every(s=>s.size>1),sawWalking,
+    visited:[...discovered.values()].map(s=>s.size)};
+  });
+  assert(!roaming.error,'roaming avoids solid ground and overlaps: '+JSON.stringify(roaming));
+  assert(roaming.sawWalking&&roaming.allMoved,
+   'all six adventurers walk cardinally around their village home cells');
+  await page.screenshot({path:'.qa/class-adventurers-village.png'});
   assert.equal(await page.evaluate(()=>window.tiholesye.player.sprite),'hero',
    'old model preference never overrides the only supported 48px hero');
   assert.equal(await page.evaluate(()=>window.tiholesye.assets.images.hero3d),undefined,
