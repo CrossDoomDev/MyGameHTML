@@ -128,7 +128,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    })
   ));
   for(const id of ['moonseed','thornshot','bolt']){
-   await page.locator('[data-skill-node="'+id+'"]').click();
+   // Perform a real mouse click at the icon's painted screen coordinates.
+   // Some browsers hit-test the graph surface, handled by the tree fallback.
+   const iconRect=await page.locator('[data-skill-node="'+id+'"]').boundingBox();
+   assert(iconRect&&iconRect.y>0,'skill icon '+id+' must be visible');
+   await page.mouse.click(iconRect.x+iconRect.width/2,iconRect.y+iconRect.height/2);
    assert.equal(await page.locator('.talent-node.is-chosen').count(),1,
     'exactly one talent is highlighted');
    assert.equal(await page.locator('.talent-node.is-chosen').getAttribute('data-skill-node'),id,
