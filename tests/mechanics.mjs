@@ -50,6 +50,7 @@ globalThis.Image=class{
 };
 globalThis.requestAnimationFrame=()=>{};
 const { Game }=await import('../src/world.js');
+const { showGroundRoute }=await import('../src/renderer.js');
 const { drawCharacter, NPC_SPRITES }=await import('../src/assets.js');
 
 // Version 0.4: scenes are distinct maps; the old 40x30 river/bridge is retired.
@@ -220,6 +221,7 @@ const tileClick=(x,y,button=0)=>game.click({
 const testX=clickArea.x,testY=clickArea.y;
 tileClick(testX+1,testY);
 assert.deepEqual(game.path,[{x:testX+1,y:testY}],'click starts a cardinal route');
+assert.equal(showGroundRoute(game),true,'ordinary terrain clicks retain their destination square');
 game.update(0);game.update(90);
 const midX=p.px,midY=p.py,activeStep=p.step,phase=p.animationTime;
 assert(activeStep&&p.direction==='right','hero is travelling right');
@@ -300,10 +302,12 @@ const invokeClick=(worldX,worldY,cameraX,cameraY)=>{
 invokeClick(elder.px,elder.py-18,360,400);
 assert.equal(game.target?.id,'elder','NPC is selected');
 assert(game.path.length>0,'click routes hero toward the resident');
+assert.equal(showGroundRoute(game),false,'approaching an NPC has no destination square');
 const tavernDoor=map.buildings.find(b=>b.id==='inn');
 invokeClick((tavernDoor.x+2)*TILE,(tavernDoor.y+2)*TILE,270,290);
 assert.equal(game.target?.id,'inn','tavern roof click selects the door');
 assert(game.path.length>0,'hero automatically approaches the tavern');
+assert.equal(showGroundRoute(game),false,'approaching a building/door has no destination square');
 
 // Interact with villagers, quests and existing commerce.
 game.stopMovement();
@@ -360,6 +364,7 @@ focusClick(focusedBoss.px,focusedBoss.py-17);
 assert.strictEqual(game.combatTarget,focusedBoss,'click on hostile sets combat focus');
 assert.equal(game.target,null,'combat focus does not become NPC interaction target');
 assert(game.path.length>0,'selecting a distant hostile queues approach to melee range');
+assert.equal(showGroundRoute(game),false,'tracking a hostile never shows the attack-position square');
 game.ui.update();
 assert.equal(document.getElementById('combatFocus').hidden,false,'target status visible');
 assert.equal(document.getElementById('combatFocusName').textContent,'Лесной страж');
@@ -534,6 +539,40 @@ assert(barMarkup.includes('<kbd>0</kbd>'),'tenth slot visibly uses key zero');
 game.ui.slot(9);
 assert.equal(game.ui.toastEl.textContent,'Ячейка 0 пока свободна.','zero selects the tenth placeholder');
 
+// Marker visibility is independent of how a route was found. It is only
+// appropriate for explicitly selected ground tiles, not any interaction path.
+for(const kind of ['npc','building','herb','chest','lever']){
+ const scene={path:[{x:8,y:9}],target:{kind},combatTarget:null};
+ assert.equal(showGroundRoute(scene),false,kind+' approach hides path dots and destination square');
+}
+assert.equal(showGroundRoute({path:[{x:8,y:9}],target:null,combatTarget:{alive:true}}),false,
+ 'combat approach is hidden even if the NPC interaction target is null');
+assert.equal(showGroundRoute({path:[{x:8,y:9}],target:null,combatTarget:null}),true,
+ 'free movement still shows route and destination square');
+assert.equal(showGroundRoute({path:[],target:null,combatTarget:null}),false,
+ 'standing still never shows an expired destination square');
+
+// A drawn 18×18 destination rectangle must be produced ONLY for ground clicks.
+const testOverlay=new Game(new Canvas('marker-test'));await testOverlay.start();
+const markerTile={x:testOverlay.player.x+2,y:testOverlay.player.y+2};
+const markerArgs=[markerTile.x*TILE+7,markerTile.y*TILE+7,18,18];
+const drawMarker=()=>{
+ const ctx=testOverlay.canvas.ctx;
+ const previous=ctx.ops.length;
+ testOverlay.renderer.draw(320);
+ return ctx.ops.slice(previous).filter(op=>op.op==='strokeRect'&&
+  op.args.every((v,i)=>v===markerArgs[i])).length;
+};
+testOverlay.path=[markerTile];testOverlay.target=null;testOverlay.combatTarget=null;
+assert.equal(drawMarker(),1,'ground-click route draws exactly one destination rectangle');
+for(const kind of ['npc','building','herb']){
+ testOverlay.target={kind};assert.equal(drawMarker(),0,kind+' hides the destination rectangle during movement');
+}
+testOverlay.target=null;testOverlay.combatTarget={alive:true};
+assert.equal(drawMarker(),0,'enemy pursuit hides the destination rectangle');
+testOverlay.path=[];testOverlay.combatTarget=null;
+assert.equal(drawMarker(),0,'arrived route has no destination rectangle');
+
 // Asset is an actual generated 5x12 atlas, not a CSS replacement.
 const npcAtlas=fs.readFileSync('assets/npc-village-48.avif');
 assert(npcAtlas.length>10000,'generated 48px NPC atlas was committed');
@@ -548,5 +587,5 @@ fs.writeFileSync('.qa/frame.json',JSON.stringify({
  canvases:canvases.filter(c=>c.id==='game'||c.id==='preview').map(c=>({id:c.id,width:c.width,height:c.height,ops:c.ctx.ops})),
  scale:2
 }));
-for(const g of [game,fresh,restoredStyle,fromForest,fromVillage,migrated])clearTimeout(g.ui.timer);
+for(const g of [game,fresh,testOverlay,restoredStyle,fromForest,fromVillage,migrated])clearTimeout(g.ui.timer);
 console.log('PASS: village/forest/tavern routes, NPC art, click-to-approach, quests, commerce, mobs, saved biomes and pixel rendering.');
