@@ -89,7 +89,7 @@ export class Renderer{
   const c=canvas.getContext('2d'),g=this.game,WIDTH=g.map.width,HEIGHT=g.map.height;c.imageSmoothingEnabled=false;
   c.drawImage(this.miniBase,0,0,canvas.width,canvas.height);
   const sx=canvas.width/(WIDTH*TILE),sy=canvas.height/(HEIGHT*TILE);
-  for(const n of g.npcs)rect(c,n.px*sx-1,n.py*sy-1,2,2,'#ead09c');
+  for(const n of [...g.npcs,...g.visitors])rect(c,n.px*sx-1,n.py*sy-1,2,2,n.visitor?'#9ec7a4':'#ead09c');
   if(large)for(const m of g.mobs)if(m.alive)rect(c,m.px*sx-2,m.py*sy-2,4,4,m.boss?'#da774d':'#bd9854');
   c.strokeStyle='#f2e8b4';c.lineWidth=1;c.beginPath();const x=Math.round(g.player.px*sx),y=Math.round(g.player.py*sy);c.moveTo(x-3,y);c.lineTo(x+3,y);c.moveTo(x,y-3);c.lineTo(x,y+3);c.stroke();rect(c,x-1,y-1,3,3,'#fff6cb');
   if(large){c.fillStyle='#f1e2b8';c.font='10px Georgia';c.fillText(g.map.label,Math.max(4,WIDTH*.1)*32*sx,Math.max(5,HEIGHT*.12)*32*sy);}
@@ -184,7 +184,7 @@ export class Renderer{
   // SVG NPCs remain smooth on their separate overlay canvas.
   c.imageSmoothingEnabled=false;
   this.fadeDelta=this.lastDrawTime===undefined?16:Math.max(0,time-this.lastDrawTime);this.lastDrawTime=time;
-  this.protectedActors=[p,...g.npcs,...g.herbs.filter(herb=>!herb.collected)];
+  this.protectedActors=[p,...g.npcs,...g.visitors,...g.herbs.filter(herb=>!herb.collected)];
   // Small interiors stay centered even on ultra-wide desktop screens.
   if(g.editor?.active){
    g.camera.x=Math.round(Math.max(0,Math.min(Math.max(0,WIDTH*TILE-w),g.editor.camera.x)));
@@ -223,7 +223,7 @@ export class Renderer{
    c.drawImage(g.assets.images.icons,24,0,24,24,herb.px-12,herb.py-21,24,24);
    if(Math.floor(time/700)%3===0){rect(c,herb.px+8,herb.py-21,1,5,'#ebe9af');rect(c,herb.px+6,herb.py-19,5,1,'#ebe9af');}
   }});
-  for(const entity of [...g.npcs,...g.mobs.filter(m=>m.alive),p]){
+  for(const entity of [...g.npcs,...g.visitors,...g.mobs.filter(m=>m.alive),p]){
    objects.push({y:entity.py,draw:()=>{
     c.globalAlpha=.25;rect(c,entity.px-10,entity.py-4,21,5,'#233426');c.globalAlpha=1;
     const focused=entity===g.combatTarget&&entity.alive;
