@@ -19,7 +19,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const page=await browser.newPage({viewport:{width:1280,height:900}});
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.status()>=400&&!r.url().includes('favicon'))errors.push(r.status()+' '+r.url());});
-  await page.addInitScript(()=>localStorage.setItem('tiholesye-model','2d'));
+  // A legacy preference must not switch the game away from its 2D hero.
+  await page.addInitScript(()=>localStorage.setItem('tiholesye-model','3d'));
   await page.goto('http://127.0.0.1:'+server.address().port);
   await page.waitForFunction(()=>window.tiholesye?.ready);
   await page.evaluate(()=>{window.tiholesye.mobs.forEach(m=>m.alive=false);});
@@ -39,16 +40,23 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const canvas=document.createElement('canvas');canvas.width=800;canvas.height=440;
    const c=canvas.getContext('2d');c.imageSmoothingEnabled=false;c.fillStyle='#40583b';c.fillRect(0,0,800,440);
    for(let row=0;row<4;row++)for(let frame=0;frame<10;frame++){
-    c.fillStyle='#789a66';c.fillRect(frame*80,row*80+64,80,1);
-    c.drawImage(g.assets.images.hero,frame*80,row*80,80,80,frame*80,row*80,80,80);
+    c.fillStyle='#789a66';c.fillRect(frame*48,row*48+43,48,1);
+    c.drawImage(g.assets.images.hero,frame*48,row*48,48,48,
+     frame*80,row*80,48,48);
    }
    for(let row=0;row<2;row++)g.npcs.forEach((npc,i)=>drawCharacter(c,g.assets,{...npc,direction:row?'up':'down',px:80+i*160,py:370+row*55},0));
    return canvas.toDataURL('image/png').split(',')[1];
   });
   fs.writeFileSync('.qa/characters.png',Buffer.from(data,'base64'));
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(100);await page.screenshot({path:'.qa/mobile-2d.png'});
-  await page.evaluate(()=>window.tiholesye.setModelMode('3d'));assert.equal(await page.evaluate(()=>window.tiholesye.player.sprite),'hero3d');
+  await page.locator('#settings').click();
+  assert(!await page.locator('#modelMode').count(),'no hero-model switch in settings');
+  assert(!await page.locator('.model-setting').count(),'no model preview in settings');
+  const settings=await page.locator('#panel').innerText();
+  assert(!settings.includes('3D'),'settings do not mention the deleted 3D hero');
+  assert.equal(await page.evaluate(()=>window.tiholesye.player.sprite),'hero',
+   'legacy preferences never replace the pixel hero');
   assert.deepEqual(errors,[]);
-  console.log('PASS: Chrome load, real keyboard movement/attack, attack facing, 2D/3D switch, mobile rendering, no JS or asset errors.');
+  console.log('PASS: Chrome load, real keyboard movement/attack, attack facing, 2D-only settings, mobile rendering, no JS or asset errors.');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});
