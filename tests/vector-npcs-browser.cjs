@@ -117,6 +117,40 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   }
   await page.locator('[data-character-action="skill-branch"][data-branch="wrath"]').click();
   assert.equal(await page.locator('.talent-node.learned').count(),1,'emerald bolt remains learned');
+  // Selecting talents must not reconstruct or move the tree. In particular,
+  // its icon DOM elements, hit boxes, and scroll offset stay identical.
+  const originalBolt=await page.locator('[data-skill-node="bolt"]').elementHandle();
+  const originalGraph=await page.locator('.talent-graph').elementHandle();
+  const iconPositions=await page.evaluate(()=>Object.fromEntries(
+   [...document.querySelectorAll('.talent-node')].map(el=>{
+    const r=el.getBoundingClientRect();
+    return [el.dataset.skillNode,{x:r.x,y:r.y,width:r.width,height:r.height}];
+   })
+  ));
+  for(const id of ['moonseed','thornshot','bolt']){
+   await page.locator('[data-skill-node="'+id+'"]').click();
+   assert.equal(await page.locator('.talent-node.is-chosen').count(),1,
+    'exactly one talent is highlighted');
+   assert.equal(await page.locator('.talent-node.is-chosen').getAttribute('data-skill-node'),id,
+    'the clicked talent gains selection highlight');
+   const state=await page.evaluate(([savedBolt,savedGraph])=>{
+    const graph=document.querySelector('.talent-graph');
+    const icons=Object.fromEntries([...graph.querySelectorAll('.talent-node')].map(el=>{
+     const r=el.getBoundingClientRect();
+     return [el.dataset.skillNode,{x:r.x,y:r.y,width:r.width,height:r.height}];
+    }));
+    return {
+     sameBolt:document.querySelector('[data-skill-node="bolt"]')===savedBolt,
+     sameGraph:graph===savedGraph,icons,scroll:document.querySelector('.char-content').scrollTop
+    };
+   },[originalBolt,originalGraph]);
+   assert(state.sameBolt&&state.sameGraph,'talent selection must preserve existing graph DOM');
+   for(const [name,position] of Object.entries(iconPositions))
+    for(const key of ['x','y','width','height'])
+     assert(Math.abs(state.icons[name][key]-position[key])<1,
+      'icon '+name+' '+key+' must not jump when selecting '+id);
+   assert.equal(state.scroll,0,'selecting visible skills cannot reset or move the window');
+  }
   // The capstone lives below the fold in the fixed-size character dialog:
   // reproduce a player's scroll before clicking the talent.
   await page.evaluate(()=>{
