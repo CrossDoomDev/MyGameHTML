@@ -280,6 +280,10 @@ drawCharacter(heroContext,game.assets,game.player,0);
 assert.deepEqual(heroOps[0].slice(1,5),[0,0,48,48],'48px source frame');
 assert.deepEqual(heroOps[0].slice(7),[48,48],'48px rendered hero, without oversize scaling');
 assert.equal(game.assets.images.hero3d,undefined,'3D sprite atlas is no longer loaded');
+for(const retired of [
+ 'assets/hero-3d.glb','assets/hero-3d-atlas.png',
+ 'assets/hero-3d-preview.png','tools/create_hero_3d.py'
+])assert(!fs.existsSync(retired),'obsolete 3D hero resource is removed: '+retired);
 assert.equal(game.setModelMode,undefined,'3D selection API is removed');
 game.ui.settings();
 assert(!game.ui.panel.html.includes('modelMode'),'settings contain no retired model button');
