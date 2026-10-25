@@ -11,6 +11,25 @@ export class CharacterMenu{
   ui.panel.addEventListener('click',event=>{
    if(!this.active)return;
    const button=event.target?.closest?.('[data-character-action]');
+   if(!button&&this.tab==='skills'){
+    // Some browsers hit-test the scrolling graph layer rather than the
+    // painted button. Resolve clicks inside node rectangles by grid position.
+    const graph=event.target?.closest?.('.talent-graph');
+    if(graph&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY)){
+     const rect=graph.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
+     const selected=findDruidTree(this.skillBranch).nodes.find(n=>{
+      const cx=[0,100,300,500][n.column],cy=70+n.row*127;
+      return Math.abs(x-cx)<=71&&Math.abs(y-cy)<=47;
+     });
+     if(selected){
+      const scroll=this.ui.panel.querySelector('.char-content')?.scrollTop||0;
+      this.skillSelected=selected.id;this.render();
+      const body=this.ui.panel.querySelector('.char-content');
+      if(body)body.scrollTop=scroll;
+     }
+    }
+    return;
+   }
    if(!button)return;
    const action=button.dataset.characterAction;
    if(action==='tab'){this.open(button.dataset.tab);return;}
