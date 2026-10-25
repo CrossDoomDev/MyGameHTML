@@ -127,7 +127,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(beforeTalentScroll>0,'the skill graph can be scrolled to its lower tiers');
   await page.locator('[data-character-action="skill-node"][data-skill-node="tempest"]').click({timeout:10000});
   const afterTalentScroll=await page.locator('.char-content').evaluate(el=>el.scrollTop);
-  assert(afterTalentScroll>0,'inspecting a deep talent preserves the user's scroll');
+  assert(afterTalentScroll>0,'inspecting a deep talent preserves the scroll position');
   assert(await page.locator('.talent-inspector h3').textContent()==='Ярость небосвода',
    'clicking a locked spell previews its details');
   assert(await page.locator('.talent-upgrade').isDisabled(),
