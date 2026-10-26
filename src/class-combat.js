@@ -129,8 +129,21 @@ export function castClassSkill(g,id,{target=null,automatic=false}={}){
  case 'manaHeal':p.mana=Math.min(p.maxMana,p.mana+power);restore(g,power,p);break;
  case 'summon':g.combatStatuses.push({type:'summon',power:Math.ceil(power/2),ticks:12,next:g.time+1000,expires:g.time+13000});break;
  case 'dash':{
-  const path=findPath(g.map,p.x,p.y,t.x,t.y,(x,y)=>g.occupied(x,y));
-  if(path.length)g.path=path.slice(0,Math.max(0,path.length-1));
+  // A dash must visibly approach an occupied target, not merely deal damage
+  // from the starting tile. Route to the nearest open cardinal neighbor.
+  const adjacent=[[t.x+1,t.y],[t.x-1,t.y],[t.x,t.y+1],[t.x,t.y-1]];
+  const candidates=adjacent.filter(([x,y])=>!isBlocked(g.map,x,y)&&
+   (x===p.x&&y===p.y||!g.occupied(x,y)))
+   .map(([x,y])=>findPath(g.map,p.x,p.y,x,y,
+      (xx,yy)=>g.occupied(xx,yy)&&!(xx===p.x&&yy===p.y)))
+   .filter(path=>path.length||dist(p,t)<TILE*1.65);
+  candidates.sort((a,b)=>a.length-b.length);
+  if(candidates[0]?.length)g.path=candidates[0];
+  if(!candidates.length&&dist(p,t)>=TILE*1.65){
+   // Nothing to traverse: no fake teleport through solid walls.
+   g.effect('Нет пути',p,'#efb282');
+   break;
+  }
   damage(g,t,power);break;
  }
  }
