@@ -118,8 +118,8 @@ assert(game.ui.panel.html.includes('id="characterFigure"'),'outfit preview exist
 game.ui.characterMenu.open('stats');
 assert(game.ui.panel.html.includes('Защита снаряжения'),'equipment affects stats');
 game.ui.characterMenu.open('skills');
-assert(game.ui.panel.html.includes('Улучшить'),'upgrades have placeholders');
-assert(game.ui.panel.html.includes('disabled'),'skill spending not yet enabled');
+assert(game.ui.panel.html.includes('Применить способность'),'all talents are now castable');
+assert(game.ui.panel.html.includes('Тестовый доступ'),'ability ranks are unlocked for testing');
 game.ui.characterMenu.open('inventory');
 assert(game.ui.panel.html.includes('data-item="potion"'),'consumables included');
 assert(game.ui.panel.html.includes('data-item="shirt"'),'changeable clothes included');
