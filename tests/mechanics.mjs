@@ -155,7 +155,8 @@ assert.equal(game.player.hp,game.player.maxHp,'mapped potion restores health');
 game.player.potions=potionCountBefore; // Restore fixture for existing shop/quest assertions.
 game.character.quickSlots[9]=null;game.applyEquipment();
 
-assert.equal(game.mobs.length,0,'no combat spawns in the village');
+assert.equal(game.mobs.filter(m=>!m.training).length,0,'no hostile combat spawns in village');
+assert.equal(game.mobs.filter(m=>m.training).length,1,'one invulnerable training dummy is placed in village');
 assert.equal(game.npcs.length,7,'seven villagers');
 assert.equal(game.visitors.length,6,'six independently wandering class previews join the village');
 assert.deepEqual(game.visitors.map(v=>v.sprite),CLASS_SPRITES,'all six archetypes placed in village');
