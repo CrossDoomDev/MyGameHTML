@@ -38,7 +38,7 @@ export class UI{
    if(icon){icon.dataset.icon=artwork;icon.className='game-icon'+(index>=0?'':'');}
   });
   const bar=document.getElementById('skillbar');
-  if(bar)bar.setAttribute('aria-label','Способности класса '+profile.name);
+  if(bar)bar.setAttribute?.('aria-label','Способности класса '+profile.name);
   const dock=document.getElementById('skillsAction');
   if(dock)dock.title='Способности: '+profile.name;
   this.updatePrimaryAttack();
