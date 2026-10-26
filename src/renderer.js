@@ -252,6 +252,27 @@ export class Renderer{
     }else if(!(this.npcOverlay&&g.npcStyle==='vector'&&entity.kind==='npc')){
      drawCharacter(c,g.assets,entity,time,g.npcStyle);
     }
+    if(entity===p){
+     if(g.formUntil>time){
+      const bear=g.formKind==='bear',x=Math.round(p.px),y=Math.round(p.py);
+      const color=bear?'#a57b4b':'#b8c77e';
+      // Overlay a readable pixel mask/ears for temporary druid beast forms.
+      rect(c,x-14,y-38,7,7,color);rect(c,x+7,y-38,7,7,color);
+      rect(c,x-13,y-37,3,3,'#e5d8a7');rect(c,x+10,y-37,3,3,'#e5d8a7');
+      if(bear){rect(c,x-18,y-17,7,9,color);rect(c,x+11,y-17,7,9,color);}
+      else {rect(c,x-18,y-13,5,6,'#ccdd95');rect(c,x+13,y-13,5,6,'#ccdd95');}
+     }
+     if(g.shield>0&&g.shieldUntil>time){
+      c.save();c.globalAlpha=.65;c.strokeStyle='#e7ca79';c.lineWidth=2;
+      c.strokeRect(Math.round(p.px)-22,Math.round(p.py)-42,44,44);c.restore();
+     }
+     if(g.combatStatuses?.some(s=>s.type==='summon'&&s.ticks>0)){
+      const x=Math.round(p.px)+29,y=Math.round(p.py);
+      rect(c,x-12,y-14,24,15,'#61783c');rect(c,x-11,y-21,9,9,'#a2aa77');
+      rect(c,x+3,y-21,9,9,'#a2aa77');rect(c,x-6,y-8,3,3,'#e8db8c');
+      rect(c,x+5,y-8,3,3,'#e8db8c');
+     }
+    }
     c.globalAlpha=1;
     if(entity.max&&(entity.hp<entity.max||focused)){
      const y=entity.py-(entity.boss?64:44);
