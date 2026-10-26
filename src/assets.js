@@ -31,6 +31,7 @@ export async function loadAssets() {
  // Preserve the original pixel NPC art; SVG sheets are fully separate.
  const files=[...names.map(name=>[name,name+'.png']),
   ['class-villagers','class-villagers.png'],
+  ['dummy','training-dummy.svg'],
   ...NPC_SPRITES.map(name=>['vector-'+name,'vector-'+name+'.svg'])];
  const images=Object.fromEntries(await Promise.all(files.map(([name,file])=>new Promise((resolve,reject)=>{
   const image=new Image(); image.onload=()=>resolve([name,image]); image.onerror=()=>reject(new Error('Asset unavailable: '+file)); image.src=assetURL(file);
@@ -243,6 +244,10 @@ export function drawCharacter(c,assets,entity,time,npcStyle='pixel') {
  const row=Math.max(0,directions.indexOf(direction||'down'));
  const isPixelHero=entity.sprite==='hero';
  const image=assets.images[entity.sprite||'hero'];
+ if(entity.training){
+  c.drawImage(image,0,0,48,48,Math.round(entity.px)-24,Math.round(entity.py)-43,48,48);
+  return;
+ }
  const sourceCell=48;
  // New villagers and hero have identical native 48x48 frames. Never use
  // browser interpolation, even for direction changes or walking cycles.
