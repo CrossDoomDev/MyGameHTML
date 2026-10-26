@@ -43,7 +43,8 @@ export function sceneSnapshot(game){
   objects:map.objects.map(o=>({sprite:o.sprite,x:o.x,y:o.y})),
   portals:(map.portals||[]).map(p=>({x:p.x,y:p.y,to:p.to,spawn:{x:p.spawn.x,y:p.spawn.y}})),
   npcs:game.npcs.map(n=>({id:n.id,name:n.name,sprite:n.sprite,x:n.x,y:n.y})),
-  mobs:game.mobs.map(e=>({sprite:e.sprite,x:e.homeX,y:e.homeY})),
+  // Temporary practice targets are runtime entities, not editable monster spawns.
+  mobs:game.mobs.filter(e=>!e.training).map(e=>({sprite:e.sprite,x:e.homeX,y:e.homeY})),
   herbs:game.herbs.map(h=>({x:h.x,y:h.y}))
  };
 }
