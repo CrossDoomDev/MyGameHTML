@@ -376,6 +376,11 @@ export class Game{
   return true;
  }
  primaryAttack(){
+  if(this.player.classId!=='druid'){
+   const profile=CLASS_PROFILES[this.player.classId];
+   return profile.range>1?this.castSkill(profile.signature):
+    this.attack(this.combatTarget?.alive?this.combatTarget:undefined);
+  }
   if(this.primaryAttackMode==='bolt'){
    // The focused target is optional: without it Q/Space use the current facing.
    return this.castSkill('bolt');
@@ -399,7 +404,8 @@ export class Game{
   }
   this.aimAtCombatTarget();
   if(!this.ready||this.ui.open||this.editor?.active)return;
-  const melee=this.primaryAttackMode==='staff';
+  const profile=CLASS_PROFILES[this.player.classId];
+  const melee=profile.range<=1&&(this.player.classId!=='druid'||this.primaryAttackMode==='staff');
   const inRange=melee
    ?distance(this.player,enemy)<49
    :canFocusShoot(this.map,this.player,enemy,'bolt');
@@ -412,6 +418,12 @@ export class Game{
   this.path=[];this.combatRepathAt=0;
   if(this.time-this.lastAttack<600)return;
   if(melee){this.attack(enemy,{automatic:true});return;}
+  if(this.player.classId!=='druid'){
+   const spell=CLASS_SKILLS[profile.signature];
+   if(!skillRemaining(this.skillCooldowns,spell.id,this.time)&&this.player.mana>=spell.mana)
+    this.castSkill(spell.id,{target:enemy,automatic:true});
+   return;
+  }
   const skillId=autoRangedSkill(this.player);
   if(!skillId||skillRemaining(this.skillCooldowns,skillId,this.time))return;
   if(this.player.mana<DRUID_SKILLS[skillId].mana)return;
@@ -425,7 +437,8 @@ export class Game{
   }
   if(this.time<this.combatRepathAt)return;
   const route=findFocusApproach(
-   this.map,this.movementOrigin(),enemy,this.primaryAttackMode,
+   this.map,this.movementOrigin(),enemy,
+   (CLASS_PROFILES[this.player.classId].range>1?'bolt':this.primaryAttackMode),
    (x,y)=>this.occupied(x,y),this.player
   );
   this.path=route;
@@ -465,7 +478,7 @@ export class Game{
   if(a===1){entity.x=s.x;entity.y=s.y;entity.step=null;entity.moving=false;}
  }
  update(dt){
-  const p=this.player;this.advance(p,dt);
+  const p=this.player;this.advance(p,dt);tickClassEffects(this);
   if(!p.step&&this.checkPortals())return;
   this.updateVisitors(dt);
   if(!p.step){
@@ -477,12 +490,18 @@ export class Game{
   }
   p.mana=Math.min(p.maxMana,p.mana+dt*.004);
   for(const m of this.mobs){
+   if(m.training)continue;
    if(!m.alive){if(!m.boss&&this.time>=m.respawnAt){m.alive=true;m.hp=m.max;m.x=m.homeX;m.y=m.homeY;m.px=(m.x+.5)*TILE;m.py=(m.y+.8)*TILE;m.step=null;}continue;}
    if(this.time>=(m.rootedUntil||0))this.advance(m,dt);
    const d=distance(m,p),aggro=d<(m.boss?190:120),adjacent=d<43;
    if(adjacent&&this.time-m.lastAttack>1400){
     m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);m.attackDirection=m.direction;
-    const taken=Math.max(1,(m.boss?14:6)-characterBonuses(this.character).armor);
+    let taken=Math.max(1,(m.boss?14:6)-characterBonuses(this.character).armor);
+    if(this.stealthUntil>this.time)continue;
+    if(m.weakenUntil>this.time)taken=Math.max(1,Math.floor(taken*.6));
+    if(this.shieldUntil>this.time&&this.shield>0){
+     const absorbed=Math.min(this.shield,taken);this.shield-=absorbed;taken-=absorbed;
+    }
     p.hp=Math.max(0,p.hp-taken);p.hitUntil=this.time+250;this.effect('-'+taken,p,'#e59973');this.bip(110,.07);
     if(p.hp<=0){this.respawn();break;}this.save();
    }
@@ -524,9 +543,14 @@ export class Game{
  }
  damageMob(m,damage){
   if(!m?.alive||damage<=0)return false;
-  m.hp-=damage;m.hitUntil=this.time+260;this.effect('-'+damage,m);
+  damage=Math.max(1,Math.round(damage+(this.buffUntil>this.time?this.buffPower:0)));
+  if(m.training){
+   this.dummyStats.damage+=damage;this.dummyStats.hits++;
+   m.hp-=damage;if(m.hp<=0)m.hp=m.max;
+  }else m.hp-=damage;
+  m.hitUntil=this.time+260;this.effect('-'+damage,m);
   this.effects.push({type:'spark',x:m.px,y:m.py,time:this.time,color:'#d7e4a1'});
-  if(m.hp>0)return true;
+  if(m.training||m.hp>0)return true;
   if(this.combatTarget===m){
    this.combatTarget=null;this.path=[];this.combatRepathAt=0;
    this.ui.updateCombatFocus();
@@ -543,6 +567,8 @@ export class Game{
   return true;
  }
  castSkill(id,{target=null,automatic=false}={}){
+  if(this.player.classId!=='druid'||!DRUID_SKILLS[id])
+   return castClassSkill(this,id,{target,automatic});
   const skill=DRUID_SKILLS[id],p=this.player;
   if(!skill||this.ui.open||this.editor?.active||!this.ready)return false;
   if(automatic&&(!target||this.combatTarget!==target||
@@ -604,7 +630,8 @@ export class Game{
    this.player.direction=directionTo(m.px-this.player.px,m.py-this.player.py);
    this.player.attackDirection=this.player.direction;
   }
-  this.damageMob(m,(this.player.weaponType==='unarmed'?4:10)+
+  this.damageMob(m,(this.player.classId==='druid'?
+   (this.player.weaponType==='unarmed'?4:10):CLASS_PROFILES[this.player.classId].attack)+
    this.player.level*3+characterBonuses(this.character).attack);
   return true;
  }
