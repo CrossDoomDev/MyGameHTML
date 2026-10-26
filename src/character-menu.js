@@ -1,6 +1,7 @@
 import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuickSlot,persistCharacter,itemQuantity,gameIcon} from './character-data.js';
 import {DRUID_SKILLS} from './druid-skills.js';
 import {DRUID_TREES,findDruidTree,DRUID_NODE_BY_ID,nodeRank,nodeRequirementsMet,branchLearnedCount} from './druid-tree.js';
+import {CLASS_PROFILES,CLASS_TREES,CLASS_SKILLS} from './class-skills.js';
 
 // The character window intentionally shares the existing in-game modal layer.
 export class CharacterMenu{
@@ -17,7 +18,7 @@ export class CharacterMenu{
     const graph=event.target?.closest?.('.talent-graph');
     if(graph&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY)){
      const rect=graph.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-     const selected=findDruidTree(this.skillBranch).nodes.find(n=>{
+     const selected=this.activeTrees().find(t=>t.id===this.skillBranch).nodes.find(n=>{
       const cx=[0,100,300,500][n.column],cy=70+n.row*127;
       return Math.abs(x-cx)<=71&&Math.abs(y-cy)<=47;
      });
@@ -28,6 +29,10 @@ export class CharacterMenu{
    if(!button)return;
    const action=button.dataset.characterAction;
    if(action==='tab'){this.open(button.dataset.tab);return;}
+   if(action==='cast-skill'){
+    const skillId=button.dataset.skillId;
+    this.ui.close();this.game.castSkill(skillId);return;
+   }
    if(action==='skill-branch'){
     this.selectSkillBranch(button.dataset.branch);return;
    }
@@ -62,7 +67,14 @@ export class CharacterMenu{
    }
   });
  }
+ activeTrees(){return CLASS_TREES[this.game.player.classId]||DRUID_TREES;}
+ activeTree(){return this.activeTrees().find(t=>t.id===this.skillBranch)||this.activeTrees()[0];}
+ rank(node){return CLASS_SKILLS[node.id]?1:0;}
  open(tab='equipment'){
+  if(!this.activeTrees().some(t=>t.id===this.skillBranch)){
+   this.skillBranch=this.activeTrees()[0].id;
+   this.skillSelected=this.activeTrees()[0].nodes[0].id;
+  }
   this.active=true;this.tab=['equipment','inventory','stats','skills'].includes(tab)?tab:'equipment';
   this.pending=null;this.render();
  }
@@ -70,7 +82,7 @@ export class CharacterMenu{
  // This preserves mouse position, focus, and both vertical and horizontal scroll.
  selectSkillNode(id){
   if(!this.active||this.tab!=='skills')return;
-  const tree=findDruidTree(this.skillBranch);
+  const tree=this.activeTree();
   const node=tree.nodes.find(entry=>entry.id===id);
   if(!node)return;
   this.skillSelected=id;
@@ -85,7 +97,7 @@ export class CharacterMenu{
   if(inspector)inspector.outerHTML=this.skillInspectorMarkup(node);
  }
  selectSkillBranch(id){
-  const tree=DRUID_TREES.find(entry=>entry.id===id);
+  const tree=this.activeTrees().find(entry=>entry.id===id);
   if(!tree||!this.active||this.tab!=='skills'||this.skillBranch===id)return;
   this.skillBranch=id;
   this.skillSelected=tree.nodes[0].id;
@@ -126,7 +138,7 @@ export class CharacterMenu{
   const bonuses=characterBonuses(character);
   const all=this.inventoryItems();
   return '<div class="char-columns"><div class="char-paper"><div class="char-section-title">Экипировка</div>'+
-   '<div class="char-hero-name">Друид · уровень '+this.game.player.level+'</div>'+
+   '<div class="char-hero-name">'+CLASS_PROFILES[this.game.player.classId].name+' · уровень '+this.game.player.level+'</div>'+
    '<div class="char-figure-wrap"><canvas id="characterFigure" width="144" height="144" aria-label="Персонаж в экипировке"></canvas>'+
    Object.entries({head:'head',weapon:'weapon',cloak:'cloak',boots:'boots'}).map(([slot,position])=>
     this.game.character.equipment[slot]?'<span class="char-figure-badge char-badge-'+position+'">'+
@@ -134,7 +146,7 @@ export class CharacterMenu{
    '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?.name||'Без одежды')+'</div></div>'+
    '<div class="char-equip-grid">'+slotButtons.join('')+'</div>'+
    '<div class="char-gear-summary">⚔ '+(10+this.game.player.level*3+bonuses.attack)+
-   ' <span>✦ '+(DRUID_SKILLS.bolt.damage+this.game.player.level*3+bonuses.magic)+
+   ' <span>✦ '+(CLASS_SKILLS[CLASS_PROFILES[this.game.player.classId].signature].power+this.game.player.level*3+bonuses.magic)+
    '</span> <span>🛡 '+bonuses.armor+'</span></div></div>'+
    '<div class="char-bag"><div class="char-section-title">Сумка <small>'+all.length+' предметов</small></div>'+
    '<div class="char-items">'+all.map(id=>this.itemButton(id)).join('')+'</div>'+
@@ -176,7 +188,7 @@ export class CharacterMenu{
   const stats=[
    ['Уровень',p.level],['Здоровье',Math.ceil(p.hp)+' / '+p.maxHp],
    ['Мана',Math.floor(p.mana)+' / '+p.maxMana],['Опыт',p.xp+' / '+(p.level*50)],
-   ['Ближняя атака',10+p.level*3+b.attack],['Урон луча',DRUID_SKILLS.bolt.damage+p.level*3+b.magic],
+   ['Ближняя атака',CLASS_PROFILES[p.classId].attack+p.level*3+b.attack],['Сила умения',CLASS_SKILLS[CLASS_PROFILES[p.classId].signature].power+p.level*3+b.magic],
    ['Защита снаряжения',b.armor],['Побед над существами',p.kills],
    ['Монеты',p.coins],['Основная атака',this.game.primaryAttackMode==='bolt'?'Изумрудный луч':'Ближний бой']
   ];
@@ -186,47 +198,42 @@ export class CharacterMenu{
    '</span><strong>'+value+'</strong></div>').join('')+'</div></div>';
  }
  skillInspectorMarkup(selected){
-  const prereqs=selected.requires.map(id=>DRUID_NODE_BY_ID[id]?.name).filter(Boolean);
-  const character=this.game.character;
-  const selectedRank=nodeRank(character,selected.id);
-  const available=nodeRequirementsMet(character,selected.id)&&this.game.player.level>=selected.level;
-  const installed=Object.prototype.hasOwnProperty.call(DRUID_SKILLS,selected.id);
-  const state=selectedRank>0?(installed?'Изучено · применяется в бою':'Изучено'):
-    !available?'Закрыто: нужны предыдущие умения или уровень':'Ещё не изучено';
-  const requirements='<div class="talent-requirements"><span>Уровень героя: '+selected.level+'+</span>'+
-   '<span>Предыдущие умения: '+(prereqs.join(', ')||'нет')+'</span>'+
-   '<span>Очки развития: система ещё не определена</span></div>';
-  return '<aside class="talent-inspector">'+
-   '<div class="talent-inspector-icon">'+gameIcon(selected.icon)+'</div>'+
-   '<div class="talent-inspector-kind">'+selected.kind+'</div>'+
-   '<h3>'+selected.name+'</h3>'+
-   '<span class="talent-inspector-status '+(selectedRank?'is-learned':'')+'">'+state+'</span>'+
-   '<p>'+selected.description+'</p><div class="talent-effect"><strong>Эффект</strong><span>'+
-   selected.detail+'</span></div>'+
-   requirements+
-   '<div class="talent-rank-label">Развитие <strong>'+selectedRank+' / '+selected.maxRank+'</strong></div>'+
-   '<div class="talent-rank-track"><span style="width:'+(selectedRank/selected.maxRank*100)+'%"></span></div>'+
-   '<button type="button" class="talent-upgrade" disabled aria-disabled="true" title="Прокачка станет доступна после появления системы очков">Улучшить</button>'+
-   '<small class="talent-disabled-note">Пока только дерево: очки не начисляются и не расходуются.</small></aside>';
+  const skill=CLASS_SKILLS[selected.id];
+  const requirement=selected.requires?.length?
+   selected.requires.map(id=>CLASS_SKILLS[id]?.name||id).join(', '):'нет';
+  return '<aside class="talent-inspector"><div class="talent-inspector-icon">'+
+   gameIcon(selected.icon)+'</div><div class="talent-inspector-kind">'+
+   (selected.kind||'Активное')+'</div><h3>'+selected.name+'</h3>'+
+   '<span class="talent-inspector-status is-learned">Открыто · готово к использованию</span>'+
+   '<p>'+selected.description+'</p>'+
+   '<div class="talent-effect"><strong>Эффект</strong><span>'+selected.detail+'</span></div>'+
+   '<div class="talent-requirements"><span>Мана: '+skill.mana+'</span>'+
+   '<span>Перезарядка: '+(skill.cooldown/1000).toFixed(1)+' с</span>'+
+   '<span>Связанный узел: '+requirement+'</span></div>'+
+   '<div class="talent-rank-label">Тестовый доступ <strong>3 / 3</strong></div>'+
+   '<div class="talent-rank-track"><span style="width:100%"></span></div>'+
+   '<button type="button" class="talent-use" data-character-action="cast-skill" data-skill-id="'+
+   selected.id+'">Применить способность</button>'+
+   '<small class="talent-disabled-note">Все умения открыты для испытаний на тренировочном манекене.</small></aside>';
  }
  skillsMarkup(){
-  const g=this.game,character=g.character,tree=findDruidTree(this.skillBranch);
+  const g=this.game,character=g.character,tree=this.activeTree();
   const selected=tree.nodes.find(n=>n.id===this.skillSelected)||tree.nodes[0];
-  const selectedRank=nodeRank(character,selected.id);
-  const learned=branchLearnedCount(character,tree.id);
+  const selectedRank=this.rank(selected);
+  const learned=tree.nodes.length;
   const nodePoint=n=>({x:[0,100,300,500][n.column],y:70+n.row*127});
   const edgeMarkup=tree.nodes.flatMap(n=>n.requires.map(parentId=>{
    const parent=tree.nodes.find(p=>p.id===parentId);
    if(!parent)return '';
    const from=nodePoint(parent),to=nodePoint(n);
-   const unlocked=nodeRank(character,parent.id)>0&&nodeRank(character,n.id)>0;
-   const partial=nodeRank(character,parent.id)>0;
+   const unlocked=this.rank(parent)>0&&this.rank(n)>0;
+   const partial=this.rank(parent)>0;
    return '<path class="talent-connector '+(unlocked?'is-active':partial?'is-available':'is-locked')+
     '" d="M '+from.x+' '+(from.y+46)+' V '+(from.y+60)+' L '+to.x+' '+(to.y-60)+' V '+(to.y-46)+'"/>';
   })).join('');
   const nodeMarkup=tree.nodes.map(n=>{
-   const position=nodePoint(n),rank=nodeRank(character,n.id);
-   const eligible=nodeRequirementsMet(character,n.id);
+   const position=nodePoint(n),rank=this.rank(n);
+   const eligible=true;
    const active=rank>0,chosen=selected.id===n.id;
    const state=active?'learned':eligible?'unlearned':'locked';
    return '<button type="button" data-character-action="skill-node" data-skill-node="'+n.id+
@@ -238,8 +245,8 @@ export class CharacterMenu{
     '<span class="talent-node-rank">'+(active?'Ур. '+rank+'/'+n.maxRank:'0/'+n.maxRank)+'</span>'+
     '</button>';
   }).join('');
-  const branchMarkup=DRUID_TREES.map(branch=>{
-   const count=branchLearnedCount(character,branch.id);
+  const branchMarkup=this.activeTrees().map(branch=>{
+   const count=branch.nodes.length;
    return '<button type="button" data-character-action="skill-branch" data-branch="'+branch.id+
     '" class="talent-branch talent-theme-'+branch.tone+
     (tree.id===branch.id?' is-current':'')+'" aria-pressed="'+(tree.id===branch.id)+'">'+
@@ -248,8 +255,8 @@ export class CharacterMenu{
   }).join('');
   const selection=this.skillInspectorMarkup(selected);
   return '<div class="char-skills talent-screen">'+
-   '<div class="char-section-title">Пути друида <small>Очки развития: '+character.skillPoints+'</small></div>'+
-   '<p class="char-muted">Выбирай специализацию и исследуй развитие заклинаний. Золотые рамки — изученные умения; остальные откроем вместе с системой прокачки.</p>'+
+   '<div class="char-section-title">Пути: '+CLASS_PROFILES[g.player.classId].name+' <small>Тест: всё открыто</small></div>'+
+   '<p class="char-muted">Все умения доступны сейчас. Выбери узел и нажми «Применить способность», или используй Q/R/F для основных умений.</p>'+
    '<div class="talent-branches" role="group" aria-label="Специализации друида">'+branchMarkup+'</div>'+
    '<div class="talent-header talent-theme-'+tree.tone+'"><span>'+gameIcon(tree.icon)+'</span>'+
    '<div><h3>'+tree.name+'</h3><p>'+tree.subtitle+'</p></div>'+
@@ -257,7 +264,7 @@ export class CharacterMenu{
    '<div class="talent-workspace talent-theme-'+tree.tone+'"><div class="talent-graph-scroll" aria-label="Дерево способностей '+tree.name+'">'+
    '<div class="talent-graph"><svg viewBox="0 0 600 516" preserveAspectRatio="none" aria-hidden="true">'+
    edgeMarkup+'</svg>'+nodeMarkup+'</div></div>'+selection+'</div>'+
-   '<p class="talent-footnote">Золото — изучено · зелёные связи — доступный путь · тёмные связи — закрытые ступени. Неизученные способности пока не участвуют в бою.</p></div>';
+   '<p class="talent-footnote">Все ветки и умения открыты для тестирования. Прогресс навыков будет добавлен позднее.</p></div>';
  }
  render(){
   if(!this.active)return;
@@ -271,7 +278,7 @@ export class CharacterMenu{
    (this.tab===id?'active':'')+'" aria-current="'+(this.tab===id?'page':'false')+'">'+label+'</button>').join('')+'</nav>';
   const content=this.tab==='equipment'?this.gearMarkup():this.tab==='inventory'?this.inventoryMarkup():
    this.tab==='stats'?this.statsMarkup():this.skillsMarkup();
-  this.ui.show('Персонаж','Снаряжение · сумка · развитие',nav+'<div class="char-content">'+content+'</div>'+
+  this.ui.show('Персонаж',''+CLASS_PROFILES[this.game.player.classId].name+' · снаряжение · способности',nav+'<div class="char-content">'+content+'</div>'+
    '<div class="char-footer">I — открыть / закрыть · Выбери предмет, чтобы надеть или назначить на клавишу 1–0.</div>');
   this.ui.panel.classList.add('character-panel');
   this.drawFigure();
@@ -281,7 +288,7 @@ export class CharacterMenu{
   const canvas=this.ui.panel.querySelector('#characterFigure');
   if(!canvas?.getContext)return;
   const c=canvas.getContext('2d');c.clearRect(0,0,144,144);c.imageSmoothingEnabled=false;
-  const hero=this.game.assets.images.hero;
+  const hero=this.game.assets.images[this.game.player.sprite]||this.game.assets.images.hero;
   if(hero)c.drawImage(hero,0,0,48,48,5,5,134,134);
   // The worn gear is presented as separate generated icon badges around
   // the canvas, not as emoji overlays on the sprite.
