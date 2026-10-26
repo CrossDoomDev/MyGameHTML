@@ -244,7 +244,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    }
   }
   await page.locator('[data-character-action="skill-branch"][data-branch="wrath"]').click();
-  assert.equal(await page.locator('.talent-node.learned').count(),1,'emerald bolt remains learned');
+  assert.equal(await page.locator('.talent-node.learned').count(),7,'all druid wrath abilities are unlocked');
   // Selecting talents must not reconstruct or move the tree. In particular,
   // its icon DOM elements, hit boxes, and scroll offset stay identical.
   const originalBolt=await page.locator('[data-skill-node="bolt"]').elementHandle();
@@ -300,14 +300,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(afterTalentScroll>0,'inspecting a deep talent preserves the scroll position');
   assert(await page.locator('.talent-inspector h3').textContent()==='Ярость небосвода',
    'clicking a locked spell previews its details');
-  assert(await page.locator('.talent-upgrade').isDisabled(),
-   'talents cannot be purchased without a point economy');
+  assert(await page.locator('.talent-use').isEnabled(),
+   'every ability is castable in the temporary open-skills test mode');
   await page.locator('[data-character-action="skill-branch"][data-branch="grove"]').click();
-  assert.equal(await page.locator('.talent-node.learned').count(),1,'existing roots skill remains learned');
+  assert.equal(await page.locator('.talent-node.learned').count(),7,'all forest-control skills unlocked');
   await page.locator('[data-character-action="skill-branch"][data-branch="restoration"]').click();
-  assert.equal(await page.locator('.talent-node.learned').count(),1,'existing healing remains learned');
+  assert.equal(await page.locator('.talent-node.learned').count(),7,'all healing skills unlocked');
   await page.locator('[data-character-action="skill-branch"][data-branch="wild"]').click();
-  assert.equal(await page.locator('.talent-node.learned').count(),0,'animal transformations are future abilities');
+  assert.equal(await page.locator('.talent-node.learned').count(),7,'animal transformation skills unlocked');
   await page.screenshot({path:'.qa/character-skills.png'});
   await page.keyboard.press('i');
   assert.equal(await page.locator('#panelBackdrop').isVisible(),false,'I closes the menu');
