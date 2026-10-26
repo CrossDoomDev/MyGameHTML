@@ -1,4 +1,5 @@
 import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
+import {CLASS_PROFILES,CLASS_SKILLS,skillColor} from './class-skills.js';
 import {ITEMS,equipCharacterItem,itemQuantity,gameIcon} from './character-data.js';
 import {CharacterMenu} from './character-menu.js';
 export class UI{
@@ -19,8 +20,31 @@ export class UI{
   this.updatePrimaryAttack();
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
  }
+ renderClassSkills(){
+  const profile=CLASS_PROFILES[this.g.player.classId];
+  const buttons=[...document.querySelectorAll('#skillbar .skill')];
+  buttons.forEach((button,index)=>{
+   const id=profile.keys[index],skill=CLASS_SKILLS[id];
+   if(!skill)return;
+   button.dataset.skill=id;button.title=(['Q','R','F'][index])+' · '+skill.name+' · '+skill.mana+' маны';
+   button.setAttribute('aria-label',skill.name);
+   // Use a generated class-branch icon for non-druid characters.
+   const branchIndex=this.g.currentSkills().findIndex(n=>n.id===id);
+   const branch=this.g.currentSkills().find(n=>n.id===id);
+   const artwork=this.g.player.classId==='druid'?
+     (index===0?'skill_bolt':index===1?'skill_roots':'skill_heal'):
+     'class_'+this.g.player.classId+'_'+(index===0?0:index===1?1:2);
+   const icon=button.querySelector('.game-icon');
+   if(icon){icon.dataset.icon=artwork;icon.className='game-icon'+(index>=0?'':'');}
+  });
+  const bar=document.getElementById('skillbar');
+  if(bar)bar.setAttribute('aria-label','Способности класса '+profile.name);
+  const dock=document.getElementById('skillsAction');
+  if(dock)dock.title='Способности: '+profile.name;
+  this.updatePrimaryAttack();
+ }
  updatePrimaryAttack(){
-  const useBolt=this.g.primaryAttackMode==='bolt';
+  const useBolt=this.g.player.classId==='druid'&&this.g.primaryAttackMode==='bolt';
   const staff=document.querySelector?.('[data-quick-id="weapon"]')||
    (document.getElementById('primaryStaff')?.dataset.quickId==='weapon'?document.getElementById('primaryStaff'):null);
   const bolt=document.getElementById('skill-bolt');
@@ -31,7 +55,7 @@ export class UI{
   }
   const mobile=document.getElementById('mobileAttack');
   if(mobile)mobile.setAttribute?.('aria-label',
-   useBolt?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
+   useBolt?'Основная атака: Изумрудный луч':'Основная атака: '+CLASS_PROFILES[this.g.player.classId].weapon);
  }
  renderQuickbar(){
   const slots=this.g.character?.quickSlots;
@@ -53,7 +77,7 @@ export class UI{
   });
   this.updatePrimaryAttack();
  }
- portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);c.drawImage(assets.images.hero,0,0,48,48,0,0,48,48);}
+ portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);c.drawImage(assets.images[this.g.player.sprite]||assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
   if(this.g.editor?.active)this.g.editor.close();
   if(title!=='Персонаж'&&this.characterMenu)this.characterMenu.active=false;
@@ -71,7 +95,7 @@ export class UI{
   if(!panel)return;
   panel.hidden=!focus;
   if(!focus)return;
-  const name=focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
+  const name=focus.training?'Тренировочный манекен':focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
   document.getElementById('combatFocusName').textContent=name;
   document.getElementById('combatFocusHealth').textContent=
    Math.max(0,Math.ceil(focus.hp))+' / '+focus.max;
@@ -88,22 +112,26 @@ export class UI{
   });
   text('region',g.map.label);
   this.updateCombatFocus();
-  for(const [id,skill] of Object.entries(DRUID_SKILLS)){
-   const button=document.getElementById('skill-'+id);
-   if(!button)continue;
+  const classProfile=CLASS_PROFILES[p.classId];
+  for(const [index,id] of classProfile.keys.entries()){
+   const skill=CLASS_SKILLS[id],button=[...document.querySelectorAll('#skillbar .skill')][index];
+   if(!button||!skill)continue;
    const remaining=skillRemaining(g.skillCooldowns,id,g.time);
-   const reason=remaining?'Перезарядка':p.mana<skill.mana?'Недостаточно маны':id==='heal'&&p.hp>=p.maxHp?'Здоровье полное':'';
-   // RMB must still select the bolt while it is recharging or out of mana.
-   // Keep that one icon enabled, while castSkill itself blocks invalid casts.
-   button.disabled=id==='bolt'?false:!!reason||this.open||!!g.editor?.active;
-   button.setAttribute?.('aria-disabled',reason||this.open||g.editor?.active?'true':'false');
+   const reason=remaining?'Перезарядка':p.mana<skill.mana?'Недостаточно маны':'';
+   button.disabled=!!reason||this.open||!!g.editor?.active;
    button.classList.toggle('recharging',remaining>0);
    const label=button.querySelector('.skill-timer');
    if(label)label.textContent=remaining?String(Math.ceil(remaining/1000)):reason?'—':'';
-   button.setAttribute?.('aria-label',skill.name+
-    (id==='bolt'&&g.primaryAttackMode==='bolt'?', основная атака':'')+
-    (remaining?', перезарядка '+Math.ceil(remaining/1000)+' секунд':'')+
-    (reason&&!remaining?', '+reason:''));
+   button.setAttribute?.('aria-label',skill.name+(reason?', '+reason:''));
+  }
+  const trainer=document.getElementById('trainingStats');
+  if(trainer){
+   trainer.hidden=g.location!=='village';
+   if(!trainer.hidden){
+    const s=g.dummyStats;
+    trainer.textContent='🎯 Манекен · Урон: '+s.damage+' · Удары: '+s.hits+
+     ' · Лечение: '+s.healing+' · Исцеления: '+s.healHits;
+   }
   }
   text('questTitle',p.boss?'Тихолесье в безопасности':p.questReward?'Страж древней рощи':'Просьба старосты');
   text('questText',p.boss?'Страж побеждён. Исследуй мир.':p.questReward?'Найди стража в Великом лесу':!p.questAccepted?'Поговори со старостой у таверны':p.kills>=3?'Вернись к старосте за наградой':'Лесные существа: '+Math.min(3,p.kills)+' / 3');
@@ -189,7 +217,24 @@ export class UI{
   return '<div class="setting-row npc-style-setting"><span><strong>Графика NPC</strong><small>Пиксельные персонажи 48×48, как у главного героя. Четыре направления и кадры ходьбы.</small></span><span class="npc-pixel-label">Пиксельный стиль</span></div>';
  }
  settings(){
-  this.show('У костра','Настройки и управление',this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс героя сохраняется на этом устройстве.<br>Версия 0.11 · обновлённая пиксельная панель меню</p>');
+  const selected=this.g.player.classId;
+  const classButtons=Object.entries(CLASS_PROFILES).map(([id,profile])=>
+   '<button type="button" class="class-choice '+(selected===id?'is-selected':'')+
+   '" data-class-choice="'+id+'" aria-pressed="'+(selected===id)+'">'+
+   '<span class="class-choice-image" data-class="'+id+'" aria-hidden="true"></span>'+
+   '<strong>'+profile.name+'</strong><small>'+profile.style+'</small></button>').join('');
+  const classPanel='<section class="setting-class-choice"><h3>Тестирование игровых классов</h3>'+
+   '<p class="note">Выбирай любого героя без регистрации. Все умения открыты. Прогресс сохраняется.</p>'+
+   '<div class="class-choice-grid">'+classButtons+'</div></section>';
+  this.show('У костра','Настройки и управление',classPanel+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс героя сохраняется на этом устройстве.<br>Версия 0.11 · обновлённая пиксельная панель меню</p>');
+  this.panel.querySelectorAll('[data-class-choice]').forEach(button=>{
+   button.onclick=()=>{
+    if(this.g.setClass(button.dataset.classChoice)){
+     this.toast('Выбран класс: '+CLASS_PROFILES[this.g.player.classId].name);
+    }
+    this.settings();
+   };
+  });
   this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
