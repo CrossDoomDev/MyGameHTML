@@ -85,7 +85,7 @@ export function itemQuantity(game,id){
 export function gameIcon(id,additionalClass=''){
  const valid=new Set([...Object.values(ITEMS).map(item=>item.icon),
   'skill_bolt','skill_roots','skill_heal','map_parchment','slot_plus']);
- const icon=valid.has(id)?id:'slot_plus';
+ const icon=(valid.has(id)||/^class_(?:druid|archer|warrior|mage|rogue|paladin|cleric)_[012]$/.test(id))?id:'slot_plus';
  return '<span class="game-icon'+(additionalClass?' '+additionalClass:'')+
   '" data-icon="'+icon+'" aria-hidden="true"></span>';
 }
