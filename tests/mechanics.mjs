@@ -157,6 +157,39 @@ game.character.quickSlots[9]=null;game.applyEquipment();
 
 assert.equal(game.mobs.filter(m=>!m.training).length,0,'no hostile combat spawns in village');
 assert.equal(game.mobs.filter(m=>m.training).length,1,'one invulnerable training dummy is placed in village');
+// Seven classes can be selected temporarily in Settings, with persistent hero
+// sprites and actual combat effects against the practice dummy.
+game.ui.settings();
+assert(game.ui.panel.html.includes('data-class-choice="druid"'),'druid selectable');
+for(const id of ['archer','warrior','mage','rogue','paladin','cleric'])
+ assert(game.ui.panel.html.includes('data-class-choice="'+id+'"'),id+' selectable');
+game.ui.close();
+const targetDummy=game.mobs.find(m=>m.training);
+assert(game.assets.images.dummy,'the practice dummy has its own game illustration');
+const startHealth=game.player.hp,startMana=game.player.mana;
+game.time=15000;
+assert(game.setClass('mage'));
+assert.equal(game.player.sprite,'mage','class selection swaps animation sprite');
+assert.equal(game.player.classId,'mage');
+assert.equal(game.currentSkills().length,9,'mage has three fully unlocked paths');
+game.combatTarget=targetDummy;
+const damageBefore=game.dummyStats.damage;
+assert(game.castSkill('firebolt',{target:targetDummy}),'mage fireball is castable');
+assert(game.dummyStats.damage>damageBefore,'mage fireball deals real dummy damage');
+assert.equal(game.setClass('cleric'),true);
+assert.equal(game.player.sprite,'cleric');
+assert.equal(game.currentSkills().length,9);
+const healedBefore=game.dummyStats.healing;
+assert(game.castSkill('greaterheal',{target:targetDummy}),'cleric heal is castable');
+assert(game.dummyStats.healing>healedBefore,'dummy records actual healing');
+for(const id of ['archer','warrior','rogue','paladin'])
+ assert(game.setClass(id),id+' switch succeeds');
+assert(game.setClass('druid'),'returning to druid works without deleting progress');
+assert.equal(game.currentSkills().length,28);
+assert.equal(game.player.sprite,'hero');
+assert.equal(game.setClass('absent'),false,'invalid class falls back to current druid');
+game.combatTarget=null;game.player.hp=startHealth;game.player.mana=startMana;game.time=0;
+game.ui.updateCombatFocus();
 assert.equal(game.npcs.length,7,'seven villagers');
 assert.equal(game.visitors.length,6,'six independently wandering class previews join the village');
 assert.deepEqual(game.visitors.map(v=>v.sprite),CLASS_SPRITES,'all six archetypes placed in village');
