@@ -34,7 +34,11 @@ function show(g,type,at,color,radius){
 }
 function applyStatus(g,target,type,power,duration){
  if(!target?.alive)return;
- if(['root','stun'].includes(type))target.rootedUntil=Math.max(target.rootedUntil||0,g.time+duration);
+ if(type==='root')target.rootedUntil=Math.max(target.rootedUntil||0,g.time+duration);
+ if(type==='stun'){
+  target.rootedUntil=Math.max(target.rootedUntil||0,g.time+duration);
+  target.stunnedUntil=Math.max(target.stunnedUntil||0,g.time+duration);
+ }
  if(type==='slow')target.slowUntil=Math.max(target.slowUntil||0,g.time+duration);
  if(type==='weaken')target.weakenUntil=Math.max(target.weakenUntil||0,g.time+duration);
  if(type==='dot'){
@@ -115,9 +119,11 @@ export function castClassSkill(g,id,{target=null,automatic=false}={}){
  case 'areaHeal':restore(g,power,p);if(t?.training)restore(g,power,t);break;
  case 'hot':g.combatStatuses.push({type:'hot',target:recipient,power:Math.ceil(power/2),ticks:4,next:g.time+1000,expires:g.time+5200});break;
  case 'cleanse':restore(g,power,p);g.combatStatuses=g.combatStatuses.filter(s=>s.type!=='dot'||s.target!==p);break;
- case 'shield':case 'formGuard':g.shield=Math.max(g.shield||0,power);g.shieldUntil=g.time+9000;break;
+ case 'shield':case 'formGuard':g.shield=Math.max(g.shield||0,power);g.shieldUntil=g.time+9000;
+  if(type==='formGuard'){g.formUntil=g.time+9000;g.formKind='bear';}break;
  case 'shieldHeal':g.shield=Math.max(g.shield||0,power);g.shieldUntil=g.time+11000;restore(g,Math.round(power*.5),p);break;
- case 'buff':case 'form':g.buffPower=power;g.buffUntil=g.time+8500;break;
+ case 'buff':case 'form':g.buffPower=power;g.buffUntil=g.time+8500;
+  if(type==='form'){g.formUntil=g.time+8500;g.formKind=id==='cat-form'?'cat':'beast';}break;
  case 'stealth':g.stealthUntil=g.time+5300;break;
  case 'mana':p.mana=Math.min(p.maxMana,p.mana+power);g.effect('+'+power+' мана',p,'#8fbfff');break;
  case 'manaHeal':p.mana=Math.min(p.maxMana,p.mana+power);restore(g,power,p);break;
