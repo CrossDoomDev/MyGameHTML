@@ -40,6 +40,8 @@ export class Game{
   this.npcStyle='pixel';
   try{localStorage.setItem('tiholesye-npc-style','pixel');}catch{}
   p.classId=initialClass(data.classId);
+  p.maxMana=CLASS_PROFILES[p.classId].mana;
+  p.mana=clamp(Number.isFinite(data.mana)?data.mana:p.mana,0,p.maxMana);
   this.player=anchored({...p,sprite:CLASS_PROFILES[p.classId].sprite});
   this.character=loadCharacter();
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
