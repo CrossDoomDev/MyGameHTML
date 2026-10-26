@@ -13,7 +13,7 @@ export const CLASS_PROFILES=Object.freeze({
 const N=(id,name,effect,detail,mana=10,cooldown=3000,power=20,range=5)=>({id,name,effect,detail,mana,cooldown,power,range});
 const B=(id,name,icon,tone,subtitle,nodes)=>({
  id,name,icon,tone,subtitle,nodes:nodes.map((n,i)=>({
- ...n,column:i===0?2:i===1?1:3,row:i===0?0:1,
+ ...n,icon,column:i===0?2:i===1?1:3,row:i===0?0:1,
  requires:i?[nodes[0].id]:[],level:1,maxRank:3,kind:'Активное',
  description:n.detail
  }))
