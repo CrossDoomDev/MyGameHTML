@@ -31,6 +31,7 @@ jobs:
       - run: node tests/character-data.mjs
       - run: node tests/druid-skills.mjs
       - run: node tests/druid-tree.mjs
+      - run: node tests/class-skills.mjs
       - run: node tests/combat-focus.mjs
       - run: node tests/pixel-art-sharp.mjs
       - run: python3 tests/tavern-image.py
