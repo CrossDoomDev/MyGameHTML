@@ -202,6 +202,8 @@ export class Game{
   this.player.hp=Math.max(1,Math.round(this.player.maxHp*hpRatio));
   this.player.maxMana=profile.mana;this.player.mana=Math.round(profile.mana*manaRatio);
   this.player.step=null;this.player.moving=false;
+  this.player.attackUntil=0;this.player.attackStarted=0;this.player.animationTime=0;
+  this.lastAttack=-1000;
   this.primaryAttackMode='staff';this.path=[];this.combatTarget=null;this.target=null;
   this.skillCooldowns={};this.combatStatuses=[];this.shield=0;this.buffPower=0;
   if(this.assets)this.ui.portrait(this.assets);
