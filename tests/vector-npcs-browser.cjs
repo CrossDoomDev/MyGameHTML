@@ -105,6 +105,59 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(classSprites.spriteSizes.every(s=>s[0]===144&&s[1]===192),
    'all class sheets have 12 native 48×48 frames');
   assert(classSprites.sample,'actual pixel artwork is drawn into the new sprite sheets');
+  // The new class selector and its illustrated abilities are interactive,
+  // not merely an art preview.
+  const selectorArt=await page.evaluate(async()=>{
+   const img=new Image();img.src='/assets/class-ui-atlas.png';
+   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
+   return [img.naturalWidth,img.naturalHeight];
+  });
+  assert.deepEqual(selectorArt,[144,64],'generated class portrait and specialization atlas decodes');
+  const classes=['druid','archer','warrior','mage','rogue','paladin','cleric'];
+  for(const id of classes){
+   await page.locator('#settings').click();
+   assert.equal(await page.locator('[data-class-choice]').count(),7,'settings show seven playable classes');
+   await page.locator('[data-class-choice="'+id+'"]').click();
+   assert.equal(await page.evaluate(()=>window.tiholesye.player.classId),id,'selected class '+id);
+   assert.equal(await page.locator('.class-choice.is-selected').count(),1,'only one selected class');
+   await page.locator('#closePanel').click();
+   await page.locator('#skillsAction').click();
+   assert.equal(await page.locator('.talent-branch').count(),id==='druid'?4:3,
+    id+' has the correct number of specialization trees');
+   assert.equal(await page.locator('.talent-node.learned').count(),id==='druid'?7:3,
+    id+' abilities are all unlocked and clickable');
+   assert(await page.locator('.talent-use').isEnabled(),'selected skill can be used immediately');
+   await page.locator('#closePanel').click();
+  }
+  // Genuine keyboard cast damages the dummy while the mage is selected.
+  await page.locator('#settings').click();
+  await page.locator('[data-class-choice="mage"]').click();
+  await page.locator('#closePanel').click();
+  const beforeFire=await page.evaluate(()=>{
+   const g=window.tiholesye,dummy=g.mobs.find(m=>m.training);
+   if(!dummy)throw Error('Training dummy did not spawn');
+   g.combatTarget=dummy;g.player.mana=g.player.maxMana;
+   g.time=Math.max(15000,g.time);
+   return g.dummyStats.damage;
+  });
+  await page.keyboard.press('q');
+  assert((await page.evaluate(()=>window.tiholesye.dummyStats.damage))>beforeFire,
+   'mage Q key actually damages target dummy');
+  // Test healing a hurt mannequin by clicking skill in the cleric tree.
+  await page.locator('#settings').click();
+  await page.locator('[data-class-choice="cleric"]').click();
+  await page.locator('#closePanel').click();
+  await page.locator('#skillsAction').click();
+  await page.locator('[data-skill-node="greaterheal"]').click();
+  const beforeHeal=await page.evaluate(()=>window.tiholesye.dummyStats.healing);
+  await page.locator('.talent-use').click();
+  assert((await page.evaluate(()=>window.tiholesye.dummyStats.healing))>beforeHeal,
+   'cleric tree ability restores dummy health');
+  // Restore original class for the existing NPC and movement validations.
+  await page.locator('#settings').click();
+  await page.locator('[data-class-choice="druid"]').click();
+  await page.locator('#closePanel').click();
+  await page.screenshot({path:'.qa/class-selector.png'});
   const roaming=await page.evaluate(()=>{
    const g=window.tiholesye;
    const discovered=new Map(g.visitors.map(v=>[v.id,new Set([v.x+','+v.y])]));
