@@ -19,6 +19,7 @@ for(const id of ids){
  for(const n of nodes){
   const spell=CLASS_SKILLS[n.id];
   assert(spell&&spell.name===n.name,'UI node '+n.id+' maps to combat spell');
+  assert(/^class_[a-z]+_[012]$/.test(n.icon)||id==='druid'&&!!n.icon,'class skill '+n.id+' has actual illustration');
   assert(spell.effect&&spell.cooldown>0&&spell.range>=0);
   const dummy={kind:'mob',training:true,alive:true,x:31,y:24,
    px:(31+.5)*TILE,py:(24+.8)*TILE,hp:400,max:500};
