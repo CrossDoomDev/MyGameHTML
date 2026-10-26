@@ -203,6 +203,7 @@ export class Game{
   this.player.maxMana=profile.mana;this.player.mana=Math.round(profile.mana*manaRatio);
   this.player.step=null;this.player.moving=false;
   this.player.attackUntil=0;this.player.attackStarted=0;this.player.animationTime=0;
+  this.formUntil=0;this.formKind='';
   this.lastAttack=-1000;
   this.primaryAttackMode='staff';this.path=[];this.combatTarget=null;this.target=null;
   this.skillCooldowns={};this.combatStatuses=[];this.shield=0;this.buffPower=0;
@@ -473,7 +474,8 @@ export class Game{
   if(this.blocked(x,y,entity))return false;
   const dx=(x+.5)*TILE-entity.px,dy=(y+.8)*TILE-entity.py;
   if(dx||dy)entity.direction=directionTo(dx,dy);
-  entity.step={x,y,fromX:entity.px,fromY:entity.py,elapsed:0,duration:Math.max(1,duration*Math.hypot(dx,dy)/TILE)};entity.moving=true;return true;
+  const slow=entity.kind==='mob'&&entity.slowUntil>this.time?1.8:1;
+  entity.step={x,y,fromX:entity.px,fromY:entity.py,elapsed:0,duration:Math.max(1,duration*slow*Math.hypot(dx,dy)/TILE)};entity.moving=true;return true;
  }
  advance(entity,dt){
   if(!entity.step){entity.moving=false;return;}
@@ -496,8 +498,9 @@ export class Game{
   for(const m of this.mobs){
    if(m.training)continue;
    if(!m.alive){if(!m.boss&&this.time>=m.respawnAt){m.alive=true;m.hp=m.max;m.x=m.homeX;m.y=m.homeY;m.px=(m.x+.5)*TILE;m.py=(m.y+.8)*TILE;m.step=null;}continue;}
+   if(this.time<(m.stunnedUntil||0))continue;
    if(this.time>=(m.rootedUntil||0))this.advance(m,dt);
-   const d=distance(m,p),aggro=d<(m.boss?190:120),adjacent=d<43;
+   const d=distance(m,p),aggro=d<(m.boss?190:120)&&this.stealthUntil<=this.time,adjacent=d<43;
    if(adjacent&&this.time-m.lastAttack>1400){
     m.lastAttack=this.time;m.attackStarted=this.time;m.attackUntil=this.time+360;m.direction=directionTo(p.px-m.px,p.py-m.py);m.attackDirection=m.direction;
     let taken=Math.max(1,(m.boss?14:6)-characterBonuses(this.character).armor);
