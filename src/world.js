@@ -1,6 +1,8 @@
 import { loadAssets } from './assets.js';
 import { updateAnimation } from './animation.js';
 import {DRUID_SKILLS,SKILL_KEYS,skillRemaining,boltTrace,rootsTargets} from './druid-skills.js';
+import {CLASS_PROFILES,CLASS_SKILLS,allClassSkills,initialClass} from './class-skills.js';
+import {castClassSkill,tickClassEffects} from './class-combat.js';
 import {autoRangedSkill,canFocusShoot,findFocusApproach} from './combat-focus.js';
 import {loadCharacter,persistCharacter,characterBonuses,ITEMS} from './character-data.js';
 import {CLASS_VISITORS,nextVisitorStep,PATROL_RADIUS} from './village-visitors.js';
@@ -37,12 +39,16 @@ export class Game{
   // Override the retired vector setting from existing local saves.
   this.npcStyle='pixel';
   try{localStorage.setItem('tiholesye-npc-style','pixel');}catch{}
-  this.player=anchored({...p,sprite:'hero'});
+  p.classId=initialClass(data.classId);
+  this.player=anchored({...p,sprite:CLASS_PROFILES[p.classId].sprite});
   this.character=loadCharacter();
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
   this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
   this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'?'bolt':'staff';
-  this.time=0;this.effects=[];this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
+  this.time=0;this.effects=[];this.combatStatuses=[];
+  this.dummyStats={damage:0,hits:0,healing:0,healHits:0};
+  this.shield=0;this.shieldUntil=0;this.buffPower=0;this.buffUntil=0;
+  this.stealthUntil=0;this.camera={x:0,y:0};this.zoom=innerWidth>=1100?2:innerWidth>=700?1.5:1;this.night=false;this.sound=false;this.lastAttack=-1000;this.lastSave=0;this.skillCooldowns={};
   this.populateLocation();
   if(this.occupied(p.x,p.y)){Object.assign(this.player,{x:SPAWN.x,y:SPAWN.y,px:(SPAWN.x+.5)*TILE,py:(SPAWN.y+.8)*TILE});}
   this.ui=new UI(this);this.editor=new MapEditor(this);this.bindInput();this.resize();
@@ -56,7 +62,7 @@ export class Game{
    this.mobs=saved.mobs.map(e=>this.makeMob(e.x,e.y,e.sprite));
    for(const m of this.mobs)if(m.boss&&this.player.boss)m.alive=false;
    this.herbs=saved.herbs.map(h=>anchored({...h,kind:'herb',collected:false}));
-   this.populateVisitors();
+   this.populateVisitors();this.populateTrainingDummy();
    return;
   }
   this.npcs=(this.location==='village'?[
@@ -77,7 +83,17 @@ export class Game{
   this.herbs=(this.location==='forest'?[[11,40],[25,40],[48,36],[62,40],[72,23],[38,63],[82,60]]:[])
    .map(([x,y])=>anchored({x,y,kind:'herb',collected:false}));
   for(const h of this.herbs)this.clearSpawn(h.x,h.y);
-  this.populateVisitors();
+  this.populateVisitors();this.populateTrainingDummy();
+ }
+ populateTrainingDummy(){
+  if(this.location!=='village')return;
+  const coords=[[34,26],[30,27],[35,24],[28,26],[33,29],[32,24]];
+  const cell=coords.find(([x,y])=>!this.blocked(x,y));
+  if(!cell)return;
+  const [x,y]=cell;
+  this.mobs.push(anchored({kind:'mob',id:'training-dummy',name:'Тренировочный манекен',
+   sprite:'dummy',training:true,x,y,homeX:x,homeY:y,hp:500,max:500,alive:true,
+   boss:false,rootedUntil:0}));
  }
  populateVisitors(){
   if(this.location!=='village')return;
@@ -172,6 +188,24 @@ export class Game{
    this.setPrimaryAttack('staff');
   if(this.ui)this.ui.renderQuickbar();
  }
+ currentSkills(){return allClassSkills(this.player.classId);}
+ setClass(id){
+  id=initialClass(id);
+  const profile=CLASS_PROFILES[id];
+  if(this.player.classId===id)return false;
+  const hpRatio=this.player.hp/Math.max(1,this.player.maxHp);
+  const manaRatio=this.player.mana/Math.max(1,this.player.maxMana);
+  this.player.classId=id;this.player.sprite=profile.sprite;
+  this.player.maxHp=profile.hp+(this.player.level-1)*20;
+  this.player.hp=Math.max(1,Math.round(this.player.maxHp*hpRatio));
+  this.player.maxMana=profile.mana;this.player.mana=Math.round(profile.mana*manaRatio);
+  this.player.step=null;this.player.moving=false;
+  this.primaryAttackMode='staff';this.path=[];this.combatTarget=null;this.target=null;
+  this.skillCooldowns={};this.combatStatuses=[];this.shield=0;this.buffPower=0;
+  if(this.assets)this.ui.portrait(this.assets);
+  this.ui.renderClassSkills();this.ui.renderQuickbar();this.ui.updateCombatFocus();
+  this.save();return true;
+ }
  setNPCStyle(){
   // Retained for compatibility with legacy callers; all NPCs are pixel-art.
   this.npcStyle='pixel';
@@ -250,7 +284,10 @@ export class Game{
    if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){this.keys.add(e.code);this.target=null;this.path=[];} // Keyboard movement never drops combat focus.
    if(e.repeat)return;
    if(e.code==='Space')this.primaryAttack();
-   if(SKILL_KEYS[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey)this.castSkill(SKILL_KEYS[e.code]);
+   if(['KeyQ','KeyR','KeyF'].includes(e.code)&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    const index=['KeyQ','KeyR','KeyF'].indexOf(e.code);
+    this.castSkill(CLASS_PROFILES[this.player.classId].keys[index]);
+   }
    if(e.code==='KeyE')this.interactNearest();
    if(e.code==='KeyB')this.ui.inventory();
    if(e.code==='KeyM')this.ui.map();
@@ -271,7 +308,8 @@ export class Game{
   // the runtime transparency rule rather than being silently removed.
   const important=[...this.npcs,...this.herbs,...this.map.buildings.map(b=>({px:(b.doorX+.5)*TILE,py:(b.doorY+.8)*TILE}))];
   if(!this.worldMaps[this.location])removeScenery(this.map,o=>{const sprite=this.assets.environment[o.sprite];return sprite&&important.some(actor=>coversActor(sceneryPlacement(o,sprite),actor,this.assets.environmentMasks?.[o.sprite]));});
-  this.renderer=new Renderer(this);this.ui.portrait(this.assets);this.ready=true;
+  this.renderer=new Renderer(this);this.ui.portrait(this.assets);
+  this.ui.renderClassSkills();this.ready=true;
   document.getElementById('loading').hidden=true;this.prev=performance.now();
   const frame=now=>{const dt=Math.min(60,now-this.prev);this.prev=now;if(!document.hidden&&!this.ui.open){this.time+=dt;if(!this.editor?.active)this.update(dt);}this.renderer.draw(this.time);this.ui.update();requestAnimationFrame(frame);};
   requestAnimationFrame(frame);
