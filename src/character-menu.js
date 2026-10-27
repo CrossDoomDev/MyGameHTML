@@ -2,6 +2,7 @@ import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuic
 import {DRUID_SKILLS} from './druid-skills.js';
 import {DRUID_TREES,findDruidTree,DRUID_NODE_BY_ID,nodeRank,nodeRequirementsMet,branchLearnedCount} from './druid-tree.js';
 import {CLASS_PROFILES,CLASS_TREES,CLASS_SKILLS} from './class-skills.js';
+import {t,className,skillName,branchName,skillDescription} from './i18n.js';
 
 // The character window intentionally shares the existing in-game modal layer.
 export class CharacterMenu{
@@ -54,7 +55,7 @@ export class CharacterMenu{
     if(assignCharacterQuickSlot(this.game.character,this.pending,index)){
      persistCharacter(this.game.character);
      this.ui.renderQuickbar();
-     this.ui.toast('Предмет назначен на ячейку '+(index===9?'0':index+1));
+     this.ui.toast(t('assigned',{slot:index===9?'0':index+1}));
      this.pending=null;this.render();
     }
     return;
@@ -133,22 +134,22 @@ export class CharacterMenu{
    return '<button type="button" class="char-equip-slot" data-character-action="select" data-item="'+
      (id||character.owned.find(value=>ITEMS[value]?.slot===slot)||'staff')+
      '" title="'+name+'"><span class="char-equip-icon">'+gameIcon(item?.icon||'slot_plus')+
-     '</span><span><small>'+name+'</small><strong>'+(item?.name||'Свободно')+'</strong></span></button>';
+     '</span><span><small>'+name+'</small><strong>'+(item?.name||t('free'))+'</strong></span></button>';
   });
   const bonuses=characterBonuses(character);
   const all=this.inventoryItems();
-  return '<div class="char-columns"><div class="char-paper"><div class="char-section-title">Экипировка</div>'+
-   '<div class="char-hero-name">'+CLASS_PROFILES[this.game.player.classId].name+' · уровень '+this.game.player.level+'</div>'+
+  return '<div class="char-columns"><div class="char-paper"><div class="char-section-title">'+t('equipment')+'</div>'+
+   '<div class="char-hero-name">'+className(this.game.player.classId,CLASS_PROFILES[this.game.player.classId].name)+' · '+t('level')+' '+this.game.player.level+'</div>'+
    '<div class="char-figure-wrap"><canvas id="characterFigure" width="144" height="144" aria-label="Персонаж в экипировке"></canvas>'+
    Object.entries({head:'head',weapon:'weapon',cloak:'cloak',boots:'boots'}).map(([slot,position])=>
     this.game.character.equipment[slot]?'<span class="char-figure-badge char-badge-'+position+'">'+
      gameIcon(ITEMS[this.game.character.equipment[slot]].icon)+'</span>':'').join('')+
-   '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?.name||'Без одежды')+'</div></div>'+
+   '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?.name||t('withoutClothes'))+'</div></div>'+
    '<div class="char-equip-grid">'+slotButtons.join('')+'</div>'+
    '<div class="char-gear-summary">⚔ '+(10+this.game.player.level*3+bonuses.attack)+
    ' <span>✦ '+(CLASS_SKILLS[CLASS_PROFILES[this.game.player.classId].signature].power+this.game.player.level*3+bonuses.magic)+
    '</span> <span>🛡 '+bonuses.armor+'</span></div></div>'+
-   '<div class="char-bag"><div class="char-section-title">Сумка <small>'+all.length+' предметов</small></div>'+
+   '<div class="char-bag"><div class="char-section-title">'+t('bag')+' <small>'+all.length+' '+t('items')+'</small></div>'+
    '<div class="char-items">'+all.map(id=>this.itemButton(id)).join('')+'</div>'+
    this.selectionMarkup()+'</div></div>';
  }
@@ -156,44 +157,44 @@ export class CharacterMenu{
   const items=this.inventoryItems();
   const empties=Array.from({length:Math.max(0,30-items.length)},()=>
    '<span class="char-empty-item" aria-hidden="true">'+gameIcon('slot_plus')+'</span>').join('');
-  return '<div class="char-inventory"><div><div class="char-section-title">Все предметы <small>'+
-   items.length+' / 30 ячеек</small></div><div class="char-items">'+
+  return '<div class="char-inventory"><div><div class="char-section-title">'+t('allItems')+' <small>'+
+   items.length+' / 30 '+t('cells')+'</small></div><div class="char-items">'+
    items.map(id=>this.itemButton(id)).join('')+empties+'</div></div>'+
    '<div>'+this.selectionMarkup()+'</div></div>';
  }
  selectionMarkup(){
   const id=this.selected,item=ITEMS[id];
-  if(!item)return '<div class="char-selection">Выбери предмет для просмотра.</div>';
+  if(!item)return '<div class="char-selection">'+t('inspectItem')+'</div>';
   const worn=item.slot&&this.game.character.equipment[item.slot]===id;
   const info=item.slot?'<span class="char-tag">'+GEAR_SLOTS[item.slot]+'</span>':'';
   const equipAction=item.slot?'<button class="char-action" type="button" data-character-action="equip" data-item="'+id+
-   '">'+(worn?'Снять':'Экипировать')+'</button>':'';
+   '">'+(worn?t('unequip'):t('equipAction'))+'</button>':'';
   const slots=this.game.character.quickSlots.map((entry,i)=>
    '<button type="button" data-character-action="assign" data-index="'+i+
-   '" title="Назначить в ячейку '+(i===9?'0':i+1)+'">'+(i===9?'0':i+1)+
+   '" title="'+t('selectSlot')+' '+(i===9?'0':i+1)+'">'+(i===9?'0':i+1)+
    '<small>'+gameIcon(entry==='weapon'?
      (ITEMS[this.game.character.equipment.weapon]?.icon||'slot_plus'):
      (ITEMS[entry]?.icon||'slot_plus'))+'</small></button>').join('');
-  const assignment=this.pending===id?'<div class="char-assign"><strong>Выбери ячейку быстрого доступа</strong>'+
+  const assignment=this.pending===id?'<div class="char-assign"><strong>'+t('selectSlot')+'</strong>'+
    '<div class="char-assign-grid">'+slots+'</div></div>':'';
-  const count=item.consumable||id==='wood'?' · В сумке: '+itemQuantity(this.game,id):'';
+  const count=item.consumable||id==='wood'?' · '+t('inBag')+': '+itemQuantity(this.game,id):'';
   return '<div class="char-selection"><div class="char-selected-heading">'+gameIcon(item.icon)+
    '<div><strong>'+item.name+'</strong>'+info+'</div></div>'+
    '<p>'+item.detail+count+'</p><div class="char-selection-actions">'+equipAction+
    '<button class="char-action char-action-outline" type="button" data-character-action="assign-start" data-item="'+id+
-   '">На быструю панель</button></div>'+assignment+'</div>';
+   '">'+t('quickAssign')+'</button></div>'+assignment+'</div>';
  }
  statsMarkup(){
   const p=this.game.player,b=characterBonuses(this.game.character);
   const stats=[
-   ['Уровень',p.level],['Здоровье',Math.ceil(p.hp)+' / '+p.maxHp],
-   ['Мана',Math.floor(p.mana)+' / '+p.maxMana],['Опыт',p.xp+' / '+(p.level*50)],
-   ['Ближняя атака',CLASS_PROFILES[p.classId].attack+p.level*3+b.attack],['Сила умения',CLASS_SKILLS[CLASS_PROFILES[p.classId].signature].power+p.level*3+b.magic],
-   ['Защита снаряжения',b.armor],['Побед над существами',p.kills],
-   ['Монеты',p.coins],['Основная атака',this.game.primaryAttackMode==='bolt'?'Изумрудный луч':'Ближний бой']
+   [t('level'),p.level],[t('health'),Math.ceil(p.hp)+' / '+p.maxHp],
+   [t('mana'),Math.floor(p.mana)+' / '+p.maxMana],[t('experience'),p.xp+' / '+(p.level*50)],
+   [t('strength'),CLASS_PROFILES[p.classId].attack+p.level*3+b.attack],[t('power'),CLASS_SKILLS[CLASS_PROFILES[p.classId].signature].power+p.level*3+b.magic],
+   [t('armor'),b.armor],[t('kills'),p.kills],
+   [t('coins'),p.coins],[t('mainAttack'),this.game.primaryAttackMode==='bolt'?skillName('bolt','Изумрудный луч'):t('melee')]
   ];
-  return '<div class="char-stats"><div class="char-section-title">Характеристики друида</div>'+
-   '<p class="char-muted">Показатели зависят от уровня персонажа и надетого снаряжения.</p>'+
+  return '<div class="char-stats"><div class="char-section-title">'+t('stats')+': '+className(p.classId,CLASS_PROFILES[p.classId].name)+'</div>'+
+   '<p class="char-muted">'+t('statsNote')+'</p>'+
    '<div class="char-stats-grid">'+stats.map(([name,value])=>'<div><span>'+name+
    '</span><strong>'+value+'</strong></div>').join('')+'</div></div>';
  }
