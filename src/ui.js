@@ -95,7 +95,7 @@ export class UI{
  portrait(assets){const c=document.getElementById('portrait').getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,48,48);c.drawImage(assets.images[this.g.player.sprite]||assets.images.hero,0,0,48,48,0,0,48,48);}
  show(title,subtitle,html){
   if(this.g.editor?.active)this.g.editor.close();
-  if(title!=='Персонаж'&&this.characterMenu)this.characterMenu.active=false;
+  if(title!==t('character')&&this.characterMenu)this.characterMenu.active=false;
   this.panel.classList.remove('character-panel');
   this.g.keys.clear();this.g.stick={x:0,y:0};this.g.path=[];this.g.target=null;
   this.panel.innerHTML='<button class="close" id="closePanel" aria-label="'+t('close')+'">×</button><span class="eyebrow">'+subtitle+'</span><h2 id="panelTitle">'+title+'</h2>'+html;
