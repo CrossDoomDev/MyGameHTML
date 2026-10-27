@@ -404,7 +404,14 @@ export class Game{
   this.ensurePrimaryAttackMana();
   if(this.primaryAttackMode==='bolt'){
    const id=autoRangedSkill(this.player);
-   if(id)return this.castSkill(id,{target:this.combatTarget?.alive?this.combatTarget:null});
+   if(id){
+    const enemy=this.combatTarget?.alive?this.combatTarget:null;
+    if(enemy&&!canFocusShoot(this.map,this.player,enemy,id)){
+     this.followCombatTarget(enemy);
+     return false;
+    }
+    return this.castSkill(id,{target:enemy});
+   }
   }
   // Space/click is always a zero-mana physical strike in normal mode.
   // A distant selected enemy is chased rather than hit from afar.
