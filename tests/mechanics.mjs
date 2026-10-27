@@ -449,6 +449,13 @@ for(const id of ['archer','warrior','mage','rogue','paladin','cleric','druid']){
  if(ranged){
   assert(game.setPrimaryAttack('bolt'),id+' can manually choose a special ranged attack');
   assert.equal(game.primaryAttackMode,'bolt');
+  if(id==='archer'){
+   const savedWeapon=game.character.equipment.weapon;
+   game.character.equipment.weapon='sword';game.applyEquipment();
+   assert.equal(game.primaryAttackMode,'bolt',
+    'archer does not lose special bow shot because an unrelated melee weapon was equipped');
+   game.character.equipment.weapon=savedWeapon;game.applyEquipment();
+  }
   game.path=[];game.combatRepathAt=0;game.lastAttack=-1000;
   const manaBefore=focusHero.mana;
   const hpBeforeRanged=focusedBoss.hp;
