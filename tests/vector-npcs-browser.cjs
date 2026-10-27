@@ -148,7 +148,29 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.locator('[data-class-choice="'+id+'"]').click();
    assert.equal(await page.evaluate(()=>window.tiholesye.player.classId),id,'selected class '+id);
    assert.equal(await page.locator('.class-choice.is-selected').count(),1,'only one selected class');
+   assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'staff',
+    id+' always starts with a free melee basic attack');
    await page.locator('#closePanel').click();
+   if(['archer','mage','paladin','cleric'].includes(id)){
+    await page.locator('#skill-bolt').click({button:'right'});
+    assert.equal(await page.evaluate(()=>window.tiholesye.primaryAttackMode),'bolt',
+     id+' can manually equip a mana-powered ranged attack');
+    assert.equal(await page.locator('#primaryStaff').getAttribute('aria-pressed'),'false');
+    assert.equal(await page.locator('#skill-bolt').getAttribute('aria-pressed'),'true');
+    const fallback=await page.evaluate(()=>{
+     const g=window.tiholesye,dummy=g.mobs.find(m=>m.training);
+     g.combatTarget=dummy;g.player.mana=0;g.combatRepathAt=0;
+     g.updateCombatFocus();
+     const result={mode:g.primaryAttackMode,mana:g.player.mana,focus:g.combatTarget?.id,
+      active:document.querySelector('[data-quick-id="weapon"]')?.getAttribute('aria-pressed')};
+     g.combatTarget=null;g.path=[];g.player.mana=g.player.maxMana;
+     return result;
+    });
+    assert.equal(fallback.mode,'staff',id+' immediately falls back when out of mana');
+    assert.equal(fallback.mana,0,'no mana spent on melee fallback');
+    assert.equal(fallback.focus,'training-dummy','locked enemy remains selected during fallback');
+    assert.equal(fallback.active,'true','HUD shows melee mode when ranged mana is exhausted');
+   }
    await page.locator('#skillsAction').click();
    assert.equal(await page.locator('.talent-branch').count(),id==='druid'?4:3,
     id+' has the correct number of specialization trees');
