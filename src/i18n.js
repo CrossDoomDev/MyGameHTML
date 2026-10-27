@@ -133,6 +133,46 @@ const branchEnglish={
  paladin:{retribution:'Retribution',holy:'Holy',protection:'Protection'},
  cleric:{light:'Light',discipline:'Discipline',shadow:'Shadow'}
 };
+const classStyles={
+ druid:'Nature magic, healing and wild shapes',archer:'Precision, pets and traps',
+ warrior:'Heavy strikes, fury and defense',mage:'Fire, frost and arcane power',
+ rogue:'Poison, trickery and stealth',paladin:'Judgment, holy light and shields',
+ cleric:'Light, wards and shadow'
+};
+const branchSubtitles={
+ druid:{wrath:'Elements, poison and ranged power',grove:'Roots, traps and forest spirits',
+ restoration:'Healing, shields and support',wild:'Shapeshifting and melee defense'},
+ archer:{marksmanship:'Precise shots and ranged volleys',beastmastery:'Summons and animal allies',
+ survival:'Traps and forest survival'},
+ warrior:{arms:'Weapon mastery and powerful strikes',fury:'Berserker rage and rapid attacks',
+ protection:'Shields and crowd control'},
+ mage:{fire:'Burning magic and explosions',frost:'Slows and frozen control',
+ arcane:'Pure energy, shields and mana recovery'},
+ rogue:{assassination:'Poisons and focused strikes',outlaw:'Rapid blows and nimble tricks',
+ subtlety:'Stealth and shadow control'},
+ paladin:{retribution:'Holy judgment and radiant strikes',holy:'Healing and support',
+ protection:'Holy shields and defense'},
+ cleric:{light:'Healing and smiting',discipline:'Barriers and recovery',
+ shadow:'Curses and life drain'}
+};
+const gearEnglish={weapon:'Weapon',head:'Head',body:'Armor',cloak:'Cloak',boots:'Boots'};
+const itemEnglish={
+ staff:['Forester Staff','Basic staff attack and druid spells.'],
+ oakstaff:['Oak Staff','A sturdy staff that strengthens magic.'],
+ sword:['Training Sword','A simple melee practice weapon.'],
+ hood:['Druid Hood','Light hood for woodland travels.'],
+ cap:['Travel Cap','An ordinary travel hat.'],
+ robe:['Forester Robe','Standard druid clothing.'],
+ shirt:['Linen Shirt','Simple spare clothing.'],
+ cloak:['Traveler Cloak','A cloak for long forest journeys.'],
+ boots:['Leather Boots','Comfortable footwear for an adventurer.'],
+ herb:['Forest Herbs','Restores 15 health. Quantity depends on gathered herbs.'],
+ potion:['Healing Potion','Restores 45 health from your bag.'],
+ wood:['Wood','Crafting material gathered in the forest.'],
+ bag:['Backpack','Opens your inventory.'],
+ journal:['Journal','Opens your quest journal.'],
+ weapon:['Weapon Attack','Strikes with the equipped weapon.']
+};
 const effectDescriptions={
  shot:'Deal ranged damage to the selected target.',
  melee:'Strike the selected target in melee range.',
@@ -169,6 +209,11 @@ export function className(id,fallback=''){return current==='en'?names[id]||fallb
 export function weaponName(id,fallback=''){return current==='en'?weapons[id]||fallback:fallback;}
 export function skillName(id,fallback=''){return current==='en'?skillEnglish[id]||fallback:fallback;}
 export function branchName(classId,id,fallback=''){return current==='en'?branchEnglish[classId]?.[id]||fallback:fallback;}
+export function classStyle(id,fallback=''){return current==='en'?classStyles[id]||fallback:fallback;}
+export function branchSubtitle(classId,id,fallback=''){return current==='en'?branchSubtitles[classId]?.[id]||fallback:fallback;}
+export function itemName(id,fallback=''){return current==='en'?itemEnglish[id]?.[0]||fallback:fallback;}
+export function itemDetail(id,fallback=''){return current==='en'?itemEnglish[id]?.[1]||fallback:fallback;}
+export function gearName(id,fallback=''){return current==='en'?gearEnglish[id]||fallback:fallback;}
 export function skillDescription(skill,fallback=''){
  return current==='en'?effectDescriptions[skill?.effect]||fallback:fallback;
 }
