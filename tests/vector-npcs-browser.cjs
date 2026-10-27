@@ -105,6 +105,34 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(classSprites.spriteSizes.every(s=>s[0]===144&&s[1]===192),
    'all class sheets have 12 native 48×48 frames');
   assert(classSprites.sample,'actual pixel artwork is drawn into the new sprite sheets');
+  // Localized captions are DOM text drawn over the SAME unchanged art.
+  await page.locator('#settings').click();
+  assert.equal(await page.locator('[data-locale]').count(),2,'both languages offered');
+  await page.locator('[data-locale="en"]').click();
+  assert.equal(await page.locator('#panelTitle').textContent(),'At the Campfire');
+  assert.equal(await page.locator('.forest-action-heading span').textContent(),'MENU');
+  assert.equal(await page.locator('[data-class-choice="mage"] strong').textContent(),'Mage');
+  assert.equal(await page.evaluate(()=>document.documentElement.lang),'en');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('tiholesye-language')),'en');
+  await page.locator('#closePanel').click();
+  await page.locator('#skillsAction').click();
+  assert.equal(await page.locator('#panelTitle').textContent(),'Character');
+  assert.equal(await page.locator('.talent-node-label').first().textContent(),'Emerald Bolt',
+   'spell labels translate separately from skill illustrations');
+  await page.locator('#closePanel').click();
+  const atlasBefore=await page.evaluate(()=>getComputedStyle(document.querySelector('.forest-action-art')).backgroundImage);
+  await page.reload();
+  await page.waitForFunction(()=>window.tiholesye?.ready);
+  assert.equal(await page.evaluate(()=>document.documentElement.lang),'en','language persists across reload');
+  assert.equal(await page.locator('.forest-action-heading span').textContent(),'MENU');
+  await page.locator('#settings').click();
+  await page.locator('[data-locale="ru"]').click();
+  assert.equal(await page.locator('#panelTitle').textContent(),'У костра');
+  assert.equal(await page.locator('.forest-action-heading span').textContent(),'МЕНЮ');
+  assert.equal(await page.evaluate(()=>document.documentElement.lang),'ru');
+  await page.locator('#closePanel').click();
+  const atlasAfter=await page.evaluate(()=>getComputedStyle(document.querySelector('.forest-action-art')).backgroundImage);
+  assert.equal(atlasAfter,atlasBefore,'language does not change or redraw menu images');
   // The new class selector and its illustrated abilities are interactive,
   // not merely an art preview.
   const selectorArt=await page.evaluate(async()=>{
