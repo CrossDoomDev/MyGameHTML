@@ -46,7 +46,10 @@ export class Game{
   this.character=loadCharacter();
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
   this.path=[];this.target=null;this.combatTarget=null;this.combatRepathAt=0;this.keys=new Set();this.stick={x:0,y:0};
-  this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'?'bolt':'staff';
+  // Melee is the default for all classes, regardless of weapon or role.
+  // A manually selected, previously saved ranged mode is only restored if
+  // the current class has an eligible mana-costing ranged attack.
+  this.primaryAttackMode=localStorage.getItem('tiholesye-primary-attack')==='bolt'&&autoRangedSkill(this.player)?'bolt':'staff';
   this.time=0;this.effects=[];this.combatStatuses=[];
   this.dummyStats={damage:0,hits:0,healing:0,healHits:0};
   this.shield=0;this.shieldUntil=0;this.buffPower=0;this.buffUntil=0;
@@ -206,6 +209,7 @@ export class Game{
   this.formUntil=0;this.formKind='';
   this.lastAttack=-1000;
   this.primaryAttackMode='staff';this.path=[];this.combatTarget=null;this.target=null;
+  try{localStorage.setItem('tiholesye-primary-attack','staff');}catch{}
   this.skillCooldowns={};this.combatStatuses=[];this.shield=0;this.buffPower=0;
   if(this.assets)this.ui.portrait(this.assets);
   this.ui.renderClassSkills();this.ui.renderQuickbar();this.ui.updateCombatFocus();
@@ -366,29 +370,47 @@ export class Game{
   this.path=route;
   this.target=herb;
  }
- setPrimaryAttack(mode){
+ setPrimaryAttack(mode,{automatic=false}={}){
   if(mode!=='staff'&&mode!=='bolt')return false;
-  if(mode==='bolt'&&!autoRangedSkill(this.player)){
-   this.toast('Для Изумрудного луча нужен посох друида.');return false;
+  const ranged=autoRangedSkill(this.player);
+  if(mode==='bolt'&&!ranged){
+   if(!automatic)this.toast('Для этого класса нет доступной дальней основной атаки.');
+   return false;
   }
   if(this.primaryAttackMode===mode)return true;
   this.primaryAttackMode=mode;
-  // Recalculate the pursuit range immediately when switching weapons.
+  // An active target is pursued at the distance of the new attack type.
   if(this.combatTarget){this.path=[];this.combatRepathAt=0;}
   try{localStorage.setItem('tiholesye-primary-attack',mode);}catch{}
-  this.ui.updatePrimaryAttack();
-  this.toast(mode==='bolt'?'Основная атака: Изумрудный луч':'Основная атака: удар посохом');
+  this.ui?.updatePrimaryAttack();
+  if(!automatic){
+   const name=mode==='bolt'?CLASS_SKILLS[ranged]?.name||'Дальняя атака':
+    CLASS_PROFILES[this.player.classId].weapon;
+   this.toast('Основная атака: '+name);
+  }
+  return true;
+ }
+ // If a selected ranged ability cannot be paid for, switch to the free
+ // weapon attack and restart pursuit from the actual current movement tile.
+ ensurePrimaryAttackMana(){
+  if(this.primaryAttackMode!=='bolt')return false;
+  const id=autoRangedSkill(this.player);
+  const skill=CLASS_SKILLS[id];
+  if(id&&skill&&this.player.mana>=skill.mana)return false;
+  this.setPrimaryAttack('staff',{automatic:true});
   return true;
  }
  primaryAttack(){
-  if(this.player.classId!=='druid'){
-   const profile=CLASS_PROFILES[this.player.classId];
-   return profile.range>1?this.castSkill(profile.signature):
-    this.attack(this.combatTarget?.alive?this.combatTarget:undefined);
-  }
+  this.ensurePrimaryAttackMana();
   if(this.primaryAttackMode==='bolt'){
-   // The focused target is optional: without it Q/Space use the current facing.
-   return this.castSkill('bolt');
+   const id=autoRangedSkill(this.player);
+   if(id)return this.castSkill(id,{target:this.combatTarget?.alive?this.combatTarget:null});
+  }
+  // Space/click is always a zero-mana physical strike in normal mode.
+  // A distant selected enemy is chased rather than hit from afar.
+  if(this.combatTarget?.alive&&distance(this.player,this.combatTarget)>=49){
+   this.updateCombatFocus();
+   return false;
   }
   return this.attack(this.combatTarget?.alive?this.combatTarget:undefined);
  }
@@ -409,30 +431,27 @@ export class Game{
   }
   this.aimAtCombatTarget();
   if(!this.ready||this.ui.open||this.editor?.active)return;
-  const profile=CLASS_PROFILES[this.player.classId];
-  const melee=profile.range<=1&&(this.player.classId!=='druid'||this.primaryAttackMode==='staff');
-  const inRange=melee
-   ?distance(this.player,enemy)<49
-   :canFocusShoot(this.map,this.player,enemy,'bolt');
-  if(!inRange){
-   this.followCombatTarget(enemy);
-   return;
-  }
-  // The selected enemy is now reachable. End the queued pursuit but allow
-  // the current interpolated step to finish naturally.
+  // Check mana BEFORE calculating range. Otherwise a ranged class could
+  // stand outside sword range forever when its last spell becomes unaffordable.
+  this.ensurePrimaryAttackMana();
+  const rangedId=this.primaryAttackMode==='bolt'?autoRangedSkill(this.player):null;
+  const melee=!rangedId;
+  const inRange=melee?distance(this.player,enemy)<49:
+   canFocusShoot(this.map,this.player,enemy,rangedId);
+  if(!inRange){this.followCombatTarget(enemy);return;}
+  // No marker for combat pursuit. Finish the current interpolated step.
   this.path=[];this.combatRepathAt=0;
   if(this.time-this.lastAttack<600)return;
   if(melee){this.attack(enemy,{automatic:true});return;}
-  if(this.player.classId!=='druid'){
-   const spell=CLASS_SKILLS[profile.signature];
-   if(!skillRemaining(this.skillCooldowns,spell.id,this.time)&&this.player.mana>=spell.mana)
-    this.castSkill(spell.id,{target:enemy,automatic:true});
+  const skill=CLASS_SKILLS[rangedId];
+  if(!skill)return;
+  if(this.player.mana<skill.mana){
+   this.ensurePrimaryAttackMana();
+   this.followCombatTarget(enemy);
    return;
   }
-  const skillId=autoRangedSkill(this.player);
-  if(!skillId||skillRemaining(this.skillCooldowns,skillId,this.time))return;
-  if(this.player.mana<DRUID_SKILLS[skillId].mana)return;
-  this.castSkill(skillId,{target:enemy,automatic:true});
+  if(skillRemaining(this.skillCooldowns,rangedId,this.time))return;
+  this.castSkill(rangedId,{target:enemy,automatic:true});
  }
  followCombatTarget(enemy){
   // Manual WASD/joystick movement temporarily overrides automatic pursuit,
@@ -443,7 +462,7 @@ export class Game{
   if(this.time<this.combatRepathAt)return;
   const route=findFocusApproach(
    this.map,this.movementOrigin(),enemy,
-   (CLASS_PROFILES[this.player.classId].range>1?'bolt':this.primaryAttackMode),
+   this.primaryAttackMode,
    (x,y)=>this.occupied(x,y),this.player
   );
   this.path=route;
