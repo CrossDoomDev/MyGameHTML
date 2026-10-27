@@ -12,6 +12,7 @@ import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
 import { MapEditor } from './map-editor.js';
 import { readEditedMaps, hydratedMap, normalizeSnapshot, sceneSnapshot } from './map-editor-data.js';
+import {t,skillName} from './i18n.js';
 
 const STORAGE='tiholesye-v01';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -374,7 +375,7 @@ export class Game{
   if(mode!=='staff'&&mode!=='bolt')return false;
   const ranged=autoRangedSkill(this.player);
   if(mode==='bolt'&&!ranged){
-   if(!automatic)this.toast('Для этого класса нет доступной дальней основной атаки.');
+   if(!automatic)this.toast(t('noClassRangedAttack'));
    return false;
   }
   if(this.primaryAttackMode===mode)return true;
@@ -384,9 +385,8 @@ export class Game{
   try{localStorage.setItem('tiholesye-primary-attack',mode);}catch{}
   this.ui?.updatePrimaryAttack();
   if(!automatic){
-   const name=mode==='bolt'?CLASS_SKILLS[ranged]?.name||'Дальняя атака':
-    CLASS_PROFILES[this.player.classId].weapon;
-   this.toast('Основная атака: '+name);
+   const name=mode==='bolt'?skillName(ranged,CLASS_SKILLS[ranged]?.name||t('abilities')):t('melee');
+   this.toast(t('primaryAttackHint',{name}));
   }
   return true;
  }
