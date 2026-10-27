@@ -2,17 +2,19 @@
 // Ranged attacks only work for an eligible class/weapon and along a clear ray.
 import {isBlocked,TILE} from './map.js';
 import {DRUID_SKILLS} from './druid-skills.js';
+import {CLASS_PROFILES,CLASS_SKILLS} from './class-skills.js';
 
+// Every class starts with its free melee weapon attack. Only manually
+// selected ranged abilities become automatic attacks; they all cost mana.
 export function autoRangedSkill(player){
- // Character art (2D or 3D) does not determine combat capabilities.
- // Extend this table when additional character classes/weapons are introduced.
- const characterClass=player?.classId??'druid';
- const weapon=player?.weaponType??'staff';
- if(characterClass==='druid'&&weapon==='staff'&&player?.rangedEnabled!==false)return 'bolt';
- return null;
+ const id=player?.classId??'druid',profile=CLASS_PROFILES[id];
+ if(!profile||player?.rangedEnabled===false)return null;
+ if(id==='druid'&&(player?.weaponType??'staff')!=='staff')return null;
+ const skill=CLASS_SKILLS[profile.signature];
+ return skill?.range>1&&skill.mana>0?skill.id:null;
 }
 export function canFocusShoot(map,shooter,target,skillId=autoRangedSkill(shooter)){
- const skill=DRUID_SKILLS[skillId];
+ const skill=CLASS_SKILLS[skillId]||DRUID_SKILLS[skillId];
  if(!map||!shooter||!target?.alive||!skill||!Number.isFinite(skill.range))return false;
  const dx=target.px-shooter.px,dy=target.py-shooter.py;
  const length=Math.hypot(dx,dy);
@@ -39,11 +41,11 @@ export function canFocusShoot(map,shooter,target,skillId=autoRangedSkill(shooter
  */
 export function findFocusApproach(map,from,target,mode,occupied=()=>false,shooter=null){
  if(!map||!from||!target?.alive||!['staff','bolt'].includes(mode))return [];
- if(mode==='bolt'&&autoRangedSkill(shooter)!=='bolt')return [];
+ if(mode==='bolt'&&!autoRangedSkill(shooter))return [];
  const valid=(x,y)=>{
   const px=(x+.5)*TILE,py=(y+.8)*TILE;
   if(mode==='staff')return Math.hypot(px-target.px,py-target.py)<49;
-  return canFocusShoot(map,{...shooter,px,py},target,'bolt');
+  return canFocusShoot(map,{...shooter,px,py},target,autoRangedSkill(shooter));
  };
  if(valid(from.x,from.y))return [];
  const key=(x,y)=>y*map.width+x;
