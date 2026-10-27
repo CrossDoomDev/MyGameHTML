@@ -204,7 +204,7 @@ export class CharacterMenu{
    selected.requires.map(id=>skillName(id,CLASS_SKILLS[id]?.name||id)).join(', '):t('none');
   return '<aside class="talent-inspector"><div class="talent-inspector-icon">'+
    gameIcon(selected.icon)+'</div><div class="talent-inspector-kind">'+
-   (t('activeSkill')==='activeSkill'?(selected.kind||'Активное'):t('activeSkill'))+'</div><h3>'+skillName(selected.id,selected.name)+'</h3>'+
+   t('activeSkill')+'</div><h3>'+skillName(selected.id,selected.name)+'</h3>'+
    '<span class="talent-inspector-status is-learned">'+t('unlocked')+'</span>'+
    '<p>'+skillDescription(skill,selected.description)+'</p>'+
    '<div class="talent-effect"><strong>'+t('skillEffect')+'</strong><span>'+skillDescription(skill,selected.detail)+'</span></div>'+
