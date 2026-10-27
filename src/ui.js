@@ -2,6 +2,7 @@ import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
 import {CLASS_PROFILES,CLASS_SKILLS,skillColor} from './class-skills.js';
 import {ITEMS,equipCharacterItem,itemQuantity,gameIcon} from './character-data.js';
 import {CharacterMenu} from './character-menu.js';
+import {language,setLanguage,t,className,skillName,weaponName,translateStatic} from './i18n.js';
 export class UI{
  constructor(game){
   this.g=game;this.open=false;this.panel=document.getElementById('panel');this.backdrop=document.getElementById('panelBackdrop');this.toastEl=document.getElementById('toast');this.lastUpdate=-999;
@@ -9,7 +10,7 @@ export class UI{
   document.getElementById('characterAction').onclick=()=>this.characterMenu.open('equipment');
   document.getElementById('skillsAction').onclick=()=>this.characterMenu.open('skills');
   document.getElementById('questsAction').onclick=()=>this.journal();
-  document.getElementById('chatAction').onclick=()=>this.toast('Общение с игроками появится позднее.');
+  document.getElementById('chatAction').onclick=()=>this.toast(t('chatFuture'));
   for(const id of ['map','minimapButton'])document.getElementById(id).onclick=()=>this.map();
   for(const id of ['journal','journalAction'])document.getElementById(id).onclick=()=>this.journal();
   document.getElementById('settings').onclick=()=>this.settings();
@@ -18,7 +19,21 @@ export class UI{
   this.characterMenu=new CharacterMenu(this);
   this.renderQuickbar();
   this.updatePrimaryAttack();
+  translateStatic();
   this.backdrop.addEventListener('pointerdown',e=>{if(e.target===this.backdrop)this.close();});
+ }
+ setLocale(value){
+  setLanguage(value);
+  translateStatic();
+  if(typeof document!=='undefined')document.title=t('gameName')+' · '+t('gameTag');
+  this.renderQuickbar();
+  this.renderClassSkills();
+  this.updateCombatFocus();
+  this.lastUpdate=-999;this.update();
+  if(this.open){
+   if(this.characterMenu?.active)this.characterMenu.render();
+   else this.settings();
+  }
  }
  renderClassSkills(){
   const profile=CLASS_PROFILES[this.g.player.classId];
@@ -26,8 +41,8 @@ export class UI{
   buttons.forEach((button,index)=>{
    const id=profile.keys[index],skill=CLASS_SKILLS[id];
    if(!skill)return;
-   button.dataset.skill=id;button.title=(['Q','R','F'][index])+' · '+skill.name+' · '+skill.mana+' маны';
-   button.setAttribute('aria-label',skill.name);
+   button.dataset.skill=id;button.title=(['Q','R','F'][index])+' · '+skillName(id,skill.name)+' · '+skill.mana+' '+t('mana');
+   button.setAttribute?.('aria-label',skillName(id,skill.name));
    // Use a generated class-branch icon for non-druid characters.
    const branchIndex=this.g.currentSkills().findIndex(n=>n.id===id);
    const branch=this.g.currentSkills().find(n=>n.id===id);
@@ -38,9 +53,9 @@ export class UI{
    if(icon){icon.dataset.icon=artwork;icon.className='game-icon'+(index>=0?'':'');}
   });
   const bar=document.getElementById('skillbar');
-  if(bar)bar.setAttribute?.('aria-label','Способности класса '+profile.name);
+  if(bar)bar.setAttribute?.('aria-label',t('skillBar',{name:className(this.g.player.classId,profile.name)}));
   const dock=document.getElementById('skillsAction');
-  if(dock)dock.title='Способности: '+profile.name;
+  if(dock)dock.title=t('abilities')+': '+className(this.g.player.classId,profile.name);
   this.updatePrimaryAttack();
  }
  updatePrimaryAttack(){
@@ -55,7 +70,7 @@ export class UI{
   }
   const mobile=document.getElementById('mobileAttack');
   if(mobile)mobile.setAttribute?.('aria-label',
-   useBolt?'Основная атака: Изумрудный луч':'Основная атака: '+CLASS_PROFILES[this.g.player.classId].weapon);
+   t('primaryAttackHint',{name:useBolt?skillName('bolt','Изумрудный луч'):weaponName(this.g.player.classId,CLASS_PROFILES[this.g.player.classId].weapon)}));
  }
  renderQuickbar(){
   const slots=this.g.character?.quickSlots;
@@ -69,7 +84,7 @@ export class UI{
    button.dataset.quickId=id||'';
    button.classList.toggle('empty-slot',!id);
    button.classList.toggle('primary-attack',id==='weapon'&&this.g.primaryAttackMode==='staff');
-   button.title=(item?.name||'Свободная ячейка')+' · '+(i===9?'0':i+1);
+   button.title=(item?.name||t('free'))+' · '+(i===9?'0':i+1);
    button.setAttribute?.('aria-label',button.title);
    button.innerHTML='<kbd>'+(i===9?'0':i+1)+'</kbd>'+
     gameIcon(icon,'quick-icon')+
@@ -83,7 +98,7 @@ export class UI{
   if(title!=='Персонаж'&&this.characterMenu)this.characterMenu.active=false;
   this.panel.classList.remove('character-panel');
   this.g.keys.clear();this.g.stick={x:0,y:0};this.g.path=[];this.g.target=null;
-  this.panel.innerHTML='<button class="close" id="closePanel" aria-label="Закрыть">×</button><span class="eyebrow">'+subtitle+'</span><h2 id="panelTitle">'+title+'</h2>'+html;
+  this.panel.innerHTML='<button class="close" id="closePanel" aria-label="'+t('close')+'">×</button><span class="eyebrow">'+subtitle+'</span><h2 id="panelTitle">'+title+'</h2>'+html;
   this.backdrop.hidden=false;this.open=true;this.panel.querySelector('#closePanel').onclick=()=>this.close();this.panel.querySelector('#closePanel').focus();
  }
  close(){this.backdrop.hidden=true;this.open=false;this.panel.classList.remove('character-panel');if(this.characterMenu)this.characterMenu.active=false;this.g.canvas.focus({preventScroll:true});this.g.save();}
@@ -95,7 +110,7 @@ export class UI{
   if(!panel)return;
   panel.hidden=!focus;
   if(!focus)return;
-  const name=focus.training?'Тренировочный манекен':focus.boss?'Лесной страж':focus.sprite==='goblin'?'Гоблин':'Лесное существо';
+  const name=focus.training?t('practiceDummy'):focus.boss?t('forestGuardian'):focus.sprite==='goblin'?t('goblin'):t('forestCreature');
   document.getElementById('combatFocusName').textContent=name;
   document.getElementById('combatFocusHealth').textContent=
    Math.max(0,Math.ceil(focus.hp))+' / '+focus.max;
@@ -110,39 +125,38 @@ export class UI{
   document.querySelectorAll?.('[data-quick-count]').forEach(el=>{
    el.textContent=itemQuantity(g,el.dataset.quickCount);
   });
-  text('region',g.map.label);
+  text('region',({village:t('regionVillage'),forest:t('regionForest'),tavern:t('regionTavern')})[g.location]||g.map.label);
   this.updateCombatFocus();
   const classProfile=CLASS_PROFILES[p.classId];
   for(const [index,id] of classProfile.keys.entries()){
    const skill=CLASS_SKILLS[id],button=[...document.querySelectorAll('#skillbar .skill')][index];
    if(!button||!skill)continue;
    const remaining=skillRemaining(g.skillCooldowns,id,g.time);
-   const reason=remaining?'Перезарядка':p.mana<skill.mana?'Недостаточно маны':'';
+   const reason=remaining?t('cooldown'):p.mana<skill.mana?t('noMana'):'';
    button.disabled=!!reason||this.open||!!g.editor?.active;
    button.classList.toggle('recharging',remaining>0);
    const label=button.querySelector('.skill-timer');
    if(label)label.textContent=remaining?String(Math.ceil(remaining/1000)):reason?'—':'';
-   button.setAttribute?.('aria-label',skill.name+(reason?', '+reason:''));
+   button.setAttribute?.('aria-label',skillName(id,skill.name)+(reason?', '+reason:''));
   }
   const trainer=document.getElementById('trainingStats');
   if(trainer){
    trainer.hidden=g.location!=='village';
    if(!trainer.hidden){
     const s=g.dummyStats;
-    trainer.textContent='🎯 Манекен · Урон: '+s.damage+' · Удары: '+s.hits+
-     ' · Лечение: '+s.healing+' · Исцеления: '+s.healHits;
+    trainer.textContent=t('trainingStats',{damage:s.damage,hits:s.hits,healing:s.healing,heals:s.healHits});
    }
   }
-  text('questTitle',p.boss?'Тихолесье в безопасности':p.questReward?'Страж древней рощи':'Просьба старосты');
-  text('questText',p.boss?'Страж побеждён. Исследуй мир.':p.questReward?'Найди стража в Великом лесу':!p.questAccepted?'Поговори со старостой у таверны':p.kills>=3?'Вернись к старосте за наградой':'Лесные существа: '+Math.min(3,p.kills)+' / 3');
+  text('questTitle',p.boss?t('questSafe'):p.questReward?t('questGuardian'):t('questElder'));
+  text('questText',p.boss?t('questWin'):p.questReward?t('questFind'):!p.questAccepted?t('questTalk'):p.kills>=3?t('questReturn'):t('questKills',{count:Math.min(3,p.kills)}));
   const near=g.editor?.active?null:g.nearestInteractable(),prompt=document.getElementById('interaction');prompt.hidden=!near;
-  if(!prompt.hidden)prompt.querySelector('span').textContent=near.kind==='herb'?'Собрать траву':near.name;
+  if(!prompt.hidden)prompt.querySelector('span').textContent=near.kind==='herb'?t('interactionHerb'):near.name;
  }
  slot(index){
   if(!Number.isInteger(index)||index<0||index>9)return;
   document.querySelectorAll('[data-slot]').forEach(b=>b.classList.toggle('selected',Number(b.dataset.slot)===index));
   const id=this.g.character.quickSlots[index];
-  if(!id){this.toast('Ячейка '+(index===9?'0':index+1)+' пока свободна.');return;}
+  if(!id){this.toast(t('freeSlot',{slot:index===9?'0':index+1}));return;}
   const p=this.g.player;
   if(id==='weapon'){this.g.primaryAttack();return;}
   if(id==='herb'){
@@ -154,9 +168,9 @@ export class UI{
   else if(id==='bag')this.inventory();
   else if(id==='journal')this.journal();
   else if(ITEMS[id]?.slot){
-   if(this.g.character.equipment[ITEMS[id].slot]===id)this.toast('Уже экипировано: '+ITEMS[id].name);
+   if(this.g.character.equipment[ITEMS[id].slot]===id)this.toast(t('equipped',{name:ITEMS[id].name}));
    else if(equipCharacterItem(this.g.character,id)){
-    this.g.applyEquipment();this.toast('Экипировано: '+ITEMS[id].name);
+    this.g.applyEquipment();this.toast(t('equippedNow',{name:ITEMS[id].name}));
    }
   }
   this.renderQuickbar();
@@ -214,7 +228,9 @@ export class UI{
   this.g.renderer.minimap(this.panel.querySelector('#largeMap'),true);
  }
  npcStyleSetting(){
-  return '<div class="setting-row npc-style-setting"><span><strong>Графика NPC</strong><small>Пиксельные персонажи 48×48, как у главного героя. Четыре направления и кадры ходьбы.</small></span><span class="npc-pixel-label">Пиксельный стиль</span></div>';
+  return '<div class="setting-row npc-style-setting"><span><strong>'+t('graphicsNPC')+
+   '</strong><small>'+t('graphicsDescription')+'</small></span>'+
+   '<span class="npc-pixel-label">'+t('pixelStyle')+'</span></div>';
  }
  settings(){
   const selected=this.g.player.classId;
@@ -222,20 +238,40 @@ export class UI{
    '<button type="button" class="class-choice '+(selected===id?'is-selected':'')+
    '" data-class-choice="'+id+'" aria-pressed="'+(selected===id)+'">'+
    '<span class="class-choice-image" data-class="'+id+'" aria-hidden="true"></span>'+
-   '<strong>'+profile.name+'</strong><small>'+profile.style+'</small></button>').join('');
-  const classPanel='<section class="setting-class-choice"><h3>Тестирование игровых классов</h3>'+
-   '<p class="note">Выбирай любого героя без регистрации. Все умения открыты. Прогресс сохраняется.</p>'+
+   '<strong>'+className(id,profile.name)+'</strong><small>'+profile.style+'</small></button>').join('');
+  const classPanel='<section class="setting-class-choice"><h3>'+t('classPicker')+'</h3>'+
+   '<p class="note">'+t('classHelp')+'</p>'+
    '<div class="class-choice-grid">'+classButtons+'</div></section>';
-  this.show('У костра','Настройки и управление',classPanel+this.npcStyleSetting()+'<div class="setting-row"><span>Масштаб камеры</span><span><button id="zoomOut" class="button" aria-label="Отдалить">−</button> <button id="zoomIn" class="button" aria-label="Приблизить">+</button></span></div><div class="setting-row"><span>Время суток</span><button id="daytime" class="button">'+(this.g.night?'Ночь':'День')+'</button></div><div class="setting-row"><span>Звуки боя</span><button id="audio" class="button">'+(this.g.sound?'Включены':'Выключены')+'</button></div><p class="note">WASD / стрелки — движение<br>Нажми на клетку — идти<br>ЛКМ по врагу — преследовать и автоматически атаковать до победы или поражения; ЛКМ по земле — отменить бой<br>ЛКМ по NPC или двери — подойти и взаимодействовать<br>ПКМ по посоху или лучу — выбрать основную атаку<br>Пробел — основная атака · Q — Изумрудный луч<br>R — Цепкие корни · F — Живительный рост<br>E — общение и сбор · I — персонаж<br>1–0 — десять настраиваемых ячеек для предметов и расходников · B — рюкзак<br>M — карта · J — журнал · Esc — закрыть<br>На телефоне: касание или джойстик<br>F2 — полный редактор карт · Ctrl+Z / Ctrl+Y — история</p><button class="button" id="openBuilder">Открыть редактор карт</button><p class="note">Прогресс героя сохраняется на этом устройстве.<br>Версия 0.11 · обновлённая пиксельная панель меню</p>');
+  const langPanel='<div class="setting-row setting-language"><span><strong>'+t('language')+'</strong></span>'+
+   '<span class="locale-buttons" role="group" aria-label="'+t('language')+'">'+
+   [['ru',t('russian')],['en',t('english')]].map(([id,label])=>
+    '<button type="button" class="button'+(language()===id?' is-current':'')+
+    '" data-locale="'+id+'" aria-pressed="'+(language()===id)+'">'+label+'</button>').join('')+
+   '</span></div>';
+  const zoom='<div class="setting-row"><span>'+t('zoom')+'</span><span>'+
+   '<button id="zoomOut" class="button" aria-label="Zoom out">−</button> '+
+   '<button id="zoomIn" class="button" aria-label="Zoom in">+</button></span></div>';
+  const time='<div class="setting-row"><span>'+t('daytime')+'</span>'+
+   '<button id="daytime" class="button">'+t(this.g.night?'night':'day')+'</button></div>';
+  const sound='<div class="setting-row"><span>'+t('combatSound')+'</span>'+
+   '<button id="audio" class="button">'+t(this.g.sound?'on':'off')+'</button></div>';
+  const instructions='<p class="note">'+t('settingsHelp')+'</p>'+
+   '<button class="button" id="openBuilder">'+t('editor')+'</button>'+
+   '<p class="note">'+t('progressSaved')+'</p>';
+  this.show(t('atCampfire'),t('settingsSubtitle'),
+   langPanel+classPanel+this.npcStyleSetting()+zoom+time+sound+instructions);
+  this.panel.querySelectorAll('[data-locale]').forEach(button=>{
+   button.onclick=()=>{this.setLocale(button.dataset.locale);};
+  });
   this.panel.querySelectorAll('[data-class-choice]').forEach(button=>{
    button.onclick=()=>{
-    if(this.g.setClass(button.dataset.classChoice)){
-     this.toast('Выбран класс: '+CLASS_PROFILES[this.g.player.classId].name);
-    }
+    if(this.g.setClass(button.dataset.classChoice))
+     this.toast(t('chosenClass',{name:className(this.g.player.classId,CLASS_PROFILES[this.g.player.classId].name)}));
     this.settings();
    };
   });
-  this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
+  this.panel.querySelector('#zoomOut').onclick=()=>this.g.setZoom(this.g.zoom-.5);
+  this.panel.querySelector('#zoomIn').onclick=()=>this.g.setZoom(this.g.zoom+.5);
   this.panel.querySelector('#daytime').onclick=()=>{this.g.night=!this.g.night;this.settings();};
   this.panel.querySelector('#audio').onclick=()=>{this.g.sound=!this.g.sound;this.g.bip(440,.1);this.settings();};
   this.panel.querySelector('#openBuilder').onclick=()=>this.builder();
