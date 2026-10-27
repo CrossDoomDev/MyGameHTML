@@ -429,6 +429,61 @@ Object.assign(focusHero,{
 });
 game.path=[];game.target=null;game.keys.clear();game.ui.open=false;
 game.time=10000;game.lastAttack=-1000;game.skillCooldowns={};game.ready=true;
+
+// Every class enters play in free, zero-mana melee mode. Explicit RMB
+// selection of a ranged class ability costs mana; running out instantly
+// switches to melee and queues a cardinal approach to the same target.
+for(const id of ['archer','warrior','mage','rogue','paladin','cleric','druid']){
+ if(focusHero.classId!==id)assert(game.setClass(id));
+ assert.equal(game.primaryAttackMode,'staff',id+' defaults to melee');
+ Object.assign(focusHero,{x:focusedBoss.x,y:focusedBoss.y+3,
+  px:(focusedBoss.x+.5)*TILE,py:(focusedBoss.y+3.8)*TILE,
+  step:null,moving:false,mana:focusHero.maxMana,weaponType:'staff'});
+ game.combatTarget=focusedBoss;game.path=[];game.combatRepathAt=0;
+ game.time+=5000;game.lastAttack=-1000;game.skillCooldowns={};
+ const before=focusedBoss.hp;
+ game.updateCombatFocus();
+ assert.equal(focusedBoss.hp,before,id+' cannot use ranged damage in default mode');
+ assert(game.path.length>0,id+' approaches boss for default melee strike');
+ const ranged=['archer','mage','paladin','cleric','druid'].includes(id);
+ if(ranged){
+  assert(game.setPrimaryAttack('bolt'),id+' can manually choose a special ranged attack');
+  assert.equal(game.primaryAttackMode,'bolt');
+  game.path=[];game.combatRepathAt=0;game.lastAttack=-1000;
+  const manaBefore=focusHero.mana;
+  const hpBeforeRanged=focusedBoss.hp;
+  game.updateCombatFocus();
+  assert(focusedBoss.hp<hpBeforeRanged,id+' manually selected ranged ability deals damage');
+  assert(focusHero.mana<manaBefore,id+' ranged ability consumes mana');
+  focusHero.mana=0;
+  game.path=[];game.combatRepathAt=0;game.lastAttack=-1000;
+  game.updateCombatFocus();
+  assert.equal(game.primaryAttackMode,'staff',id+' automatically falls back on insufficient mana');
+  assert.equal(store.get('tiholesye-primary-attack'),'staff',id+' fallback is persisted');
+  assert(game.path.length>0,id+' pursues target to melee range after mana is exhausted');
+  assert.equal(focusHero.mana,0,'fallback does not consume mana');
+ }else{
+  assert.equal(game.setPrimaryAttack('bolt'),false,id+' cannot select ranged automatic ability');
+  assert.equal(game.primaryAttackMode,'staff');
+ }
+ // A class with zero mana still deals ordinary melee damage once adjacent.
+ Object.assign(focusHero,{x:focusedBoss.x,y:focusedBoss.y+1,
+  px:(focusedBoss.x+.5)*TILE,py:(focusedBoss.y+1.8)*TILE,
+  step:null,moving:false,mana:0});
+ game.path=[];game.lastAttack=-1000;
+ const hpBeforeMelee=focusedBoss.hp;
+ game.updateCombatFocus();
+ assert(focusedBoss.hp<hpBeforeMelee,id+' free melee attacks at zero mana');
+ assert.equal(focusHero.mana,0,'melee strike uses no mana');
+ focusedBoss.hp=focusedBoss.max;focusedBoss.alive=true;
+}
+if(focusHero.classId!=='druid')game.setClass('druid');
+game.combatTarget=null;game.path=[];game.skillCooldowns={};
+focusHero.mana=60;focusHero.hp=120;
+Object.assign(focusHero,{x:focusedBoss.x,y:focusedBoss.y+3,
+ px:(focusedBoss.x+.5)*TILE,py:(focusedBoss.y+3.8)*TILE,
+ step:null,moving:false,direction:'down'});
+game.lastAttack=-1000;game.time+=5000;
 const focusClick=(wx,wy,button=0)=>{
  game.camera.x=wx-180;game.camera.y=wy-180;
  const rect=game.canvas.getBoundingClientRect();
