@@ -201,21 +201,21 @@ export class CharacterMenu{
  skillInspectorMarkup(selected){
   const skill=CLASS_SKILLS[selected.id];
   const requirement=selected.requires?.length?
-   selected.requires.map(id=>CLASS_SKILLS[id]?.name||id).join(', '):'нет';
+   selected.requires.map(id=>skillName(id,CLASS_SKILLS[id]?.name||id)).join(', '):t('none');
   return '<aside class="talent-inspector"><div class="talent-inspector-icon">'+
    gameIcon(selected.icon)+'</div><div class="talent-inspector-kind">'+
-   (selected.kind||'Активное')+'</div><h3>'+selected.name+'</h3>'+
-   '<span class="talent-inspector-status is-learned">Открыто · готово к использованию</span>'+
-   '<p>'+selected.description+'</p>'+
-   '<div class="talent-effect"><strong>Эффект</strong><span>'+selected.detail+'</span></div>'+
-   '<div class="talent-requirements"><span>Мана: '+skill.mana+'</span>'+
-   '<span>Перезарядка: '+(skill.cooldown/1000).toFixed(1)+' с</span>'+
-   '<span>Связанный узел: '+requirement+'</span></div>'+
-   '<div class="talent-rank-label">Тестовый доступ <strong>3 / 3</strong></div>'+
+   (t('activeSkill')==='activeSkill'?(selected.kind||'Активное'):t('activeSkill'))+'</div><h3>'+skillName(selected.id,selected.name)+'</h3>'+
+   '<span class="talent-inspector-status is-learned">'+t('unlocked')+'</span>'+
+   '<p>'+skillDescription(skill,selected.description)+'</p>'+
+   '<div class="talent-effect"><strong>'+t('skillEffect')+'</strong><span>'+skillDescription(skill,selected.detail)+'</span></div>'+
+   '<div class="talent-requirements"><span>'+t('mana')+': '+skill.mana+'</span>'+
+   '<span>'+t('recharge')+': '+(skill.cooldown/1000).toFixed(1)+' s</span>'+
+   '<span>'+t('relatedSkill')+': '+requirement+'</span></div>'+
+   '<div class="talent-rank-label">'+t('testAccess')+' <strong>3 / 3</strong></div>'+
    '<div class="talent-rank-track"><span style="width:100%"></span></div>'+
    '<button type="button" class="talent-use" data-character-action="cast-skill" data-skill-id="'+
-   selected.id+'">Применить способность</button>'+
-   '<small class="talent-disabled-note">Все умения открыты для испытаний на тренировочном манекене.</small></aside>';
+   selected.id+'">'+t('cast')+'</button>'+
+   '<small class="talent-disabled-note">'+t('unlockedNotice')+'</small></aside>';
  }
  skillsMarkup(){
   const g=this.game,character=g.character,tree=this.activeTree();
@@ -240,10 +240,10 @@ export class CharacterMenu{
    return '<button type="button" data-character-action="skill-node" data-skill-node="'+n.id+
     '" class="talent-node '+state+(chosen?' is-chosen':'')+'"'+
     ' style="left:'+position.x+'px;top:'+position.y+'px" aria-pressed="'+chosen+
-    '" title="'+n.name+' — '+(active?'Изучено':'Пока не изучено')+'">'+
+    '" title="'+skillName(n.id,n.name)+' — '+(active?t('learned'):t('notLearned'))+'">'+
     '<span class="talent-art">'+gameIcon(n.icon)+'</span>'+
-    '<span class="talent-node-label">'+n.name+'</span>'+
-    '<span class="talent-node-rank">'+(active?'Ур. '+rank+'/'+n.maxRank:'0/'+n.maxRank)+'</span>'+
+    '<span class="talent-node-label">'+skillName(n.id,n.name)+'</span>'+
+    '<span class="talent-node-rank">'+(active?t('rank')+rank+'/'+n.maxRank:'0/'+n.maxRank)+'</span>'+
     '</button>';
   }).join('');
   const branchMarkup=this.activeTrees().map(branch=>{
@@ -251,21 +251,21 @@ export class CharacterMenu{
    return '<button type="button" data-character-action="skill-branch" data-branch="'+branch.id+
     '" class="talent-branch talent-theme-'+branch.tone+
     (tree.id===branch.id?' is-current':'')+'" aria-pressed="'+(tree.id===branch.id)+'">'+
-    gameIcon(branch.icon)+'<span><strong>'+branch.name+'</strong><small>'+branch.subtitle+
+    gameIcon(branch.icon)+'<span><strong>'+branchName(g.player.classId,branch.id,branch.name)+'</strong><small>'+branchSubtitle(g.player.classId,branch.id,branch.subtitle)+
     '</small></span><i>'+count+'/'+branch.nodes.length+'</i></button>';
   }).join('');
   const selection=this.skillInspectorMarkup(selected);
   return '<div class="char-skills talent-screen">'+
-   '<div class="char-section-title">Пути: '+CLASS_PROFILES[g.player.classId].name+' <small>Тест: всё открыто</small></div>'+
-   '<p class="char-muted">Все умения доступны сейчас. Выбери узел и нажми «Применить способность», или используй Q/R/F для основных умений.</p>'+
-   '<div class="talent-branches" role="group" aria-label="Специализации друида">'+branchMarkup+'</div>'+
+   '<div class="char-section-title">'+t('paths',{name:className(g.player.classId,CLASS_PROFILES[g.player.classId].name)})+' <small>'+t('allOpen')+'</small></div>'+
+   '<p class="char-muted">'+t('treeHelp')+'</p>'+
+   '<div class="talent-branches" role="group" aria-label="'+t('specializations')+'">'+branchMarkup+'</div>'+
    '<div class="talent-header talent-theme-'+tree.tone+'"><span>'+gameIcon(tree.icon)+'</span>'+
-   '<div><h3>'+tree.name+'</h3><p>'+tree.subtitle+'</p></div>'+
-   '<strong>'+learned+' из '+tree.nodes.length+'</strong></div>'+
-   '<div class="talent-workspace talent-theme-'+tree.tone+'"><div class="talent-graph-scroll" aria-label="Дерево способностей '+tree.name+'">'+
+   '<div><h3>'+branchName(g.player.classId,tree.id,tree.name)+'</h3><p>'+branchSubtitle(g.player.classId,tree.id,tree.subtitle)+'</p></div>'+
+   '<strong>'+learned+' '+t('of')+' '+tree.nodes.length+'</strong></div>'+
+   '<div class="talent-workspace talent-theme-'+tree.tone+'"><div class="talent-graph-scroll" aria-label="'+t('treeTitle',{name:branchName(g.player.classId,tree.id,tree.name)})+'">'+
    '<div class="talent-graph"><svg viewBox="0 0 600 516" preserveAspectRatio="none" aria-hidden="true">'+
    edgeMarkup+'</svg>'+nodeMarkup+'</div></div>'+selection+'</div>'+
-   '<p class="talent-footnote">Все ветки и умения открыты для тестирования. Прогресс навыков будет добавлен позднее.</p></div>';
+   '<p class="talent-footnote">'+t('treeFooter')+'</p></div>';
  }
  render(){
   if(!this.active)return;
@@ -273,14 +273,14 @@ export class CharacterMenu{
   // the backpack, including the selection sidebar of the inventory tab.
   if(this.tab==='inventory'&&!this.inventoryItems().includes(this.selected))
    this.selected=this.inventoryItems()[0]||null;
-  const tabNames=[['equipment','Снаряжение'],['inventory','Инвентарь'],['stats','Статистика'],['skills','Способности']];
+  const tabNames=[['equipment',t('equip')],['inventory',t('inventory')],['stats',t('stats')],['skills',t('skills')]];
   const nav='<nav class="char-tabs" aria-label="Вкладки персонажа">'+tabNames.map(([id,label])=>
    '<button type="button" data-character-action="tab" data-tab="'+id+'" class="'+
    (this.tab===id?'active':'')+'" aria-current="'+(this.tab===id?'page':'false')+'">'+label+'</button>').join('')+'</nav>';
   const content=this.tab==='equipment'?this.gearMarkup():this.tab==='inventory'?this.inventoryMarkup():
    this.tab==='stats'?this.statsMarkup():this.skillsMarkup();
-  this.ui.show('Персонаж',''+CLASS_PROFILES[this.game.player.classId].name+' · снаряжение · способности',nav+'<div class="char-content">'+content+'</div>'+
-   '<div class="char-footer">I — открыть / закрыть · Выбери предмет, чтобы надеть или назначить на клавишу 1–0.</div>');
+  this.ui.show(t('character'),className(this.game.player.classId,CLASS_PROFILES[this.game.player.classId].name)+' · '+t('equip')+' · '+t('abilities'),nav+'<div class="char-content">'+content+'</div>'+
+   '<div class="char-footer">'+t('characterFooter')+'</div>');
   this.ui.panel.classList.add('character-panel');
   this.drawFigure();
  }
