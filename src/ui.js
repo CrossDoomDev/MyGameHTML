@@ -71,7 +71,7 @@ export class UI{
   }
   const mobile=document.getElementById('mobileAttack');
   if(mobile)mobile.setAttribute?.('aria-label',
-   t('primaryAttackHint',{name:useBolt?skillName(CLASS_PROFILES[this.g.player.classId].signature,CLASS_SKILLS[CLASS_PROFILES[this.g.player.classId].signature].name):weaponName(this.g.player.classId,CLASS_PROFILES[this.g.player.classId].weapon)}));
+   t('primaryAttackHint',{name:useBolt?skillName(CLASS_PROFILES[this.g.player.classId].signature,CLASS_SKILLS[CLASS_PROFILES[this.g.player.classId].signature].name):t('melee')}));
  }
  renderQuickbar(){
   const slots=this.g.character?.quickSlots;
