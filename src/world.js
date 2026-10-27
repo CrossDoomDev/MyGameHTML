@@ -190,7 +190,7 @@ export class Game{
  applyEquipment(){
   this.player.weaponType=ITEMS[this.character.equipment.weapon]?.weaponType||'unarmed';
   persistCharacter(this.character);
-  if(this.player.weaponType!=='staff'&&this.primaryAttackMode==='bolt')
+  if(this.primaryAttackMode==='bolt'&&!autoRangedSkill(this.player))
    this.setPrimaryAttack('staff');
   if(this.ui)this.ui.renderQuickbar();
  }
