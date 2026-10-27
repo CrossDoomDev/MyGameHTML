@@ -2,7 +2,7 @@ import {ITEMS,GEAR_SLOTS,characterBonuses,equipCharacterItem,assignCharacterQuic
 import {DRUID_SKILLS} from './druid-skills.js';
 import {DRUID_TREES,findDruidTree,DRUID_NODE_BY_ID,nodeRank,nodeRequirementsMet,branchLearnedCount} from './druid-tree.js';
 import {CLASS_PROFILES,CLASS_TREES,CLASS_SKILLS} from './class-skills.js';
-import {t,className,skillName,branchName,skillDescription} from './i18n.js';
+import {t,className,skillName,branchName,branchSubtitle,skillDescription,itemName,itemDetail,gearName} from './i18n.js';
 
 // The character window intentionally shares the existing in-game modal layer.
 export class CharacterMenu{
@@ -124,8 +124,8 @@ export class CharacterMenu{
   const label=item.consumable?'×'+quantity:'';
   return '<button type="button" class="char-item '+(this.selected===id?'is-selected ':'')+
     '" data-character-action="select" data-item="'+id+
-    '" title="'+item.name+'" aria-pressed="'+(this.selected===id)+'">'+
-    gameIcon(item.icon,'char-item-icon')+'<small>'+item.name+'</small><i>'+label+'</i></button>';
+    '" title="'+itemName(id,item.name)+'" aria-pressed="'+(this.selected===id)+'">'+
+    gameIcon(item.icon,'char-item-icon')+'<small>'+itemName(id,item.name)+'</small><i>'+label+'</i></button>';
  }
  gearMarkup(){
   const character=this.game.character;
@@ -133,8 +133,8 @@ export class CharacterMenu{
    const id=character.equipment[slot],item=ITEMS[id];
    return '<button type="button" class="char-equip-slot" data-character-action="select" data-item="'+
      (id||character.owned.find(value=>ITEMS[value]?.slot===slot)||'staff')+
-     '" title="'+name+'"><span class="char-equip-icon">'+gameIcon(item?.icon||'slot_plus')+
-     '</span><span><small>'+name+'</small><strong>'+(item?.name||t('free'))+'</strong></span></button>';
+     '" title="'+gearName(slot,name)+'"><span class="char-equip-icon">'+gameIcon(item?.icon||'slot_plus')+
+     '</span><span><small>'+gearName(slot,name)+'</small><strong>'+(item?itemName(id,item.name):t('free'))+'</strong></span></button>';
   });
   const bonuses=characterBonuses(character);
   const all=this.inventoryItems();
@@ -144,7 +144,7 @@ export class CharacterMenu{
    Object.entries({head:'head',weapon:'weapon',cloak:'cloak',boots:'boots'}).map(([slot,position])=>
     this.game.character.equipment[slot]?'<span class="char-figure-badge char-badge-'+position+'">'+
      gameIcon(ITEMS[this.game.character.equipment[slot]].icon)+'</span>':'').join('')+
-   '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?.name||t('withoutClothes'))+'</div></div>'+
+   '<div class="char-figure-label">'+(ITEMS[character.equipment.body]?itemName(character.equipment.body,ITEMS[character.equipment.body].name):t('withoutClothes'))+'</div></div>'+
    '<div class="char-equip-grid">'+slotButtons.join('')+'</div>'+
    '<div class="char-gear-summary">⚔ '+(10+this.game.player.level*3+bonuses.attack)+
    ' <span>✦ '+(CLASS_SKILLS[CLASS_PROFILES[this.game.player.classId].signature].power+this.game.player.level*3+bonuses.magic)+
@@ -166,7 +166,7 @@ export class CharacterMenu{
   const id=this.selected,item=ITEMS[id];
   if(!item)return '<div class="char-selection">'+t('inspectItem')+'</div>';
   const worn=item.slot&&this.game.character.equipment[item.slot]===id;
-  const info=item.slot?'<span class="char-tag">'+GEAR_SLOTS[item.slot]+'</span>':'';
+  const info=item.slot?'<span class="char-tag">'+gearName(item.slot,GEAR_SLOTS[item.slot])+'</span>':'';
   const equipAction=item.slot?'<button class="char-action" type="button" data-character-action="equip" data-item="'+id+
    '">'+(worn?t('unequip'):t('equipAction'))+'</button>':'';
   const slots=this.game.character.quickSlots.map((entry,i)=>
@@ -179,8 +179,8 @@ export class CharacterMenu{
    '<div class="char-assign-grid">'+slots+'</div></div>':'';
   const count=item.consumable||id==='wood'?' · '+t('inBag')+': '+itemQuantity(this.game,id):'';
   return '<div class="char-selection"><div class="char-selected-heading">'+gameIcon(item.icon)+
-   '<div><strong>'+item.name+'</strong>'+info+'</div></div>'+
-   '<p>'+item.detail+count+'</p><div class="char-selection-actions">'+equipAction+
+   '<div><strong>'+itemName(id,item.name)+'</strong>'+info+'</div></div>'+
+   '<p>'+itemDetail(id,item.detail)+count+'</p><div class="char-selection-actions">'+equipAction+
    '<button class="char-action char-action-outline" type="button" data-character-action="assign-start" data-item="'+id+
    '">'+t('quickAssign')+'</button></div>'+assignment+'</div>';
  }
