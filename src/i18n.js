@@ -15,7 +15,7 @@ const messages={
   graphicsNPC:'Графика NPC',graphicsDescription:'Пиксельные персонажи 48×48, как у главного героя. Четыре направления и кадры ходьбы.',
   pixelStyle:'Пиксельный стиль',zoom:'Масштаб камеры',daytime:'Время суток',night:'Ночь',day:'День',
   combatSound:'Звуки боя',on:'Включены',off:'Выключены',settingsSubtitle:'Настройки и управление',
-  atCampfire:'У костра',editor:'Открыть редактор карт',progressSaved:'Прогресс героя сохраняется на этом устройстве.',
+  atCampfire:'У костра',editor:'Открыть редактор карт',zoomOut:'Отдалить',zoomIn:'Приблизить',progressSaved:'Прогресс героя сохраняется на этом устройстве.',
   settingsHelp:'WASD / стрелки — движение; ЛКМ по земле — идти; ЛКМ по врагу — выбрать цель и атаковать; ЛКМ по NPC — подойти и поговорить; Пробел — основная атака; Q / R / F — способности; E — взаимодействовать; I — персонаж; 1–0 — быстрые ячейки; B — рюкзак; M — карта; J — журнал; Esc — закрыть; F2 — редактор мира.',
   chosenClass:'Выбран класс: {name}',ready:'Доступно',cast:'Применить способность',close:'Закрыть',
   equip:'Снаряжение',equipment:'Экипировка',stats:'Статистика',skills:'Способности',allItems:'Все предметы',
@@ -25,7 +25,7 @@ const messages={
   statsNote:'Показатели зависят от уровня персонажа и надетого снаряжения.',
   strength:'Ближняя атака',power:'Сила умения',armor:'Защита снаряжения',kills:'Побед над существами',
   coins:'Монеты',mainAttack:'Основная атака',melee:'Ближний бой',experience:'Опыт',health:'Здоровье',mana:'Мана',
-  unlocked:'Открыто · готово к использованию',skillEffect:'Эффект',recharge:'Перезарядка',
+  activeSkill:'Активное',unlocked:'Открыто · готово к использованию',skillEffect:'Эффект',recharge:'Перезарядка',
   relatedSkill:'Связанный узел',none:'нет',testAccess:'Тестовый доступ',
   unlockedNotice:'Все умения открыты для испытаний на тренировочном манекене.',
   paths:'Пути: {name}',allOpen:'Тест: всё открыто',treeHelp:'Все умения доступны. Выбери узел и нажми «Применить способность», или используй Q / R / F.',
@@ -49,7 +49,7 @@ const messages={
   hint:'I · персонаж и снаряжение; Пробел · атака; Q / R / F · способности; 1–0 · быстрые ячейки',
   chatFuture:'Общение с игроками появится позднее.',prototype:'ПРОТОТИП · 0.12',
   classChanged:'Выбран класс: {name}',practicalGraphic:'Изображения не содержат надписей',
-  noSkill:'Выбери противника или тренировочный манекен.',forestHint:'Лесные существа',
+  noSkill:'Выбери противника или тренировочный манекен.',forestHint:'Лесные существа',mainTitle:'Тихолесье',mapWorld:'Мир Тихолесья',mapCanvas:'Карта мира',mapNote:'Светлый крест — ты · золотые точки — жители; красные точки — монстры · страж на северо-востоке',
   localeRu:'Русский',localeEn:'English'
  },
  en:{
@@ -61,7 +61,7 @@ const messages={
   graphicsNPC:'NPC graphics',graphicsDescription:'48×48 pixel characters, matching the hero. Four directions with walking animations.',
   pixelStyle:'Pixel art',zoom:'Camera zoom',daytime:'Time of day',night:'Night',day:'Day',
   combatSound:'Combat sounds',on:'Enabled',off:'Disabled',settingsSubtitle:'Settings and controls',
-  atCampfire:'At the Campfire',editor:'Open World Editor',progressSaved:'Your character progress is saved on this device.',
+  atCampfire:'At the Campfire',editor:'Open World Editor',zoomOut:'Zoom out',zoomIn:'Zoom in',progressSaved:'Your character progress is saved on this device.',
   settingsHelp:'WASD / arrows — move; Click ground — walk; Click an enemy — target and attack; Click an NPC — approach and talk; Space — basic attack; Q / R / F — abilities; E — interact; I — character; 1–0 — quick slots; B — backpack; M — map; J — journal; Esc — close; F2 — world editor.',
   chosenClass:'Selected class: {name}',ready:'Available',cast:'Cast ability',close:'Close',
   equip:'Equipment',equipment:'Equipment',stats:'Stats',skills:'Abilities',allItems:'All items',
@@ -71,7 +71,7 @@ const messages={
   statsNote:'Stats depend on your character level and equipped gear.',
   strength:'Melee damage',power:'Ability power',armor:'Equipment armor',kills:'Monsters defeated',
   coins:'Coins',mainAttack:'Primary attack',melee:'Melee',experience:'Experience',health:'Health',mana:'Mana',
-  unlocked:'Unlocked · ready to use',skillEffect:'Effect',recharge:'Cooldown',
+  activeSkill:'Active',unlocked:'Unlocked · ready to use',skillEffect:'Effect',recharge:'Cooldown',
   relatedSkill:'Prerequisite',none:'none',testAccess:'Playtest access',
   unlockedNotice:'All abilities are unlocked so you can try them on the training dummy.',
   paths:'Paths: {name}',allOpen:'Playtest: all unlocked',treeHelp:'All skills are available. Select a node and press “Cast ability”, or use Q / R / F.',
@@ -95,7 +95,7 @@ const messages={
   hint:'I · character & equipment; Space · attack; Q / R / F · skills; 1–0 · hotbar',
   chatFuture:'Player chat is coming later.',prototype:'PROTOTYPE · 0.12',
   classChanged:'Selected class: {name}',practicalGraphic:'Images must not contain text',
-  noSkill:'Select an enemy or the training dummy.',forestHint:'Forest creatures',
+  noSkill:'Select an enemy or the training dummy.',forestHint:'Forest creatures',mainTitle:'Quietwood',mapWorld:'World of Quietwood',mapCanvas:'World map',mapNote:'White cross — you; golden dots — villagers; red dots — monsters; guardian to the northeast',
   localeRu:'Русский',localeEn:'English'
  }
 };
