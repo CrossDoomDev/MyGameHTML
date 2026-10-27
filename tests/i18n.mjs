@@ -15,7 +15,7 @@ assert.equal(t('menu'),'МЕНЮ');
 assert.equal(className('druid','Друид'),'Друид');
 assert.equal(t('skills'),'Способности');
 const image={src:'assets/icon.png',backgroundImage:'url(assets/frame.png)'};
-const mock=(key,text='')=>({dataset:key,textContent:text,title:'',attributes:{},
+const mock=(key,text='')=>({dataset:{i18n:key},textContent:text,title:'',attributes:{},
  setAttribute(k,v){this.attributes[k]=v}});
 const menu=mock('menu'),label=mock('menu'),aria=mock('character');
 const doc={
