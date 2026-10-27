@@ -41,7 +41,8 @@ export class UI{
   buttons.forEach((button,index)=>{
    const id=profile.keys[index],skill=CLASS_SKILLS[id];
    if(!skill)return;
-   button.dataset.skill=id;button.title=(['Q','R','F'][index])+' · '+skillName(id,skill.name)+' · '+skill.mana+' '+t('mana');
+   button.dataset.skill=id;button.title=(['Q','R','F'][index])+' · '+skillName(id,skill.name)+' · '+skill.mana+' '+t('mana')+
+    (index===0&&skill.range>1?' · '+t('selectRangedAttackHint'):'');
    button.setAttribute?.('aria-label',skillName(id,skill.name));
    // Use a generated class-branch icon for non-druid characters.
    const branchIndex=this.g.currentSkills().findIndex(n=>n.id===id);
@@ -59,7 +60,7 @@ export class UI{
   this.updatePrimaryAttack();
  }
  updatePrimaryAttack(){
-  const useBolt=this.g.player.classId==='druid'&&this.g.primaryAttackMode==='bolt';
+  const useBolt=this.g.primaryAttackMode==='bolt';
   const staff=document.querySelector?.('[data-quick-id="weapon"]')||
    (document.getElementById('primaryStaff')?.dataset.quickId==='weapon'?document.getElementById('primaryStaff'):null);
   const bolt=document.getElementById('skill-bolt');
@@ -70,7 +71,7 @@ export class UI{
   }
   const mobile=document.getElementById('mobileAttack');
   if(mobile)mobile.setAttribute?.('aria-label',
-   t('primaryAttackHint',{name:useBolt?skillName('bolt','Изумрудный луч'):weaponName(this.g.player.classId,CLASS_PROFILES[this.g.player.classId].weapon)}));
+   t('primaryAttackHint',{name:useBolt?skillName(CLASS_PROFILES[this.g.player.classId].signature,CLASS_SKILLS[CLASS_PROFILES[this.g.player.classId].signature].name):weaponName(this.g.player.classId,CLASS_PROFILES[this.g.player.classId].weapon)}));
  }
  renderQuickbar(){
   const slots=this.g.character?.quickSlots;
