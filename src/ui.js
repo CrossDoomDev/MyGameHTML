@@ -2,7 +2,7 @@ import {DRUID_SKILLS,skillRemaining} from './druid-skills.js';
 import {CLASS_PROFILES,CLASS_SKILLS,skillColor} from './class-skills.js';
 import {ITEMS,equipCharacterItem,itemQuantity,gameIcon} from './character-data.js';
 import {CharacterMenu} from './character-menu.js';
-import {language,setLanguage,t,className,skillName,weaponName,translateStatic} from './i18n.js';
+import {language,setLanguage,t,className,classStyle,itemName,skillName,weaponName,translateStatic} from './i18n.js';
 export class UI{
  constructor(game){
   this.g=game;this.open=false;this.panel=document.getElementById('panel');this.backdrop=document.getElementById('panelBackdrop');this.toastEl=document.getElementById('toast');this.lastUpdate=-999;
@@ -84,7 +84,7 @@ export class UI{
    button.dataset.quickId=id||'';
    button.classList.toggle('empty-slot',!id);
    button.classList.toggle('primary-attack',id==='weapon'&&this.g.primaryAttackMode==='staff');
-   button.title=(item?.name||t('free'))+' · '+(i===9?'0':i+1);
+   button.title=(item?itemName(id,item.name):t('free'))+' · '+(i===9?'0':i+1);
    button.setAttribute?.('aria-label',button.title);
    button.innerHTML='<kbd>'+(i===9?'0':i+1)+'</kbd>'+
     gameIcon(icon,'quick-icon')+
@@ -238,7 +238,7 @@ export class UI{
    '<button type="button" class="class-choice '+(selected===id?'is-selected':'')+
    '" data-class-choice="'+id+'" aria-pressed="'+(selected===id)+'">'+
    '<span class="class-choice-image" data-class="'+id+'" aria-hidden="true"></span>'+
-   '<strong>'+className(id,profile.name)+'</strong><small>'+profile.style+'</small></button>').join('');
+   '<strong>'+className(id,profile.name)+'</strong><small>'+classStyle(id,profile.style)+'</small></button>').join('');
   const classPanel='<section class="setting-class-choice"><h3>'+t('classPicker')+'</h3>'+
    '<p class="note">'+t('classHelp')+'</p>'+
    '<div class="class-choice-grid">'+classButtons+'</div></section>';
@@ -249,8 +249,8 @@ export class UI{
     '" data-locale="'+id+'" aria-pressed="'+(language()===id)+'">'+label+'</button>').join('')+
    '</span></div>';
   const zoom='<div class="setting-row"><span>'+t('zoom')+'</span><span>'+
-   '<button id="zoomOut" class="button" aria-label="Zoom out">−</button> '+
-   '<button id="zoomIn" class="button" aria-label="Zoom in">+</button></span></div>';
+   '<button id="zoomOut" class="button" aria-label="'+t('zoomOut')+'">−</button> '+
+   '<button id="zoomIn" class="button" aria-label="'+t('zoomIn')+'">+</button></span></div>';
   const time='<div class="setting-row"><span>'+t('daytime')+'</span>'+
    '<button id="daytime" class="button">'+t(this.g.night?'night':'day')+'</button></div>';
   const sound='<div class="setting-row"><span>'+t('combatSound')+'</span>'+
